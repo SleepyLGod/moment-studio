@@ -1,37 +1,41 @@
-# Sites + GitHub Pages
+# 一个 repo：Sites、Pages 与 Go
 
-采用两个网站、两种用途，共享品牌和经过挑选的公开演示素材。
+同一个 `moment-studio` repo 保存前端与后续 Go 业务代码。Sites 和 GitHub Pages 使用同一套界面：Pages 是示例数据模式，Sites 是计划接入真实图库的入口。Go 是唯一的图库业务服务，部署位置可独立选择。
 
-| 部分 | 用途 | 当前状态 |
+## 当前状态
+
+| 部分 | 用途 | 已实现状态 |
 | --- | --- | --- |
-| moment-studio 私有仓库 | 完整工作台源码、修改历史、构建检查 | 本轮整理并推送 |
-| Sites | 私人工作台的主要托管位置 | 有早期私有版本；当前英文新版尚未部署 |
-| GitHub Pages | 公开介绍、示例效果、进入工作台的链接 | 建议独立展示项目；尚未创建或发布 |
+| moment-studio 私有仓库 | 源码、修改历史与构建检查 | 已有仓库；本地文档修改不等于已推送 |
+| Sites | 工作台入口 | 有早期所有者私有版本；当前英文新版尚未部署 |
+| GitHub Pages | 同一前端的示例模式 | 尚未配置或发布 |
+| Go、数据库与对象存储 | 真实图库业务和持久化 | 架构草案阶段，尚未实现或部署 |
 
-## Sites：工作台
+现有 Sites project_id 保留在 `.openai/hosting.json`，当前配置仅为静态 `dist/`。
 
-现有项目身份保留在 `.openai/hosting.json`。静态构建输出是 `dist/`。
+现有地址：<https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site>。访问限制保持不变。源码提交或推送不会自动更新这个地址。
 
-现有地址：<https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site>
+## Pages 示例模式
 
-该地址目前限制为所有者访问。公开展示页链接到这里，不会自动让访客获得工作台访问权限；需要分享时，再调整 Sites 的访问名单。
+计划从本仓库构建 Pages 项目页，示例路径为 `https://sleepylgod.github.io/moment-studio/`。这只是预期地址，目前未发布；现有个人主页保留。
 
-新版源代码推到 GitHub 不会自动更新 Sites。发布时仍需要由 Sites 保存和部署对应的源代码版本；不能把 GitHub commit 当成已部署证明。
+Pages 使用同一套图库、拼图和 Style Lab 界面及示例素材，不接生产图库或生产写接口。发布前需处理项目子路径下的图片和字体地址，并确认当前 GitHub 套餐支持从此私有仓库发布 Pages。若权限不足，先报告限制，不另建第二个仓库。
 
-## GitHub Pages：展示页
+## 计划中的 Go 部署
 
-保留现有个人主页 <https://sleepylgod.github.io/>。
+| 模式 | 路径 | 要求 |
+| --- | --- | --- |
+| 本地／Docker | 本地前端 → Go → PostgreSQL／照片持久目录 | 本机访问；本地开发身份不得用于公网 |
+| 纯云端 | Sites → 云端 Go → PostgreSQL／自有对象存储 | 独立主机与正式鉴权，电脑关机后仍可用 |
+| 自己账户的 Cloudflare Containers | Sites → Cloudflare 容器入口 → Go | 需 Workers Paid 和单独配置；数据库与照片不能依赖临时磁盘 |
+| Sites + 本机 Go | Sites → 可达且鉴权的 HTTPS 地址 → 本机 Go | 需要额外网络接入；不能直接访问用户电脑的 localhost，电脑离线即不可用 |
 
-推荐后续单独建立公开展示仓库，例如 `moment-showcase`。项目页可以使用 `https://sleepylgod.github.io/moment-showcase/`，无需替换个人主页。这是建议地址，目前并未发布。
+Cloudflare Containers 与 Sites 管理的 Workers 环境是两个部署边界。目前没有已确认的流程把 Go 容器直接部署进现有 Site。
 
-展示页只包含介绍、挑选的演示图和 Sites 入口，不包含真实照片、图库备份、API 密钥或账户数据。默认按公开网站设计；私有源码仓库不代表 Pages 网页也私有。
+具体职责、身份传递、数据恢复与实施顺序见 [Sites + Go 设计草案](docs/superpowers/specs/2026-11-02-sites-go-gallery-design.md)。
 
-如果希望完整源码保持私有，而展示网站对外公开，可以把展示素材放在单独的公开仓库。这样不依赖私人仓库发布 Pages 的套餐资格。
+## 数据状态
 
-## 数据与同步
+当前照片、相册和 Style 仍在浏览器 IndexedDB；不同网址不会自动同步。规划中的 Go 接口将使用按资源的持久化操作，不直接将整个前端 state JSON 当成云图库。
 
-当前工作台仍是浏览器本地原型。照片、相册、Style 配方在当前网址的 IndexedDB 中；localhost、Sites 和 GitHub Pages 是不同来源，不会自动共享这些记录。
-
-Sites 部署当前界面也不会自动得到几十 GB 云图库或实时 AI 服务。真正的照片存储、登录后的持久化、AI 模型和公开相册发布机制，需要后续接入。
-
-源码仓库、网站托管、公开展示和图库存储是四个可独立维护的部分。
+本仓库不存放真实照片、图库备份或服务密钥。原图、缩略图、衍生图、数据库备份和代码版本需要各自的持久化与恢复流程。
