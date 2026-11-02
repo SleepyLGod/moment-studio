@@ -1,0 +1,4 @@
+const DB_NAME = 'moment-studio-prototype-v1';
+function openDatabase(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore('state');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+export async function readSavedState(){const db=await openDatabase();try{return await new Promise((resolve,reject)=>{const tx=db.transaction('state');const req=tx.objectStore('state').get('workbench');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}finally{db.close();}}
+export async function persistState(value){const db=await openDatabase();try{await new Promise((resolve,reject)=>{const tx=db.transaction('state','readwrite');tx.objectStore('state').put(value,'workbench');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Storage transaction aborted'));});}finally{db.close();}}
