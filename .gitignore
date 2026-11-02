@@ -2,3 +2,15 @@ node_modules/
 dist/
 .sites/
 .DS_Store
+
+# Local design tools are optional, never needed to run the app.
+.agents/skills/design-taste-frontend/
+.agents/skills/impeccable/
+.taste-skill/
+.impeccable/
+
+# Local credentials and runtime files.
+.env
+.env.*
+!.env.example
+*.log

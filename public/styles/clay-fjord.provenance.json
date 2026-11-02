@@ -1,0 +1,15 @@
+{
+  "kind": "AI-generated style demo derivative",
+  "generator": "built-in image_gen",
+  "canonical_recipe": "将照片重绘为黏土定格动画场景，保留主体与构图，圆润手工造型、可见黏土纹理与柔和自然光。",
+  "actual_prompt": "Use case: style-transfer.\nAsset type: standalone wide AI style demo image for a photo styling app.\nInput images: Image 1 is the ONLY edit target, the original fjord photograph. Image 2 is an approved interface concept, provided ONLY as supporting style guidance: refer to the small clay miniature fjord thumbnail in its lower middle. Do not reproduce any interface or the paper-cut scene in Image 2.\nPrimary request: 将照片重绘为黏土定格动画场景，保留主体与构图，圆润手工造型、可见黏土纹理与柔和自然光。\nTransform the entire original fjord photograph into an artisan clay stop-motion miniature. Every visible surface must become tangible, hand molded colored modeling clay, with subtle fingerprints, pressed clay tool marks, rounded mountain ridges, layered moss-green hills, grey-green clay cliffs, dark teal clay water, and softly sculpted ivory clay clouds. Preserve the original photograph's recognizable mountains, fjord contours, snow accents, foreground rocks, elevated viewpoint, horizon and composition. Water should read as smoothly worked clay with gently pressed ripples. Soft miniature studio daylight and small natural shadows reveal material depth. This must be a radical material transformation into a physical clay miniature, not a photo with a color filter.\nComposition/framing: output only a full-bleed landscape image matching Image 1's very wide 2.145:1 aspect ratio, about 1836x856 or nearest supported size.\nConstraints: no interface, no words, no labels, no split comparison, no frame, no border, no watermark. Do not include the app or any user interface from Image 2. Opaque background.",
+  "referenced_image_paths": [
+    "public/photos/fjord-demo.png",
+    "workspace-reference/outputs/prompt-style-lab/concept.png"
+  ],
+  "generated_original_path": "generated-image-reference/01a19b98-42f8-7661-b6f6-81ba3fc48113/exec-5b4f3d96-c655-46a5-bed8-289e56d40210.png",
+  "accepted_output_path": "public/styles/clay-fjord.png",
+  "width": 1836,
+  "height": 856,
+  "inspection": "Accepted: fully clay material, fjord and elevated viewpoint preserved, no interface, words, border or watermark. Composition preserved visually, not pixel-identical."
+}

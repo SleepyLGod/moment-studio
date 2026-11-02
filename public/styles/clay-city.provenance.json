@@ -1,0 +1,15 @@
+{
+  "kind": "AI-generated style demo derivative",
+  "generator": "built-in image_gen",
+  "canonical_recipe": "将照片重绘为黏土定格动画场景，保留主体与构图，圆润手工造型、可见黏土纹理与柔和自然光。",
+  "actual_prompt": "Use case: style-transfer.\nAsset type: standalone AI style demo derivative for a photo styling app.\nInput images: Image 1 is the ONLY edit target, the original elevated city and lake photograph. Image 2 is a supporting MATERIAL STYLE reference only, a fjord recreated entirely in handmade colored clay. Apply the same clay material language to the city, without copying the fjord subject or its wide aspect ratio.\nPrimary request: 将照片重绘为黏土定格动画场景，保留主体与构图，圆润手工造型、可见黏土纹理与柔和自然光。\nRecreate Image 1 as a physical artisan clay stop-motion miniature city. Preserve the source skyline, arrangement and relative heights of the buildings, elevated camera viewpoint, shoreline, lake horizon, street pattern, and the broad warm evening sky. The skyscrapers, shorter buildings, streets, lake and sky must all be visibly hand molded colored modeling clay: softened edges, subtle fingerprints and tool impressions, tiny pressed window grids, tactile matte surfaces and small natural shadows. Keep recognizable dark tall towers on the right, the lake beyond and to the right, and the source's warm cream-to-peach sky transitioning into dusty blue. Lighting is soft natural golden hour miniature studio daylight. Rich material detail consistent with Image 2. A radical conversion into a clay diorama, not a photographic color filter.\nComposition/framing: preserve Image 1's 9:7 landscape aspect ratio, e.g. 1152x896 or nearest supported size. Full bleed standalone scene.\nConstraints: no interface, no words, no readable signs, no labels, no split comparison, no frame, no border, no watermark. Opaque background.",
+  "referenced_image_paths": [
+    "public/photos/1067.jpg",
+    "public/styles/clay-fjord.png"
+  ],
+  "generated_original_path": "generated-image-reference/01a19b98-42f8-7661-b6f6-81ba3fc48113/exec-69b0220b-510a-4287-943b-28549be80154.png",
+  "accepted_output_path": "public/styles/clay-city.png",
+  "width": 1422,
+  "height": 1106,
+  "inspection": "Accepted: tactile clay material and city/lake skyline preserved visually, no interface, words, border or watermark. Same 9:7 aspect ratio. Clouds added by generator, composition not pixel-identical."
+}

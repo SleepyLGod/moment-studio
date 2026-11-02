@@ -1,0 +1,15 @@
+{
+  "kind": "AI-generated style demo derivative",
+  "generator": "built-in image_gen",
+  "canonical_recipe": "将照片重绘为黏土定格动画场景，保留主体与构图，圆润手工造型、可见黏土纹理与柔和自然光。",
+  "actual_prompt": "Use case: style-transfer.\nAsset type: standalone AI style demo derivative for a photo styling app.\nInput images: Image 1 is the ONLY edit target, the original pour-over coffee photograph. Image 2 is a supporting MATERIAL STYLE reference only, a fjord recreated entirely in handmade colored clay. Apply the same clay material language to the coffee scene, without copying the fjord subject, palette or wide aspect ratio.\nPrimary request: 将照片重绘为黏土定格动画场景，保留主体与构图，圆润手工造型、可见黏土纹理与柔和自然光。\nRecreate Image 1 as an artisan handmade clay stop-motion miniature. Preserve the photograph's arrangement and camera viewpoint: central hourglass pour-over coffee brewer with dark coffee in the lower bulb, brown collar and dangling cord, folded ivory filter above; a rounded gooseneck pouring kettle held by a hand at the upper right, its curved spout and falling water drops aimed into the filter; the secondary brewer behind right, small cup at lower left, dark foreground shapes and window-lit cafe background. Every object must be visibly recreated from hand molded colored modeling clay, including glass-like areas interpreted as light translucent or pale clay forms with dark coffee visible as a clay layer. Rounded tactile forms, subtle fingerprints, pressed tool marks, slightly irregular hand made edges, matte surfaces and small natural shadows. The kettle is metallic-grey clay with a black clay knob. Soft natural window lighting and the original calm dark teal, charcoal, ivory and warm coffee browns. A radical physical clay scene, not a photographic filter.\nComposition/framing: preserve Image 1's 9:7 landscape aspect ratio, about 1422x1106 or nearest supported size. Full bleed standalone scene.\nConstraints: no interface, no words, no readable signs, no labels, no split comparison, no frame, no border, no watermark. Opaque background.",
+  "referenced_image_paths": [
+    "public/photos/1060.jpg",
+    "public/styles/clay-fjord.png"
+  ],
+  "generated_original_path": "generated-image-reference/01a19b98-42f8-7661-b6f6-81ba3fc48113/exec-18300ad3-83a8-4f39-9437-8118ddf9242d.png",
+  "accepted_output_path": "public/styles/clay-coffee.png",
+  "width": 1422,
+  "height": 1106,
+  "inspection": "Accepted: clay material across kettle, brewer, hand and background; central brewer, pouring kettle and source composition preserved visually; no interface, words, border or watermark. Exact 9:7 aspect ratio. Not pixel-identical."
+}

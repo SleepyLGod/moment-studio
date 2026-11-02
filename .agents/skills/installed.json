@@ -1,0 +1,20 @@
+{
+  "scope": "project",
+  "installed": [
+    {
+      "name": "design-taste-frontend",
+      "repository": "https://github.com/Leonxlnx/taste-skill",
+      "path": "skills/taste-skill",
+      "revision": "12af471f627f866411b4bd785b19646d3672784c"
+    },
+    {
+      "name": "impeccable",
+      "repository": "https://github.com/pbakaus/impeccable",
+      "path": ".agents/skills/impeccable",
+      "revision": "e89e3ada3e875a89ac2c5d33d11e65ebef6fe285"
+    }
+  ],
+  "existing_reference": "ui-ux-pro-max (external, manually invoked)",
+  "global_changes": false,
+  "automatic_hooks": false
+}

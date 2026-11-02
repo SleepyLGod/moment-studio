@@ -1,0 +1,13 @@
+{
+  "asset": "paper-city.png",
+  "usage": "Pre-generated static demonstration asset; not live prompt processing.",
+  "generation_tool": "built-in image_gen",
+  "generated_image_path": "generated-image-reference/01a19b97-df28-75a0-8928-2b85b54c8553/exec-4142fcbc-ba9c-4988-badd-cb6ed31b741c.png",
+  "original_source_path": "public/photos/1067.jpg",
+  "supporting_style_reference_path": "public/styles/paper-fjord.png",
+  "canonical_style_description": "将照片重绘为层叠纸雕，保留主体与构图，深蓝与苔绿配色，纸张纤维清晰，柔和侧光。",
+  "width": 1422,
+  "height": 1106,
+  "aspect_ratio": "9:7 (matching source)",
+  "prompt": "Use case: style-transfer.\nAsset type: standalone pre-generated static demonstration image for a photo workbench.\nPrimary request: 将照片重绘为层叠纸雕，保留主体与构图，深蓝与苔绿配色，纸张纤维清晰，柔和侧光。\nInput images: Image 1 is the edit target: the aerial city skyline photograph in golden late-afternoon light. Image 2 is only the visual style and material reference: accepted rich layered paper sculpture landscape. Transfer its paper craftsmanship, texture, colors, and warm side lighting onto the city in Image 1. Do not transfer the fjord subject or its mountains.\nRe-render the entire original city scene as an intricate handcrafted dimensional cut-paper sculpture. Preserve the exact elevated viewpoint, skyline and buildings, original street arrangement, coastline, lake on the right horizon, broad sky above, and city perspective receding toward the left horizon. Preserve the arrangement and silhouettes of the foreground buildings and tall dark towers on the right half. Keep the actual source 9:7 aspect ratio, target 1800 x 1400 or nearest supported size.\nStyle/medium: the same rich layered paper sculpture as Image 2. Precisely cut and subtly torn fibrous paper planes form the buildings and streets, with visible thickness, overlaps, raised edges, roof planes, window grids made from tiny cut paper shapes, deep dimensional paper shadows, and handmade natural crinkles. Use muted moss green, olive, dark navy/deep blue and warm ivory paper for the buildings, warm ivory golden sky, and subtle blue paper lake. Soft warm side light from the left illuminates paper edges and creates believable physical depth. The result must clearly look like an actual crafted paper city relief photographed with tactile fibers, not a color filter, flat illustration, painting, or photographic texture overlay.\nConstraints: Only the transformed CITY artwork, edge-to-edge. No mountains or fjord. No user interface, comparison divider, split line, slider, labels, captions, writing, words, text, frame, watermark or logo. Do not invent new focal objects or relocate the skyline. Preserve Image 1 subject and composition."
+}

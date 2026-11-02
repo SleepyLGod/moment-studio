@@ -1,10 +1,78 @@
-import React,{useEffect,useState} from 'react';
-import {ArrowLeft,Check,Download,Folder,ImagePlus,Loader2,Plus,Sparkles,CheckCheck,ChevronsLeftRight} from 'lucide-react';
-import {Button,PhotoCard,SelectionBar} from './components';
-import {CATEGORIES,STYLES,styleFor,photoSrc} from './data';
-import {renderCollage,downloadFile} from './imaging';
-export function Gallery({photos,selected,onToggle,onPreview,onFavorite,filter,setFilter,onStyles,onCollage,onAlbum,onCategory,onClear,onUpload}){const visible=photos.filter(p=>filter==='全部照片'||(filter==='收藏'?p.favorite:p.category===filter));return <><div className="category-tabs" role="tablist" aria-label="照片分类">{['全部照片','旅行','城市','自然','日常','人像','待分类','收藏'].map(c=><button role="tab" aria-selected={filter===c} className={filter===c?'active':''} key={c} onClick={()=>setFilter(c)}>{c}{c==='待分类'&&photos.some(p=>p.category===c)&&<span className="dot"/>}</button>)}</div><SelectionBar count={selected.size} onClear={onClear} onStyles={onStyles} onCollage={onCollage} onAlbum={onAlbum} onCategory={onCategory}/><div className="gallery-meta"><span>{visible.length} 张照片{filter!=='全部照片'?` · ${filter}`:''}</span><button className="text-button" onClick={()=>visible.forEach(p=>{if(!selected.has(p.id))onToggle(p.id);})}>选择当前分类</button></div><div className="photo-grid">{visible.map(p=><PhotoCard key={p.id} photo={p} selected={selected.has(p.id)} onToggle={onToggle} onPreview={onPreview} onFavorite={onFavorite}/>)}</div>{!visible.length&&<div className="empty-state"><Folder size={36}/><h3>这里还没有照片</h3><p>导入一组示例，或者给已有照片设置这个分类。</p><Button onClick={onUpload}>导入示例照片</Button></div>}</>;}
-export function CategoriesView({photos,onBrowse,onClassify,onManual,selected}){const pending=photos.filter(p=>p.category==='待分类');return <div className="categories-view"><div className="feature-note"><Sparkles size={19}/><div><strong>先整理，再慢慢创作。</strong><p>示例照片可以按附带标签分类；自己上传的照片，可手动指定分类。</p></div><Button variant="primary" icon={CheckCheck} onClick={onClassify} disabled={!pending.some(p=>p.demoCategory)}>整理示例照片</Button></div>{pending.length>0&&<div className="pending-strip">有 {pending.length} 张照片待分类。{selected.size>0&&<button className="text-button" onClick={onManual}>给选中的 {selected.size} 张分类</button>}</div>}<div className="category-collections">{CATEGORIES.map(c=>{const items=photos.filter(p=>p.category===c);return <button className="category-collection" key={c} onClick={()=>onBrowse(c)}><div className="category-mosaic">{items.slice(0,4).map(p=><img key={p.id} src={photoSrc(p)} alt={p.name}/>)}{items.length===0&&<Folder size={32}/>}</div><span><strong>{c}</strong><small>{items.length} 张照片</small></span></button>;})}</div><p className="section-note">这是示例标签演示，没有把照片发送给识图模型。</p></div>;}
-export function StylesView({photos,onApply,busy,progress,onChoose}){const [style,setStyle]=useState('film'),[split,setSplit]=useState(50);const first=photos[0];return <div className="styles-view"><div className="editor-topline"><span>{photos.length?`本次处理 ${photos.length} 张照片`:'先选几张照片'}</span><button className="text-button" onClick={onChoose}>重新选择</button></div>{first?<><div className="comparison"><img src={first.src} alt={`${first.name}原片`}/><div className="comparison-overlay" style={{clipPath:`inset(0 0 0 ${split}%)`}}><img src={first.src} alt={`${styleFor(style).name}预览`} style={{filter:styleFor(style).filter}}/></div><span className="comparison-tag original-tag">原片</span><span className="comparison-tag styled-tag">{styleFor(style).name}</span><div className="comparison-line" style={{left:`${split}%`}}><span><ChevronsLeftRight size={18}/></span></div><input aria-label="原片与风格版对照" type="range" min="0" max="100" value={split} onChange={e=>setSplit(Number(e.target.value))}/></div><p className="comparison-help">左右拖动，看看另一种感觉。</p><div className="style-options">{STYLES.map(s=><button key={s.id} className={`style-option ${style===s.id?'active':''}`} onClick={()=>setStyle(s.id)} aria-pressed={style===s.id}><img src={first.src} alt="" style={{filter:s.filter}}/><span><strong>{s.name}</strong><small>{s.subtitle}</small></span>{style===s.id&&<Check size={17}/>}</button>)}</div><div className="editor-bottom"><p>浏览器效果预览，未接入 AI 重绘。<br/>原片始终保留，柔彩版会生成色块化效果。</p><Button variant="primary" icon={busy?Loader2:Sparkles} onClick={()=>onApply(style)} disabled={busy}>{busy?`正在处理 ${progress}/${photos.length}`:`应用到 ${photos.length} 张照片`}</Button></div><div className="selection-filmstrip">{photos.map(p=><img key={p.id} src={photoSrc(p)} alt={p.name}/>)}</div></>:<div className="empty-state"><Sparkles size={36}/><h3>选几张照片，一起换个风格</h3><Button onClick={onChoose}>去选择照片</Button></div>}</div>;}
-export function CollageView({photos,onChoose,onSave,toast}){const [layout,setLayout]=useState('editorial'),[gap,setGap]=useState(18),[title,setTitle]=useState('把风景，收进一页里。'),[background,setBackground]=useState('#f7f4ed'),[result,setResult]=useState(null),[rendering,setRendering]=useState(false);const max=layout==='editorial'?3:layout==='nine'?9:layout==='strip'?6:4;const items=photos.slice(0,max);useEffect(()=>{let live=true;setRendering(true);renderCollage(items,{layout,gap,title,background}).then(value=>{if(live)setResult(value);}).catch(error=>{if(live){setResult(null);toast(error.message);}}).finally(()=>{if(live)setRendering(false);});return()=>{live=false;};},[photos,layout,gap,title,background]);return <div className="collage-editor"><div className="collage-stage">{result?<img src={result} alt="当前拼图预览"/>:<div className="empty-state"><ImagePlus size={36}/><h3>{photos.length?'正在生成拼图':'先选几张照片'}</h3>{!photos.length&&<Button onClick={onChoose}>去选择照片</Button>}</div>}{rendering&&result&&<span className="rendering-note"><Loader2 size={13}/>更新中</span>}</div><aside className="collage-settings"><h3>让照片待在一起</h3><label className="field">拼图布局<select value={layout} onChange={e=>setLayout(e.target.value)}><option value="editorial">杂志拼贴 · 最多 3 张</option><option value="grid">四宫格 · 最多 4 张</option><option value="nine">九宫格 · 最多 9 张</option><option value="strip">横向长卷 · 最多 6 张</option></select></label><label className="field">留白 <span>{gap}px</span><input type="range" min="0" max="48" value={gap} onChange={e=>setGap(Number(e.target.value))}/></label><div className="field">底色<div className="color-choices">{[['#f7f4ed','纸白'],['#ffffff','纯白'],['#22262d','深灰']].map(([color,name])=><button key={color} aria-label={name} aria-pressed={background===color} className={background===color?'chosen':''} style={{background:color}} onClick={()=>setBackground(color)}>{background===color&&<Check size={16} color={color==='#22262d'?'white':'#282d38'}/>}</button>)}</div></div><label className="field">加一句话 <span>可留空</span><input value={title} maxLength={40} onChange={e=>setTitle(e.target.value)} placeholder="写下这一页的名字"/></label><p className="section-note">使用选中的前 {items.length} 张照片{photos.length>max?`，其余 ${photos.length-max} 张保留在选择中`:''}。<button className="text-button" onClick={onChoose}>重新选择</button></p><Button icon={Download} variant="primary" disabled={!result||rendering} onClick={()=>{downloadFile(result,`${title||'片刻拼图'}.jpg`);toast('已发起 JPG 下载，请查看浏览器下载列表');}}>下载拼图</Button><Button icon={Plus} disabled={!result||rendering} onClick={()=>onSave(result,title)}>保存并加入相册</Button></aside></div>;}
-export function AlbumsView({albums,photos,onOpen,onCreate}){return <><div className="albums-intro"><p>同一张照片，不同的故事。<br/>自由组合，原片不需要复制。</p><Button icon={Plus} onClick={onCreate}>用所选照片新建</Button></div><div className="album-grid">{albums.map(a=>{const items=a.photoIds.map(id=>photos.find(p=>p.id===id)).filter(Boolean);return <button className="album-card" key={a.id} onClick={()=>onOpen(a.id)}><div className="album-cover">{items.slice(0,3).map((p,i)=><img key={p.id} className={`album-img-${i}`} src={photoSrc(p)} alt={p.name}/>)}{!items.length&&<Folder size={36}/>}</div><div><h3>{a.title||'未命名相册'}</h3><span>{items.length} 张照片</span></div><p>{a.note||'还没有写下文字，照片本身也很好。'}</p></button>;})}</div></>;}
+import React, {useEffect, useMemo, useState} from 'react';
+import {Check, ChevronDown, Columns3, Download, Folder, Grid2X2, Grid3X3, Info, Loader2, PanelsTopLeft, Shuffle, SlidersHorizontal} from 'lucide-react';
+import {Button, PhotoCard, SelectionDock} from './components';
+import {CATEGORIES, categoryLabel, photoCount, photoSrc} from './data';
+import {downloadFile, renderCollage} from './imaging';
+
+export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo}) {
+  const visible=photos.filter(p=>filter==='all'||p.category===filter);
+  return <>
+    <div className="section-title"><h1>Library</h1><span className="title-meta">{photoCount(photos.length)}</span></div>
+    <div className="library-controls">
+      <div className="text-tabs" role="tablist" aria-label="Library view">
+        <button role="tab" className={tab==='photos'?'active':''} aria-selected={tab==='photos'} onClick={()=>setTab('photos')}>Photos</button>
+        <button role="tab" className={tab==='albums'?'active':''} aria-selected={tab==='albums'} onClick={()=>setTab('albums')}>Albums</button>
+      </div>
+      {tab==='photos'?<div className="library-actions">
+        <select aria-label="Photo category" value={filter} onChange={e=>setFilter(e.target.value)}>
+          <option value="all">All</option>{CATEGORIES.map(c=><option key={c} value={c}>{categoryLabel(c)}</option>)}
+        </select>
+        <button className="text-button" onClick={()=>{if(selecting){onClear();setSelecting(false);}else setSelecting(true);}}>{selecting?'Done':'Select'}</button>
+      </div>:<div className="library-actions"><button className="text-button" onClick={onOrganize}>Group</button><button className="text-button" onClick={()=>onAlbum(true)}>New album</button></div>}
+    </div>
+    {tab==='photos'?<>
+      <div className="photo-grid">{visible.map(p=><PhotoCard key={p.id} photo={p} selected={selected.has(p.id)} selecting={selecting} onToggle={onToggle} onPreview={onPreview}/>)}</div>
+      {!visible.length&&<div className="empty-state"><Folder size={30}/><h2>No photos here</h2><Button onClick={()=>setFilter('all')}>View all photos</Button></div>}
+    </>:<div className="album-grid">{albums.map(a=>{
+      const items=a.photoIds.map(id=>photos.find(p=>p.id===id)).filter(Boolean);
+      return <button key={a.id} className="album-card" onClick={()=>onOpenAlbum(a.id)}>
+        <div className="album-cover">{items.slice(0,3).map((p,i)=><img key={p.id} className={'cover-'+i} src={photoSrc(p)} alt={p.name}/>)}{!items.length&&<Folder size={28}/>}</div>
+        <div className="album-caption"><h2>{a.title||'Untitled album'}</h2><span>{photoCount(items.length)}</span></div>
+      </button>;
+    })}</div>}
+    <footer className="workspace-footer"><button onClick={onInfo}>Demo <Info size={16}/></button></footer>
+    <SelectionDock count={selected.size} onClear={onClear} onOrganize={onOrganize} onAlbum={()=>onAlbum(false)} onCollage={onCollage} onLab={onLab}/>
+  </>;
+}
+
+export function PhotoPicker({photos,onClose,onConfirm,initial=[]}) {
+  const [selected,setSelected]=useState(()=>new Set(initial));
+  function toggle(id){setSelected(current=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next;});}
+  return <div className="picker-content">
+    <p className="muted small">{selected.size} selected</p>
+    <div className="picker-grid">{photos.map(p=><button key={p.id} className={selected.has(p.id)?'chosen':''} aria-label={'Select '+p.name} aria-pressed={selected.has(p.id)} onClick={()=>toggle(p.id)}><img src={photoSrc(p)} alt={p.name}/><span>{selected.has(p.id)&&<Check size={15}/>}</span></button>)}</div>
+    <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!selected.size} onClick={()=>onConfirm([...selected])}>Use {selected.size} photos</Button></footer>
+  </div>;
+}
+
+const LAYOUT_MAX={editorial:3,grid:4,nine:9,strip:6};
+export function CollageView({photos,isExample,onChoose,onSave,toast}) {
+  const [layout,setLayout]=useState(()=>photos.length<=3?'editorial':photos.length<=4?'grid':'nine');
+  const [gap,setGap]=useState(14),[title,setTitle]=useState('Mountains & water'),[background,setBackground]=useState('#f7f4ed');
+  const [advanced,setAdvanced]=useState(false),[offset,setOffset]=useState(0),[result,setResult]=useState(null),[rendering,setRendering]=useState(false);
+  const signature=photos.map(p=>p.id+':'+p.style).join('|');
+  const ordered=useMemo(()=>photos.length?[...photos.slice(offset%photos.length),...photos.slice(0,offset%photos.length)]:[],[signature,offset]);
+  const used=ordered.slice(0,LAYOUT_MAX[layout]);
+  useEffect(()=>{
+    let live=true;setRendering(true);
+    renderCollage(used,{layout,gap,title,background}).then(value=>{if(live)setResult(value);}).catch(error=>{if(live){setResult(null);toast(error.message);}}).finally(()=>{if(live)setRendering(false);});
+    return ()=>{live=false;};
+  },[signature,layout,gap,title,background,offset]);
+  return <>
+    <div className="section-title"><h1>Collage</h1><span className="title-meta">{photoCount(photos.length)}</span><button className="text-button title-action" onClick={onChoose}>Choose photos</button></div>
+    <div className="collage-stage">{result?<img src={result} alt="Collage preview"/>:<div className="empty-state"><Loader2 size={24}/><p>{photos.length?'Arranging…':'Choose photos'}</p></div>}{rendering&&result&&<span className="rendering-status"><Loader2 size={15}/>Updating…</span>}</div>
+    <div className="collage-toolbar">
+      <div className="layout-options" role="group" aria-label="Collage layout"><span className="sr-only">Layout</span>{[['editorial','Editorial',PanelsTopLeft],['grid','Grid',Grid2X2],['strip','Strip',Columns3],...(photos.length>4?[['nine','Nine',Grid3X3]]:[])].map(([id,label,Icon])=><button title={label} aria-label={label} key={id} aria-pressed={layout===id} className={layout===id?'active':''} onClick={()=>setLayout(id)}><Icon size={23}/></button>)}</div>
+      <button title="Shuffle" aria-label="Shuffle" className="text-button shuffle-action" onClick={()=>setOffset(o=>o+1)} disabled={photos.length<2}><Shuffle size={18}/></button>
+      <button className="text-button" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}><SlidersHorizontal size={17}/> <span>Adjust</span> <ChevronDown size={14} className={advanced?'rotated':''}/></button>
+      <div className="collage-actions"><Button variant="primary" disabled={!result||rendering} onClick={()=>onSave(result,title)}>Save collage</Button><Button icon={Download} disabled={!result||rendering} onClick={()=>{downloadFile(result,(title||'Moment collage')+'.jpg');toast('Download started');}}>Download</Button></div>
+    </div>
+    {photos.length>used.length&&<p className="editor-note">{used.length} / {photoCount(photos.length)} used in this layout.</p>}
+    {advanced&&<section className="collage-adjustments" aria-label="Collage settings">
+      <label className="field">Spacing <span className="muted">{gap}px</span><input type="range" min="0" max="48" value={gap} onChange={e=>setGap(Number(e.target.value))}/></label>
+      <label className="field">Background<select value={background} onChange={e=>setBackground(e.target.value)}><option value="#f7f4ed">Paper</option><option value="#ffffff">White</option><option value="#22262d">Charcoal</option></select></label>
+      <label className="field">Caption<input value={title} maxLength={40} placeholder="Optional" onChange={e=>setTitle(e.target.value)}/></label>
+    </section>}
+
+  </>;
+}

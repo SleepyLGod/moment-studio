@@ -1,28 +1,65 @@
-# 片刻 · 私人照片工作台原型
+# moment
 
-用公开示例照片体验：导入、多选、分类、批量风格、拼图、组合相册和文字排序。
+A private photo workbench prototype. Collect photos, compose albums and collages, and explore reusable AI styles.
 
-## 运行
+![Library](docs/screenshots/library.png)
 
-```sh
-npm ci
-npm run dev
-npm run build
-```
+## Run locally
 
-React + Vite 静态应用，通过 Sites 私人站点托管；`.openai/hosting.json` 保存同一个站点身份。
+Use Node.js 24 (the CI version) and npm.
 
-## 范围
+    npm ci
+    npm run dev
 
-- 首次打开有 12 张示例照片、2 本相册，上传弹窗可再导入 4 张示例。
-- 文件选择和拖放读取 JPG/PNG/WebP，每批最多 20 张、每张最多 12MB。
-- 所有编辑数据和导入内容只保存在此浏览器的 IndexedDB；没有照片上传服务器、云同步、账号图库或备份。
-- 分类按钮使用示例数据预设的标签，本地选入的照片由用户手动分类。
-- 风格使用浏览器 Canvas 滤镜与柔彩色块处理，生成衍生图并保留原图；没有 AI 模型调用。柔彩即时对照为色调预览，点击应用后生成色块版本。
-- 拼图生成实际 JPEG；相册导出为含内嵌图片的独立 HTML。浏览器可能提示保存下载。
-- 尚不支持 HEIC、视频和完整 Live Photos，也未做几十 GB 图库的容量或性能验证。
-- 示例图片来自 Lorem Picsum / Unsplash。摄影师和原始来源保存在 `public/photos/credits.json`，界面“关于”也能查看。
+Open http://127.0.0.1:4173/.
 
-## 隐私
+    npm test
+    npm run build
+    npm run check
 
-站点按 owner-private 发布。浏览器中导入的文件不会随源代码或站点发布。正式图库管理还需要单独设计备份、存储额度、同步和访问控制。
+The production build is written to `dist/`. Design skills are optional and are not runtime dependencies.
+
+## What works
+
+- Upload JPG, PNG and WebP, or import bundled sample photos. Up to 20 files per batch, 12 MB per file.
+- Browse and select photos; filter categories; manually classify or group using existing tags.
+- Create albums, add notes and reorder photos. Export an album as self-contained HTML.
+- Render collages, adjust spacing, background and caption, and save or download a real JPEG.
+- Compare nine pre-generated examples: paper, clay and vintage comic applied to fjord, city and coffee photos.
+- Save and reload named Style recipes, including prompt, composition preference and an optional reference image.
+- Save supported sample results separately from their originals. Original and generated base images remain available through color adjustments.
+
+![Collage](docs/screenshots/collage.png)
+
+## Prototype boundaries
+
+This is a working frontend prototype, not a production cloud photo library.
+
+- Photos, albums and Styles are stored in this browser's IndexedDB. They are not backed up or synced across devices or website origins.
+- Grouping uses known tags. It does not run an image classifier.
+- AI images were generated in advance. Arbitrary prompts and references can be saved, but live model generation is not connected. Editing an input without a matching example shows a pending state.
+- There is no iCloud / PikPak connection, production sign-in, cloud upload pipeline or tens-of-GB capacity validation.
+- HEIC, full Live Photos and videos are not supported.
+- User-authored names, notes and prompts keep their language. The application controls use English / Sleet Mono, with Chinese fallbacks.
+
+## Hosting
+
+The intended split is **Sites for the private workbench** and **GitHub Pages for a separate public showcase**. Code stored on GitHub does not automatically deploy either website.
+
+The existing Sites deployment is an earlier owner-private version. The current English frontend has not been deployed there. A Pages showcase has not been created or published, and the existing personal homepage is unchanged.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for access, domains and the separation of code, hosting and photo storage.
+
+## Project guide
+
+| Path | Purpose |
+| --- | --- |
+| `src/` | React UI, demo recipes, browser storage and image rendering |
+| `public/` | Demo images, provenance records and the self-hosted font |
+| `scripts/check-style-samples.mjs` | Sample eligibility, provenance and original-retention checks |
+| `.openai/hosting.json` | Existing Sites identity and static output configuration |
+| `.github/workflows/check.yml` | Build and sample checks; no automatic deployment |
+| `PRODUCT.md`, `DESIGN.md` | Product boundaries and design decisions |
+| `design-qa.md` | Historical visual and interaction verification |
+
+See [asset notes](docs/ASSETS.md) for image sources, font licensing and optional design-tool provenance. Real browser captures shown above are illustrative; they do not connect to a live gallery.

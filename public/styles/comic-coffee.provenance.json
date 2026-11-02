@@ -1,0 +1,17 @@
+{
+  "tool": "builtin image_gen",
+  "use_case": "style-transfer",
+  "pre_generated_example": true,
+  "canonical_recipe": "将照片重绘为旧版印刷漫画，保留主体与构图，清晰墨线、网点与轻微套印偏移，苔绿、深蓝和暖纸色。",
+  "source_path": "public/photos/1060.jpg",
+  "supporting_reference_path": "public/styles/comic-fjord.png",
+  "original_generated_path": "generated-image-reference/01a19b98-a89c-7a90-8a62-ebb81fb247cc/exec-824e09d3-2dda-4e21-84a3-164df414a83e.png",
+  "asset_path": "public/styles/comic-coffee.png",
+  "source_width": 900,
+  "source_height": 700,
+  "width": 1422,
+  "height": 1106,
+  "full_prompt": "Use case: style-transfer\nAsset type: one standalone pre-generated example for a photo style gallery.\nPrimary request: Redraw Image 1, the pour-over coffee photograph, as an elegant vintage printed comic with the same visual treatment as Image 2. Image 1 is the edit target and composition authority; Image 2 supplies ONLY ink linework, halftone dot texture, registration imperfection, warm paper and faded ink palette. Do not import its landscape subject.\nCanonical recipe: 将照片重绘为旧版印刷漫画，保留主体与构图，清晰墨线、网点与轻微套印偏移，苔绿、深蓝和暖纸色。\nScene and framing: Preserve the indoor cafe arrangement of Image 1, including the central hourglass glass pour-over coffee brewer with a folded pale paper filter, coffee in its bottom bulb, brown wood collar and tie, the shiny gooseneck kettle tilted down from the upper right and held by a partially cropped hand, fine drops falling from its curved spout toward the filter, the second smaller pour-over brewer at middle right, the small bowl at bottom left, a partial arm/hand along bottom right, dark blurry cafe equipment on the left, and bright window mullions behind. Keep all objects in the same relative positions, scales, orientations and cropped edges as the source. Full original 900x700 framing and 9:7 aspect ratio, at higher quality if desired. Do not crop, widen, rotate, or add objects.\nStyle/medium: Fully drawn vintage printed comic illustration. Strong expressive navy ink outlines, simplified graphic planes, crosshatching and clear halftone dots in shadow and light transitions. Light imperfect registration offset and delicate warm paper grain. The glass brewer stays recognizable via drawn reflection contours and limited transparent ink shapes, and the kettle has graphic inked highlights rather than photographic reflections. Transform every material and surface visibly, never a photo with a color filter.\nPalette: limited faded moss green, deep blue/navy, warm ochre and cream paper; match the vintage ink-and-paper aesthetic of Image 2. Preserve source light direction and overall dark-left/bright-center composition.\nConstraints: one complete edge-to-edge illustration; retain coffee brewing action and original scene composition. No words, letters, readable signs, captions, speech bubbles, UI, frame, border, split line, watermark, or collage.",
+  "inspection": "Visually inspected original coffee photograph, accepted comic reference, and generated result. Central pour-over brewer, upper-right pouring kettle and hand, secondary brewer, bowl and lower-right hand remain in corresponding positions. Strong ink outlines, graphic highlights, crosshatching and halftone dots visibly transform materials. Exact 9:7 aspect ratio. No text, UI or watermark.",
+  "caveat": "Pre-generated example; no browser live generation was performed. Fine object details and blurred background are reinterpreted; a subtle rough warm-paper edge is visible."
+}

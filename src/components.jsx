@@ -1,26 +1,157 @@
-import React,{useEffect,useRef,useState} from 'react';
-import {ImagePlus,Image,Grid2X2,Sparkles,PanelsTopLeft,Folder,ArrowUpRight,Check,X,Heart,Eye,Upload,Plus,Info,ChevronRight,CheckCircle2,Loader2,Download,ArrowLeft,ArrowUp,ArrowDown} from 'lucide-react';
-import {CATEGORIES,STYLES,styleFor,photoSrc,UPLOAD_SAMPLES} from './data';
-import {loadImage,exportAlbum} from './imaging';
+import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
+import {ArrowDown, ArrowUp, Check, Download, ImagePlus, Loader2, FolderPlus, Tags, Upload, X} from 'lucide-react';
+import {CATEGORIES, categoryLabel, photoCount, UPLOAD_SAMPLES, photoSrc, styleFor} from './data';
+import {exportAlbum, loadImage} from './imaging';
 
-export const NAV=[['photos','我的照片',Image],['categories','智能分类',Grid2X2],['styles','风格工作室',Sparkles],['collage','拼图',PanelsTopLeft],['albums','我的相册',Folder]];
-export function Button({icon:Icon,children,variant='',className='',...props}){return <button className={`button ${variant} ${className}`} {...props}>{Icon&&<Icon size={16}/>}<span>{children}</span></button>;}
-export function IconButton({icon:Icon,label,...props}){return <button className="icon-button" aria-label={label} title={label} {...props}><Icon size={18}/></button>;}
-export function Modal({title,children,onClose,className=''}){const ref=useRef();useEffect(()=>{ref.current.showModal();return()=>ref.current?.close();},[]);return <dialog ref={ref} className={`modal ${className}`} onCancel={e=>{e.preventDefault();onClose();}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}><header className="modal-header"><h2>{title}</h2><IconButton icon={X} label="关闭" onClick={onClose}/></header>{children}</dialog>;}
-export function Sidebar({view,onView,onInfo}){return <aside className="sidebar"><button className="brand" onClick={()=>onView('photos')} aria-label="片刻首页"><strong>片刻</strong><span>Moment Studio</span></button><div className="space-label">示例空间 <ChevronRight size={13}/></div><nav aria-label="工作台导航">{NAV.map(([id,label,Icon])=><button key={id} className={`nav-item ${view===id?'active':''}`} onClick={()=>onView(id)}><Icon size={19}/><span>{label}</span></button>)}</nav><button className="sidebar-note" onClick={onInfo}><Info size={15}/><span>示例模式 · 不连接真实图库</span></button></aside>;}
-export function PhotoCard({photo,selected,onToggle,onPreview,onFavorite}){return <article className={`photo-card ${selected?'selected':''}`}><div className="photo-frame"><button className="photo-select" aria-label={`选择 ${photo.name}`} aria-pressed={selected} onClick={()=>onToggle(photo.id)}><img src={photoSrc(photo)} alt={photo.name} loading="lazy" draggable="false"/><span className="select-check">{selected&&<Check size={15}/>}</span></button><div className="photo-hover"><IconButton icon={Eye} label={`预览 ${photo.name}`} onClick={()=>onPreview(photo)}/><IconButton icon={Heart} label={`${photo.favorite?'取消收藏':'收藏'} ${photo.name}`} onClick={()=>onFavorite(photo.id)}/></div>{photo.style!=='original'&&<span className="style-label">{styleFor(photo.style).name}</span>}</div><div className="photo-meta"><strong>{photo.name}</strong>{photo.favorite&&<Heart size={12} className="favorite" fill="currentColor"/>}</div><span className="photo-date">{photo.date.replaceAll('-','.')} {photo.category==='待分类'?'· 待分类':''}</span></article>;}
-export function SelectionBar({count,onClear,onStyles,onCollage,onAlbum,onCategory}){return <div className={`selection-bar ${count?'':'empty'}`}><div className="selection-summary">{count?<IconButton icon={X} label="取消所有选择" onClick={onClear}/>:<CheckCircle2 size={17}/>}<strong>{count?`已选 ${count} 张`:'点选照片，开始创作'}</strong></div><div className="selection-actions"><Button icon={Sparkles} onClick={onStyles} disabled={!count}>批量换风格</Button><Button icon={PanelsTopLeft} onClick={onCollage} disabled={!count}>制作拼图</Button><Button icon={Folder} onClick={onAlbum} disabled={!count}>加入相册</Button><button className="text-button category-action" onClick={onCategory} disabled={!count}>分类</button></div></div>;}
-export function InspirationRail({onUpload,onStyles,onCollage}){return <aside className="inspiration-rail"><h3>一起试试</h3><div className="steps">{[[1,'选择照片','从图库中选几张喜欢的照片',onUpload],[2,'尝试新风格','用不同的色彩重新演绎照片',onStyles],[3,'创意组合','做一张拼图，或留在相册里',onCollage]].map(([n,title,text,action])=><button className="step" key={n} onClick={action}><span className="step-number">{n}</span><span><strong>{title}</strong><small>{text}</small></span></button>)}</div><div className="inspiration"><h3>今天的灵感</h3><img src="/photos/1035.jpg" alt="瀑布前的人影和一道彩虹"/><strong>把风景，收进一页里。</strong><span>示例照片 · 自然与远方</span></div><p className="quiet-note">原片一直都在。<br/>放心试，换个角度看。</p></aside>;}
+export const NoticeContext=createContext('');
 
-function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error(`无法读取 ${file.name}`));reader.readAsDataURL(file);});}
-export function UploadDialog({onClose,onImport,toast}){const [files,setFiles]=useState([]),[drag,setDrag]=useState(false),[busy,setBusy]=useState(false);const input=useRef();
- function choose(list){const good=[...list].filter(f=>/^image\/(jpeg|png|webp)$/.test(f.type)&&f.size<=12*1024*1024);if(good.length!==list.length)toast('原型支持 12MB 以内的 JPG、PNG 和 WebP；其他文件未加入');setFiles(good.slice(0,20));}
- async function submit(){setBusy(true);try{const result=await Promise.all(files.map(async file=>{const src=await readFile(file);await loadImage(src);return {id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),src,date:new Date(file.lastModified).toISOString().slice(0,10),category:'待分类',style:'original',favorite:false,kind:'photo'};}));onImport(result);onClose();}catch(error){toast(error.message);}finally{setBusy(false);}}
- function samples(){const stamp=Date.now();onImport(UPLOAD_SAMPLES.map(([id,name,demoCategory])=>({id:`sample-${id}-${stamp}`,name,src:`/photos/${id}.jpg`,category:'待分类',demoCategory,date:'2026-11-02',style:'original',favorite:false,kind:'photo'})));onClose();}
- return <Modal title="把照片带进来" onClose={onClose} className="upload-modal"><p className="modal-intro">先用示例包走一遍，也可以选择本地照片试试。</p><div className={`dropzone ${drag?'dragging':''}`} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);choose(e.dataTransfer.files);}}><span className="upload-mark"><ImagePlus size={30}/></span><h3>{files.length?`已选 ${files.length} 张照片`:'拖入照片，或点这里选择'}</h3><p>JPG / PNG / WebP · 每张不超过 12MB</p><Button icon={Upload} onClick={()=>input.current.click()}>选择本地照片</Button><input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>choose(e.target.files)} className="file-input" aria-label="选择上传照片"/>{files.length>0&&<div className="file-list">{files.map(f=><span key={f.name+f.size}>{f.name}</span>)}</div>}</div><div className="local-note"><Info size={15}/><span>照片只保存在当前浏览器，不会上传到服务器。此原型暂不导入 HEIC、视频或完整 Live Photos。</span></div><footer className="modal-footer"><Button onClick={samples}>导入 4 张示例照片</Button><Button variant="primary" icon={busy?Loader2:Plus} disabled={!files.length||busy} onClick={submit}>{busy?'正在读取照片':'加入工作台'}</Button></footer></Modal>;
+export function Button({icon: Icon, children, variant='', className='', ...props}) {
+  return <button className={'button '+variant+' '+className} {...props}>{Icon && <Icon size={17} aria-hidden="true"/>}{children}</button>;
 }
-export function CategoryDialog({count,onClose,onAssign}){const [category,setCategory]=useState('旅行');return <Modal title={`给 ${count} 张照片分类`} onClose={onClose}><p className="modal-intro">分类方便查找；相册可以自由组合，不受分类限制。</p><div className="category-options">{CATEGORIES.filter(c=>c!=='待分类').map(c=><button key={c} className={category===c?'chosen':''} onClick={()=>setCategory(c)}>{c}{category===c&&<Check size={15}/>}</button>)}</div><footer className="modal-footer"><Button onClick={onClose}>取消</Button><Button variant="primary" onClick={()=>{onAssign(category);onClose();}}>确认分类</Button></footer></Modal>;}
-export function AlbumDialog({albums,count,onClose,onSave}){const [target,setTarget]=useState('new'),[title,setTitle]=useState('我的片刻'),[note,setNote]=useState('');return <Modal title={`把 ${count} 张照片放进相册`} onClose={onClose}><label className="field">保存到<select value={target} onChange={e=>setTarget(e.target.value)}><option value="new">新建一个相册</option>{albums.map(a=><option key={a.id} value={a.id}>{a.title}</option>)}</select></label>{target==='new'&&<><label className="field">相册名字<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={48} placeholder="例如：周末的光"/></label><label className="field">写几句话 <span>可留空</span><textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={400} placeholder="那天发生了什么，或者只是当时的心情。"/></label></>}<p className="local-note"><Info size={15}/>同一张照片可以放进不同相册，原片不需要复制。</p><footer className="modal-footer"><Button onClick={onClose}>取消</Button><Button icon={Folder} variant="primary" disabled={target==='new'&&!title.trim()} onClick={()=>{onSave({target,title:title.trim(),note});onClose();}}>保存相册</Button></footer></Modal>;}
-export function PhotoPreview({photo,onClose}){const [original,setOriginal]=useState(false);return <Modal title={photo.name} onClose={onClose} className="photo-modal"><div className="preview-topline"><span>{photo.category} · {photo.date}</span>{photo.style!=='original'&&<Button onClick={()=>setOriginal(v=>!v)}>{original?'查看风格版':'查看原片'}</Button>}</div><img className="detail-photo" src={original?photo.src:photoSrc(photo)} alt={`${photo.name}${original?'原片':''}`}/><p className="detail-caption">{original||photo.style==='original'?'原片':`${styleFor(photo.style).name} · 浏览器效果预览`} · 原片始终保留</p></Modal>;}
-export function AlbumDetail({album,photos,onClose,onUpdate,toast}){const [exporting,setExporting]=useState(false);const ordered=album.photoIds.map(id=>photos.find(p=>p.id===id)).filter(Boolean);const [editing,setEditing]=useState(false);function move(id,step){const ids=[...album.photoIds],i=ids.indexOf(id),j=i+step;if(j<0||j>=ids.length)return;[ids[i],ids[j]]=[ids[j],ids[i]];onUpdate({...album,photoIds:ids});}return <Modal title="一页片刻" onClose={onClose} className="album-detail"><div className="album-detail-tools"><Button onClick={()=>setEditing(v=>!v)}>{editing?'完成编辑':'编辑文字与顺序'}</Button><Button icon={exporting?Loader2:Download} disabled={exporting||!ordered.length} onClick={async()=>{setExporting(true);try{await exportAlbum(album,ordered);toast('已发起相册 HTML 下载，请查看浏览器下载列表');}catch(e){toast(e.message);}finally{setExporting(false);}}}>导出相册</Button></div>{editing?<div className="album-edit-fields"><label className="field">相册名字<input value={album.title} maxLength={48} onChange={e=>onUpdate({...album,title:e.target.value})}/></label><label className="field">文字<textarea value={album.note} maxLength={400} onChange={e=>onUpdate({...album,note:e.target.value})}/></label></div>:<div className="album-story-heading"><span>片刻 / {ordered.length} 张照片</span><h2>{album.title||'未命名相册'}</h2><p>{album.note}</p></div>}<div className="album-story-grid">{ordered.map((p,i)=><figure key={p.id}><img src={photoSrc(p)} alt={p.name}/><figcaption><span>{p.name}</span>{editing&&<span className="reorder-actions"><IconButton icon={ArrowUp} label={`前移 ${p.name}`} disabled={i===0} onClick={()=>move(p.id,-1)}/><IconButton icon={ArrowDown} label={`后移 ${p.name}`} disabled={i===ordered.length-1} onClick={()=>move(p.id,1)}/><button className="text-button" onClick={()=>onUpdate({...album,photoIds:album.photoIds.filter(id=>id!==p.id)})}>移出相册</button></span>}</figcaption></figure>)}</div>{!ordered.length&&<p className="empty-note">相册还是空的。回到图库选几张照片，再加入这里。</p>}</Modal>;}
-export function InfoDialog({onClose,credits}){return <Modal title="关于这个可点击原型" onClose={onClose}><div className="info-copy"><p><strong>已经能用：</strong>本地选图与拖入、手动分类、多选批量效果、原片对照、拼图下载、相册组合、顺序和文字编辑、相册导出。</p><p><strong>AI 演示：</strong>智能分类使用示例照片附带的标签；风格由浏览器图像处理生成，包括胶片、黑白和柔彩色块。这次没有调用识图或 AI 重绘模型。</p><p><strong>数据范围：</strong>不连接 iCloud 或其他真实图库。操作保存在当前浏览器的 IndexedDB 中，不会自动同步到其他设备。</p><p><strong>示例照片：</strong>来自 <a href="https://picsum.photos/" target="_blank" rel="noreferrer">Lorem Picsum</a> / Unsplash。照片标题、日期和分组用于演示。</p><details><summary>照片来源与摄影师</summary><ul>{credits.map(c=><li key={c.id}><a href={c.url} target="_blank" rel="noreferrer">{c.author} · {c.id}</a></li>)}</ul></details></div><footer className="modal-footer"><Button variant="primary" onClick={onClose}>开始试试</Button></footer></Modal>;}
+export function IconButton({icon: Icon, label, ...props}) {
+  return <button className="icon-button" aria-label={label} title={label} {...props}><Icon size={19} aria-hidden="true"/></button>;
+}
+export function Modal({title, children, onClose, className=''}) {
+  const ref=useRef(null);
+  const notice=useContext(NoticeContext);
+  useEffect(()=>{ref.current.showModal(); return ()=>ref.current?.close();},[]);
+  return <dialog ref={ref} className={'modal '+className} aria-label={title}
+    onCancel={e=>{e.preventDefault();onClose();}}
+    onClick={e=>{if(e.target===e.currentTarget){const r=e.currentTarget.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)onClose();}}}>
+    <header className="modal-header"><h2>{title}</h2><IconButton icon={X} label="Close" onClick={onClose}/></header>{notice&&<p className="modal-notice" role="status">{notice}</p>}{children}
+  </dialog>;
+}
+export function Header({view,onView,onUpload}) {
+  return <header className="topbar">
+    <button className="brand" onClick={()=>onView('library')} aria-label="Moment home">moment</button>
+    <nav aria-label="Main navigation">{[['library','Library'],['collage','Collage'],['lab','Style Lab']].map(([key,label])=>
+      <button key={key} className={view===key?'active':''} aria-current={view===key?'page':undefined} onClick={()=>onView(key)}>{label}</button>)}</nav>
+    <Button icon={Upload} onClick={onUpload}>Upload</Button>
+  </header>;
+}
+export function PhotoCard({photo,selected,selecting,onToggle,onPreview}) {
+  return <article className={'photo-card '+(selected?'selected ':'')+(selecting?'selecting':'')}>
+    <button className="photo-image" aria-label={(selecting?'Toggle selection ':'Preview ')+photo.name} onClick={()=>selecting?onToggle(photo.id):onPreview(photo)}>
+      <img src={photoSrc(photo)} alt={photo.name} loading="lazy" draggable="false"/>
+    </button>
+    <button className="photo-check" aria-label={(selected?'Deselect ':'Select ')+photo.name} aria-pressed={selected} onClick={()=>onToggle(photo.id)}>
+      {selected && <Check size={16} aria-hidden="true"/>}
+    </button>
+  </article>;
+}
+export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab}) {
+  if(!count)return null;
+  return <div className="selection-dock" aria-label="Selection actions">
+    <span>{count} selected</span><div className="dock-divider"/>
+    <button onClick={onOrganize}><Tags size={16}/>Organize</button><button onClick={onAlbum}><FolderPlus size={16}/>Album</button>
+    <button onClick={onCollage}>Collage</button><button onClick={onLab}>Style Lab</button>
+    <IconButton icon={X} label="Clear selection" onClick={onClear}/>
+  </div>;
+}
+function readFile(file) {
+  return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Could not read '+file.name));reader.readAsDataURL(file);});
+}
+export function UploadDialog({onClose,onImport,toast}) {
+  const [files,setFiles]=useState([]),[drag,setDrag]=useState(false),[busy,setBusy]=useState(false);
+  const input=useRef(null);
+  function choose(list) {
+    const good=[...list].filter(f=>/^image\/(jpeg|png|webp)$/.test(f.type)&&f.size<=12*1024*1024);
+    if(good.length!==list.length)toast('Use JPG, PNG or WebP files under 12 MB.');
+    if(good.length>20)toast('Choose up to 20 photos at a time.');
+    setFiles(good.slice(0,20));
+  }
+  async function submit() {
+    setBusy(true);
+    try {
+      const photos=await Promise.all(files.map(async file=>{
+        const src=await readFile(file);await loadImage(src);
+        return {id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),src,date:new Date(file.lastModified).toISOString().slice(0,10),category:'待分类',style:'original',kind:'photo'};
+      }));
+      onImport(photos);onClose();
+    } catch(error){toast(error.message);} finally{setBusy(false);}
+  }
+  function samples() {
+    const stamp=Date.now();
+    onImport(UPLOAD_SAMPLES.map(([id,name,demoCategory])=>({id:'sample-'+id+'-'+stamp,name,src:'/photos/'+id+'.jpg',demoCategory,category:'待分类',date:'2026-11-02',style:'original',kind:'photo'})));
+    onClose();
+  }
+  return <Modal title="Upload photos" onClose={onClose} className="upload-modal">
+    <div className={'dropzone '+(drag?'dragging':'')} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);choose(e.dataTransfer.files);}}>
+      <ImagePlus size={33} strokeWidth={1.3}/><h3>{files.length?files.length+' selected':'Drop your photos here'}</h3>
+      <p>JPG / PNG / WebP · up to 12 MB each</p>
+      <Button onClick={()=>input.current.click()}>Browse files</Button>
+      <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Choose files to upload" className="file-input" onChange={e=>choose(e.target.files)}/>
+      {!!files.length&&<div className="file-list">{files.map(f=><span key={f.name+f.size}>{f.name}</span>)}</div>}
+    </div>
+    <p className="muted small local-note">Stored in this browser.</p>
+    <footer className="modal-footer"><button className="text-button" onClick={samples}>Try 4 samples</button><Button variant="primary" disabled={!files.length||busy} icon={busy?Loader2:Upload} onClick={submit}>{busy?'Reading…':'Import'}</Button></footer>
+  </Modal>;
+}
+const GROUP_TITLES={'旅行':'Mountains & sea','自然':'Into nature','城市':'City walks','日常':'Everyday light','人像':'People & places','创作':'New perspectives','待分类':'Unsorted'};
+export function OrganizeDialog({photos,onClose,onSave,onAssign}) {
+  const [mode,setMode]=useState('suggested');
+  const [category,setCategory]=useState('旅行');
+  const [groups,setGroups]=useState(()=>{
+    const buckets=new Map();
+    photos.forEach(p=>{const key=p.category&&p.category!=='待分类'?p.category:(p.demoCategory||'待分类');if(!buckets.has(key))buckets.set(key,{id:key,category:key,title:GROUP_TITLES[key]||key,photoIds:[]});buckets.get(key).photoIds.push(p.id);});
+    return [...buckets.values()];
+  });
+  function movePhoto(id,target) {
+    setGroups(current=>current.map(g=>({...g,photoIds:g.id===target?[...g.photoIds.filter(i=>i!==id),id]:g.photoIds.filter(i=>i!==id)})));
+  }
+  const nonempty=groups.filter(g=>g.photoIds.length);
+  return <Modal title={'Organize '+photos.length+' photos'} onClose={onClose} className="organize-modal">
+    <div className="text-tabs" role="tablist" aria-label="Organize mode">
+      <button role="tab" aria-selected={mode==='suggested'} className={mode==='suggested'?'active':''} onClick={()=>setMode('suggested')}>By tags</button>
+      <button role="tab" aria-selected={mode==='manual'} className={mode==='manual'?'active':''} onClick={()=>setMode('manual')}>Manual</button>
+    </div>
+    {mode==='suggested'?<>
+
+      <div className="suggestion-groups">{groups.map(g=><section key={g.id} className="suggestion-group">
+        <input aria-label={'Album name '+categoryLabel(g.category)} className="group-name" value={g.title} maxLength={48} onChange={e=>setGroups(gs=>gs.map(item=>item.id===g.id?{...item,title:e.target.value}:item))}/>
+        <span className="muted small">{photoCount(g.photoIds.length)}</span>
+        <div className="group-photos">{g.photoIds.map(id=>{const p=photos.find(photo=>photo.id===id);return <div key={id}><img src={photoSrc(p)} alt={p.name}/><select aria-label={'Group '+p.name} value={g.id} onChange={e=>movePhoto(id,e.target.value)}>{groups.map(target=><option key={target.id} value={target.id}>{target.title||'Untitled'}</option>)}</select></div>;})}</div>
+        {!g.photoIds.length&&<p className="empty-group">Empty group</p>}
+      </section>)}</div>
+      <footer className="modal-footer"><span className="muted small">{nonempty.length} albums</span><Button variant="primary" disabled={!nonempty.length||nonempty.some(g=>!g.title.trim())} onClick={()=>{onSave(nonempty);onClose();}}>Create albums</Button></footer>
+    </>:<>
+
+      <div className="category-options">{CATEGORIES.filter(c=>c!=='待分类').map(c=><button aria-pressed={category===c} className={category===c?'chosen':''} key={c} onClick={()=>setCategory(c)}>{categoryLabel(c)}{category===c&&<Check size={15}/>}</button>)}</div>
+      <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={()=>{onAssign(category,photos.map(p=>p.id));onClose();}}>Apply category</Button></footer>
+    </>}
+  </Modal>;
+}
+export function AlbumDialog({albums,onClose,onSave}) {
+  const [target,setTarget]=useState('new'),[title,setTitle]=useState(''),[note,setNote]=useState('');
+  return <Modal title={'Add to album'} onClose={onClose}>
+    <label className="field">Album<select value={target} onChange={e=>setTarget(e.target.value)}><option value="new">New album</option>{albums.map(a=><option key={a.id} value={a.id}>{a.title||'Untitled album'}</option>)}</select></label>
+    {target==='new'&&<><label className="field">Album name<input value={title} maxLength={48} placeholder="Untitled album" onChange={e=>setTitle(e.target.value)}/></label><details className="optional-note"><summary>Add a note</summary><label className="field"><span className="sr-only">Note</span><textarea value={note} maxLength={400} onChange={e=>setNote(e.target.value)} placeholder="Add a note…"/></label></details></>}
+
+    <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={target==='new'&&!title.trim()} onClick={()=>{onSave({target,title:title.trim(),note});onClose();}}>Save album</Button></footer>
+  </Modal>;
+}
+export function PhotoPreview({photo,onClose}) {
+  const [original,setOriginal]=useState(false);
+  return <Modal title={photo.name} onClose={onClose} className="photo-modal">
+    <img className="detail-photo" src={original?photo.src:photoSrc(photo)} alt={photo.name+(original?' original':'')}/>
+    <div className="preview-caption"><span className="muted">{categoryLabel(photo.category)} · {original||photo.style==='original'?'Original':(photo.style==='generated'?photo.recipeName:(photo.recipeName?photo.recipeName+' · ':'')+styleFor(photo.style).name)}</span>{photo.generationSource&&<span>Sample</span>}{photo.style!=='original'&&<Button onClick={()=>setOriginal(v=>!v)}>{original?'View edit':'View original'}</Button>}</div>
+  </Modal>;
+}
+export function AlbumDetail({album,photos,onClose,onUpdate,toast}) {
+  const [editing,setEditing]=useState(false),[exporting,setExporting]=useState(false);
+  const ordered=album.photoIds.map(id=>photos.find(p=>p.id===id)).filter(Boolean);
+  function move(id,step) {
+    const ids=[...album.photoIds],i=ids.indexOf(id),j=i+step;if(j<0||j>=ids.length)return;[ids[i],ids[j]]=[ids[j],ids[i]];onUpdate({...album,photoIds:ids});
+  }
+  return <Modal title={album.title||'Untitled album'} onClose={onClose} className="album-detail">
+    <div className="album-tools"><span className="muted">{photoCount(ordered.length)}</span><div><button className="text-button" onClick={()=>setEditing(v=>!v)}>{editing?'Done':'Edit'}</button><Button disabled={exporting||!ordered.length} icon={Download} onClick={async()=>{setExporting(true);try{await exportAlbum(album,ordered);toast('Download started');}catch(e){toast(e.message);}finally{setExporting(false);}}}>Export</Button></div></div>
+    {editing?<div className="album-edit-fields"><label className="field">Album name<input value={album.title} maxLength={48} onChange={e=>onUpdate({...album,title:e.target.value})}/></label><label className="field">Note<textarea value={album.note} maxLength={400} onChange={e=>onUpdate({...album,note:e.target.value})}/></label></div>:album.note&&<p className="album-note">{album.note}</p>}
+    <div className={'album-story-grid '+(editing?'editing':'')}>{ordered.map((p,i)=><figure key={p.id}><img src={photoSrc(p)} alt={p.name}/>{editing&&<figcaption><span>{p.name}</span><div><IconButton icon={ArrowUp} label={'Move up '+p.name} disabled={!i} onClick={()=>move(p.id,-1)}/><IconButton icon={ArrowDown} label={'Move down '+p.name} disabled={i===ordered.length-1} onClick={()=>move(p.id,1)}/><IconButton icon={X} label={'Remove '+p.name+' from album'} onClick={()=>onUpdate({...album,photoIds:album.photoIds.filter(id=>id!==p.id)})}/></div></figcaption>}</figure>)}</div>
+    {!ordered.length&&<p className="muted empty-group">No photos in this album.</p>}
+  </Modal>;
+}
+export function InfoDialog({onClose,credits}) {
+  return <Modal title="About this demo" onClose={onClose}>
+    <div className="info-copy"><p>Photos, albums and styles stay in this browser.</p><p>Grouping uses existing tags. Collages are rendered locally. AI style images are pre-generated samples; live generation and cloud sync are not connected.</p><details><summary>Photo credits</summary><p>The fjord and style samples were AI-generated. Other demo photos come from Lorem Picsum / Unsplash.</p><ul>{credits.map(c=><li key={c.id}><a href={c.url} target="_blank" rel="noreferrer">{c.author} · {c.id}</a></li>)}</ul></details></div>
+  </Modal>;
+}

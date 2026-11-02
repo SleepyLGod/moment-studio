@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 4173",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "node scripts/check-style-samples.mjs",
+    "check": "npm test && npm run build"
   },
   "dependencies": {
     "react": "19.3.1",

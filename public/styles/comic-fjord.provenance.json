@@ -1,0 +1,15 @@
+{
+  "tool": "builtin image_gen",
+  "use_case": "style-transfer",
+  "pre_generated_example": true,
+  "canonical_recipe": "将照片重绘为旧版印刷漫画，保留主体与构图，清晰墨线、网点与轻微套印偏移，苔绿、深蓝和暖纸色。",
+  "source_path": "public/photos/fjord-demo.png",
+  "supporting_reference_path": "workspace-reference/outputs/prompt-style-lab/concept.png",
+  "original_generated_path": "generated-image-reference/01a19b98-a89c-7a90-8a62-ebb81fb247cc/exec-ae2ef0cb-d6c9-414e-9e28-9f16fa99470d.png",
+  "asset_path": "public/styles/comic-fjord.png",
+  "width": 1835,
+  "height": 857,
+  "full_prompt": "Use case: style-transfer\nAsset type: one standalone, pre-generated example image for a photo style gallery.\nPrimary request: 将照片重绘为旧版印刷漫画，保留主体与构图，清晰墨线、网点与轻微套印偏移，苔绿、深蓝和暖纸色。\nInput images: Image 1 is the edit target and the exact scene/composition source. Image 2 is supporting reference for the intended polished visual feel; ONLY its small bottom-right vintage comic thumbnail suggests the illustration treatment. Do not reproduce its UI, text, framing, comparison, paper-cut hero, or other thumbnails.\nScene: the exact wide fjord panorama of Image 1, with rocky green foreground at bottom left, winding deep-blue water through the center toward the distant center horizon, high plateau mountains on both sides, remaining snow patches, and soft clouds overhead.\nStyle/medium: redraw the whole scene as an elegant vintage printed comic illustration. Every surface must become drawn linework and printed texture rather than a photographic color filter: strong expressive dark ink contours, simplified graphic shapes, carefully spaced halftone dots in sky/water/shadows, subtle crosshatching, slightly imperfect ink registration and faded ink on warm paper.\nColor palette: limited faded moss green, deep navy blue, muted ochre and warm cream paper. Preserve clear mountain/fjord separation and atmospheric depth.\nComposition/framing: preserve Image 1 viewpoint, exact mountain and fjord outlines, relative positions, horizon, and full scene framing. Wide panorama approximately 2.14:1, ideally 1836x856 or nearest high-quality output. Edge-to-edge landscape artwork.\nConstraints: transform materials and linework visibly while preserving the source composition. One complete image, no photograph remaining, no new structures or people, no letters, no speech bubbles, no text, no UI, no labels, no frame, no split line, no collage, no watermark.",
+  "inspection": "Visually inspected source, UI reference, and generated output. Strong ink contours, halftone dots and vintage limited-print treatment are visible; fjord composition and viewpoint are preserved approximately. No text, speech bubbles, UI, or watermark.",
+  "caveat": "Pre-generated example; no browser live generation was performed. Output includes a subtle rough warm-paper edge and small generative differences in scene contours."
+}

@@ -1,0 +1,17 @@
+{
+  "tool": "builtin image_gen",
+  "use_case": "style-transfer",
+  "pre_generated_example": true,
+  "canonical_recipe": "将照片重绘为旧版印刷漫画，保留主体与构图，清晰墨线、网点与轻微套印偏移，苔绿、深蓝和暖纸色。",
+  "source_path": "public/photos/1067.jpg",
+  "supporting_reference_path": "public/styles/comic-fjord.png",
+  "original_generated_path": "generated-image-reference/01a19b98-a89c-7a90-8a62-ebb81fb247cc/exec-856c5ae9-c62e-401b-bd5d-221bf86317da.png",
+  "asset_path": "public/styles/comic-city.png",
+  "source_width": 900,
+  "source_height": 700,
+  "width": 1422,
+  "height": 1106,
+  "full_prompt": "Use case: style-transfer\nAsset type: one standalone pre-generated example image for a photo style gallery.\nPrimary request: Redraw Image 1, the city skyline photograph, in the exact elegant vintage printed comic treatment of Image 2. Image 1 is the edit target and composition authority; Image 2 is a style reference ONLY, do not include its fjord/mountain subject.\nCanonical recipe: 将照片重绘为旧版印刷漫画，保留主体与构图，清晰墨线、网点与轻微套印偏移，苔绿、深蓝和暖纸色。\nScene/composition: Preserve the source aerial city skyline from the high viewpoint: dense buildings in the lower half, a receding urban street grid on the left, the curved shoreline and lake extending behind the skyline toward the right, the same recognizable tower silhouettes and relative positions including dark antenna tower just right of center and cylindrical tower near the right, and large open sunset sky in the upper half. Preserve full original 900x700 aspect ratio, approximately 9:7; render at high quality with this ratio. Do not crop or widen the source.\nStyle/medium: Completely redraw the whole image with confident dark navy ink contours, simplified graphic architectural planes, fine crosshatching, clearly visible printed halftone dot shading, slight ink registration offset, gently distressed warm paper grain. Light moss green, deep navy blue, warm ochre, cream paper as limited faded inks. Translate the sunset glow to warm paper/ochre, lake and skyline shadows to deep blue, subdued green planes. The material/linework transformation must be obvious; no photographic fragments or simple color-filter appearance.\nConstraints: One complete edge-to-edge illustration. Retain source building layout, horizon, lake/shore outline, perspective and framing, accepting only normal drawn simplification of tiny details. Do not add objects, characters, mountains or fjords. No labels, lettering, signs with readable text, speech bubbles, UI, frames, borders, split lines, collage, or watermarks.",
+  "inspection": "Visually inspected source, accepted comic reference, and result. Distinct ink contours, crosshatching, halftone dots and warm-paper limited inks. Source skyline viewpoint, layout, shoreline and approximate silhouettes remain recognizable. Aspect ratio is exactly 9:7. No readable text, UI, speech bubbles, or watermark.",
+  "caveat": "Pre-generated example; no browser live generation was performed. Generation added illustrated clouds and a subtle rough paper edge, and simplified/altered small building details."
+}
