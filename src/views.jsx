@@ -2,12 +2,13 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Check, ChevronDown, Columns3, Download, Folder, Grid2X2, Grid3X3, Info, Loader2, PanelsTopLeft, Shuffle, SlidersHorizontal} from 'lucide-react';
 import {Button, PhotoCard, SelectionDock} from './components';
 import {CATEGORIES, categoryLabel, photoCount, photoSrc} from './data';
+import {collageInputs} from './services/operations';
 import {downloadFile, renderCollage} from './imaging';
 
-export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading}) {
-  const visible=photos.filter(p=>filter==='all'||p.category===filter);
+export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading,visibleIds,photoTotal}) {
+  const visible=photos.filter(p=>(!visibleIds||visibleIds.has(p.id))&&(filter==='all'||p.category===filter));
   return <>
-    <div className="section-title"><h1>Library</h1><span className="title-meta">{photoCount(photos.length)}</span></div>
+    <div className="section-title"><h1>Library</h1><span className="title-meta">{photoCount(photoTotal??photos.length)}</span></div>
     <div className="library-controls">
       <div className="text-tabs" role="tablist" aria-label="Library view">
         <button role="tab" className={tab==='photos'?'active':''} aria-selected={tab==='photos'} onClick={()=>setTab('photos')}>Photos</button>
@@ -28,7 +29,7 @@ export function Library({photos,albums,tab,setTab,selected,selecting,setSelectin
       const items=a.photoIds.map(id=>photos.find(p=>p.id===id)).filter(Boolean);
       return <button key={a.id} className="album-card" onClick={()=>onOpenAlbum(a.id)}>
         <div className="album-cover">{items.slice(0,3).map((p,i)=><img key={p.id} className={'cover-'+i} src={photoSrc(p)} alt={p.name}/>)}{!items.length&&<Folder size={28}/>}</div>
-        <div className="album-caption"><h2>{a.title||'Untitled album'}</h2><span>{photoCount(items.length)}</span></div>
+        <div className="album-caption"><h2>{a.title||'Untitled album'}</h2><span>{photoCount(a.photoIds.length)}</span></div>
       </button>;
     })}</div>}
     <footer className="workspace-footer"><button onClick={onInfo}>Demo <Info size={16}/></button></footer>
@@ -46,14 +47,12 @@ export function PhotoPicker({photos,onClose,onConfirm,initial=[]}) {
   </div>;
 }
 
-const LAYOUT_MAX={editorial:3,grid:4,nine:9,strip:6};
 export function CollageView({photos,isExample,onChoose,onSave,toast,busy=false}) {
   const [layout,setLayout]=useState(()=>photos.length<=3?'editorial':photos.length<=4?'grid':'nine');
   const [gap,setGap]=useState(14),[title,setTitle]=useState('Mountains & water'),[background,setBackground]=useState('#f7f4ed');
   const [advanced,setAdvanced]=useState(false),[offset,setOffset]=useState(0),[result,setResult]=useState(null),[rendering,setRendering]=useState(false);
   const signature=photos.map(p=>p.id+':'+p.style).join('|');
-  const ordered=useMemo(()=>photos.length?[...photos.slice(offset%photos.length),...photos.slice(0,offset%photos.length)]:[],[signature,offset]);
-  const used=ordered.slice(0,LAYOUT_MAX[layout]);
+  const used=useMemo(()=>collageInputs(photos,layout,offset),[signature,layout,offset]);
   useEffect(()=>{
     let live=true;setRendering(true);
     renderCollage(used,{layout,gap,title,background}).then(value=>{if(live)setResult(value);}).catch(error=>{if(live){setResult(null);toast(error.message);}}).finally(()=>{if(live)setRendering(false);});
@@ -66,7 +65,7 @@ export function CollageView({photos,isExample,onChoose,onSave,toast,busy=false})
       <div className="layout-options" role="group" aria-label="Collage layout"><span className="sr-only">Layout</span>{[['editorial','Editorial',PanelsTopLeft],['grid','Grid',Grid2X2],['strip','Strip',Columns3],...(photos.length>4?[['nine','Nine',Grid3X3]]:[])].map(([id,label,Icon])=><button title={label} aria-label={label} key={id} aria-pressed={layout===id} className={layout===id?'active':''} onClick={()=>setLayout(id)}><Icon size={23}/></button>)}</div>
       <button title="Shuffle" aria-label="Shuffle" className="text-button shuffle-action" onClick={()=>setOffset(o=>o+1)} disabled={photos.length<2}><Shuffle size={18}/></button>
       <button className="text-button" aria-expanded={advanced} onClick={()=>setAdvanced(v=>!v)}><SlidersHorizontal size={17}/> <span>Adjust</span> <ChevronDown size={14} className={advanced?'rotated':''}/></button>
-      <div className="collage-actions"><Button variant="primary" disabled={!result||rendering||busy} onClick={()=>onSave(result,title)}>{busy?'Saving…':'Save collage'}</Button><Button icon={Download} disabled={!result||rendering} onClick={()=>{downloadFile(result,(title||'Moment collage')+'.jpg');toast('Download started');}}>Download</Button></div>
+      <div className="collage-actions"><Button variant="primary" disabled={!result||rendering||busy} onClick={()=>onSave(result,title,used.map(p=>p.id))}>{busy?'Saving…':'Save collage'}</Button><Button icon={Download} disabled={!result||rendering} onClick={()=>{downloadFile(result,(title||'Moment collage')+'.jpg');toast('Download started');}}>Download</Button></div>
     </div>
     {photos.length>used.length&&<p className="editor-note">{used.length} / {photoCount(photos.length)} used in this layout.</p>}
     {advanced&&<section className="collage-adjustments" aria-label="Collage settings">

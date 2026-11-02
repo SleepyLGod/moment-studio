@@ -15,6 +15,13 @@
       "when": 1793633985389,
       "tag": "0001_loud_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793635803393,
+      "tag": "0002_same_gamora",
+      "breakpoints": true
     }
   ]
 }

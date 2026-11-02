@@ -39,3 +39,9 @@
 - Task 1: complete — official starter and both builds pass; static index moved intact into demo/ to avoid shadowing SSR.
 - Task 2 local: complete — seven API tests and real local Workers D1/R2 smoke pass, including byte hash and create-only retry. Hosted validation pending.
 - Task 3: implemented — cloud resource client and async UI actions; browser upload reached 13 photos, no console errors. Further hosted interaction QA pending.
+
+- Hosted vertical slice: v3 source a723fe2 deployed; native DB binding/tables verified; actual browser upload and downloaded original SHA-256 matched. No personal photos used.
+- Final review: fresh reviewer found six Important issues; all received regression coverage and a fix pass: generated Tone file IDs; collection-aware category/cover/example reads; snapshot-paired revisions; complete pending Style payload; stable sample-batch retry; actual ordered collage provenance.
+- Final: fixed all six — new regression tests observed RED then GREEN; npm test passes 13/13 plus all nine provenance checks; Worker/demo builds and typecheck pass.
+- Ruling: repaired generated, unapplied 0002 SQL because Drizzle quoted a JSON expression as column names. Snapshot/schema retained; the corrected migration passed real SQLite and local Workers execution. Future generated migrations still require inspection.
+- Minor PNG filename mismatch was corrected together with the MIME/content-scoped image materialization fix; no separate deferred code defect.

@@ -8,6 +8,7 @@ import {StyleLab} from './StyleLab';
 import {makeSampleDerivative, recipeSignature, sampleFor} from './recipes';
 import {persistState, readSavedState} from './storage';
 import {renderStyle} from './imaging';
+import {mergePhotos} from './services/operations';
 import {createCloudLibrary} from './services/cloud';
 
 export default function App({mode="demo"}) {
@@ -49,7 +50,7 @@ export default function App({mode="demo"}) {
   async function saveAlbumRecord(album){return cloud?client.saveAlbum(album):album;}
   function importPhotos(items){return execute(async()=>{
     const saved=[];for(const photo of items){const item=await savePhoto(photo);upsert('photos',item);saved.push(item);}
-    setSelected(new Set(saved.map(p=>p.id)));setSelecting(true);setFilter('all');setTab('photos');setView('library');toast(saved.length+' photos imported');return saved;
+    setSelected(new Set(saved.map(p=>p.id)));setSelecting(true);if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setTab('photos');setView('library');toast(saved.length+' photos imported');return saved;
   });}
   function assignCategory(category,ids=[...selected]){return execute(async()=>{
     for(const id of ids){const photo=stateRef.current.photos.find(p=>p.id===id);if(photo)upsert('photos',await savePhoto({...photo,category}));}
@@ -71,13 +72,14 @@ export default function App({mode="demo"}) {
     const album=target==='new'?{id:id||crypto.randomUUID(),title,note,photoIds:ids}:{...original,photoIds:[...new Set([...original.photoIds,...ids])]};
     upsert('albums',await saveAlbumRecord(album));setTab('albums');setView('library');clear();setSelecting(false);toast(target==='new'?'Album saved':'Photos added');return true;
   });}
-  function updateAlbum(album){return execute(async()=>{const current=stateRef.current.albums.find(a=>a.id===album.id);const saved=await saveAlbumRecord({...album,revision:current?.revision});upsert('albums',saved);return saved;});}
+  function updateAlbum(album){return execute(async()=>{const saved=await saveAlbumRecord(album);upsert('albums',saved);return saved;});}
   function openAlbumDetail(id){return execute(async()=>{
     const album=stateRef.current.albums.find(a=>a.id===id);
-    if(cloud)for(const photoId of album.photoIds)if(!stateRef.current.photos.some(p=>p.id===photoId))upsert('photos',await client.photo(photoId));
+    if(cloud){const missing=album.photoIds.filter(id=>!stateRef.current.photos.some(p=>p.id===id));const related=await client.resolve(missing);change(s=>({...s,photos:mergePhotos(s.photos,related)}));}
     setAlbumId(id);return true;
   });}
-  function loadMore(){return execute(async()=>{const items=await client.more();change(s=>({...s,photos:[...s.photos,...items.filter(p=>!s.photos.some(old=>old.id===p.id))]}));setHasMore(client.hasMore());return true;});}
+  async function chooseCategory(value){if(!cloud){setFilter(value);return;}return execute(async()=>{const items=await client.filter(value);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());setFilter(value);return true;});}
+  function loadMore(){return execute(async()=>{const items=await client.more();change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());return true;});}
   function apply(style,ids){return execute(async()=>{
     let count=0;for(const id of ids){const photo=stateRef.current.photos.find(p=>p.id===id);if(photo){upsert('photos',await savePhoto(await renderStyle(photo,style)));count++;}}
     toast('Tone applied to '+count+' photos');return true;
@@ -90,10 +92,10 @@ export default function App({mode="demo"}) {
     for(const photo of candidates){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(photo.id+'|'+signature));const id='generation-'+Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');const result=makeSampleDerivative(photo,{...recipe,name:recipe.name||'My style'},id,new Date().toISOString().slice(0,10));upsert('photos',await savePhoto(result));}
     toast(candidates.length+' images saved. Originals kept.');return candidates.length;
   });}
-  function saveCollage(src,title){return execute(async()=>{
+  function saveCollage(src,title,sourcePhotoIds){return execute(async()=>{
     if(collageSave.current?.src!==src||collageSave.current?.title!==title)collageSave.current={src,title,id:crypto.randomUUID()};
-    const item=await savePhoto({id:collageSave.current.id,name:title.trim()||'My collage',src,style:'original',date:new Date().toISOString().slice(0,10),category:'创作',kind:'collage',sourcePhotoIds:workPhotos.map(p=>p.id)});
-    upsert('photos',item);setSelected(new Set([item.id]));setSelecting(true);setTab('photos');setFilter('all');setView('library');toast('Collage saved to library');return true;
+    const item=await savePhoto({id:collageSave.current.id,name:title.trim()||'My collage',src,style:'original',date:new Date().toISOString().slice(0,10),category:'创作',kind:'collage',sourcePhotoIds});
+    upsert('photos',item);setSelected(new Set([item.id]));setSelecting(true);setTab('photos');if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setView('library');toast('Collage saved to library');return true;
   });}
   if(bootError)return <div className="boot"><p>{bootError.message}</p>{bootError.status===401?<a href="/signin-with-chatgpt?return_to=%2F" target="_top">Sign in</a>:<button onClick={()=>location.reload()}>Try again</button>}</div>;
   if(!ready)return <div className="boot"><Loader2 size={23} className="spinning"/><span>Opening your library…</span></div>;
@@ -102,7 +104,7 @@ export default function App({mode="demo"}) {
     <Header view={view} onView={setView} onUpload={()=>setModal('upload')}/>
     <main aria-busy={busy} id="workspace" className={'workspace view-'+view}>
       {saveProblem&&<p className="save-warning" role="status">Changes were not confirmed. Check your connection, then reload before retrying.</p>}
-      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={setTab} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={setFilter} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')}/>}
+      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={setTab} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')}/>}
       {view==='lab'&&<StyleLab photos={labPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('lab')} savedStyles={state.savedStyles||[]} onSaveStyle={saveStyle} onSaveResults={saveStyleResults} onApply={apply} busy={busy} toast={toast}/>}
       {view==='collage'&&<CollageView photos={workPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('collage')} onSave={saveCollage} toast={toast} busy={busy}/>}
     </main>

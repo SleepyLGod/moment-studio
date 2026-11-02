@@ -1,6 +1,7 @@
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {ArrowDown, ArrowUp, Check, Download, ImagePlus, Loader2, FolderPlus, Tags, Upload, X} from 'lucide-react';
 import {CATEGORIES, categoryLabel, photoCount, UPLOAD_SAMPLES, photoSrc, styleFor, assetUrl} from './data';
+import {prepareSampleBatch} from './services/operations';
 import {exportAlbum, loadImage} from './imaging';
 
 export const NoticeContext=createContext('');
@@ -53,8 +54,9 @@ function readFile(file) {
 }
 export function UploadDialog({cloud=false,onClose,onImport,toast}) {
   const [files,setFiles]=useState([]),[drag,setDrag]=useState(false),[busy,setBusy]=useState(false);
-  const input=useRef(null),prepared=useRef(null);
+  const input=useRef(null),prepared=useRef(null),sampleBatch=useRef(null),inflight=useRef(false);
   function choose(list) {
+    if(inflight.current)return;
     prepared.current=null;
     const good=[...list].filter(f=>/^image\/(jpeg|png|webp)$/.test(f.type)&&f.size<=12*1024*1024);
     if(good.length!==list.length)toast('Use JPG, PNG or WebP files under 12 MB.');
@@ -62,7 +64,7 @@ export function UploadDialog({cloud=false,onClose,onImport,toast}) {
     setFiles(good.slice(0,20));
   }
   async function submit() {
-    setBusy(true);
+    if(inflight.current)return;inflight.current=true;setBusy(true);
     try {
       if(!prepared.current){
         const photos=[];
@@ -75,23 +77,23 @@ export function UploadDialog({cloud=false,onClose,onImport,toast}) {
         prepared.current=photos;
       }
       if(await onImport(prepared.current))onClose();
-    } catch(error){toast(error.message);} finally{setBusy(false);}
+    } catch(error){toast(error.message);} finally{inflight.current=false;setBusy(false);}
   }
   async function samples() {
-    setBusy(true);
-    const stamp=Date.now();
-    try{if(await onImport(UPLOAD_SAMPLES.map(([id,name,demoCategory])=>({id:'sample-'+id+'-'+stamp,name,src:'/photos/'+id+'.jpg',demoCategory,category:'待分类',date:'2026-11-02',style:'original',kind:'photo'}))))onClose();}finally{setBusy(false);}
+    if(inflight.current)return;inflight.current=true;setBusy(true);
+    sampleBatch.current=prepareSampleBatch(sampleBatch.current);
+    try{if(await onImport(sampleBatch.current))onClose();}finally{inflight.current=false;setBusy(false);}
   }
   return <Modal title="Upload photos" onClose={onClose} className="upload-modal">
     <div className={'dropzone '+(drag?'dragging':'')} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);choose(e.dataTransfer.files);}}>
       <ImagePlus size={33} strokeWidth={1.3}/><h3>{files.length?files.length+' selected':'Drop your photos here'}</h3>
       <p>JPG / PNG / WebP · up to 12 MB each</p>
-      <Button onClick={()=>input.current.click()}>Browse files</Button>
-      <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Choose files to upload" className="file-input" onChange={e=>choose(e.target.files)}/>
+      <Button disabled={busy} onClick={()=>input.current.click()}>Browse files</Button>
+      <input disabled={busy} ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Choose files to upload" className="file-input" onChange={e=>choose(e.target.files)}/>
       {!!files.length&&<div className="file-list">{files.map(f=><span key={f.name+f.size}>{f.name}</span>)}</div>}
     </div>
     <p className="muted small local-note">{cloud?'Saved to your private library.':'Stored in this browser.'}</p>
-    <footer className="modal-footer"><button className="text-button" onClick={samples}>Try 4 samples</button><Button variant="primary" disabled={!files.length||busy} icon={busy?Loader2:Upload} onClick={submit}>{busy?'Reading…':'Import'}</Button></footer>
+    <footer className="modal-footer"><button className="text-button" disabled={busy} onClick={samples}>Try 4 samples</button><Button variant="primary" disabled={!files.length||busy} icon={busy?Loader2:Upload} onClick={submit}>{busy?'Reading…':'Import'}</Button></footer>
   </Modal>;
 }
 const GROUP_TITLES={'旅行':'Mountains & sea','自然':'Into nature','城市':'City walks','日常':'Everyday light','人像':'People & places','创作':'New perspectives','待分类':'Unsorted'};

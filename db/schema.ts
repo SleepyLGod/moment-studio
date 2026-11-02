@@ -1,4 +1,5 @@
 import {sqliteTable, text, integer, index} from 'drizzle-orm/sqlite-core';
+import {sql} from 'drizzle-orm';
 
 export const owner = sqliteTable('library_owner', {
   id: integer('id').primaryKey(), userId: text('user_id').notNull(), initialized: integer('initialized').notNull().default(0),
@@ -14,7 +15,7 @@ function records(name: string) {
     id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
     data: text('data').notNull(), revision: integer('revision').notNull().default(1),
     createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(),
-  }, table=>[index(name+'_owner_order').on(table.ownerId,table.createdAt,table.id)]);
+  }, table=>[index(name+'_owner_order').on(table.ownerId,table.createdAt,table.id),...(name==='photos'?[index('photos_owner_category_order').on(table.ownerId,sql`json_extract(${table.data}, '$.category')`,table.createdAt,table.id)]:[])]);
 }
 export const photos = records('photos');
 export const albums = records('albums');

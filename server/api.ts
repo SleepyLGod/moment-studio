@@ -1,4 +1,4 @@
-import {freshState} from '../src/data.js';
+import {freshState,CATEGORIES} from '../src/data.js';
 export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; }
 export interface Identity { userId: string; email: string; }
 type RecordData = Record<string, any>;
@@ -33,7 +33,7 @@ function mimeOf(bytes:Uint8Array){
 }
 async function fileRow(env:GalleryEnv,user:string,id:string){return env.DB.prepare('SELECT * FROM files WHERE id=? AND owner_id=?').bind(id,user).first<FileRow>();}
 async function record(env:GalleryEnv,table:string,user:string,id:string){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?`).bind(id,user).first<DataRow>();}
-function item(row:DataRow){return {...JSON.parse(row.data),revision:row.revision};}
+function item(row:DataRow){return {...JSON.parse(row.data),revision:row.revision,_order:row.created_at};}
 async function authorize(env:GalleryEnv,user:Identity|null){
   if(!user?.userId||!user.email)fail(401,'Sign in to open your library.');
   if(!env.DB||!env.BUCKET)fail(503,'Cloud storage is not configured.');
@@ -128,21 +128,37 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       return new Response(method==='HEAD'?null:object.body,{headers:{...headers,'content-type':row.mime,'content-length':String(row.size),'content-disposition':`${url.searchParams.has('download')?'attachment':'inline'}; filename*=UTF-8''${encodeURIComponent(row.name)}`}});
     }
     const table=path[0];
+    if(table==='photos'&&path[1]==='resolve'&&path.length===2&&method==='POST'){
+      const data=await body(request);if(!Array.isArray(data.ids)||data.ids.length>50)fail(400,'Resolve up to 50 photos at a time.');
+      const ids=data.ids.map(identifier);if(!ids.length)return json({items:[]});
+      const rows=await env.DB.prepare(`SELECT * FROM photos WHERE owner_id=? AND id IN (${ids.map(()=>'?').join(',')})`).bind(user.userId,...ids).all<DataRow>();
+      return json({items:rows.results.map(item)});
+    }
     if(TABLES.has(table)&&path.length===1&&method==='GET'){
       const n=Number(url.searchParams.get('limit')||50);if(!Number.isSafeInteger(n)||n<1||n>100)fail(400,'Invalid page size.');
       let cursor:[number,string]|null=null;const raw=url.searchParams.get('cursor');
       if(raw){try{cursor=JSON.parse(raw);}catch{fail(400,'Invalid cursor.');}if(!Array.isArray(cursor)||cursor.length!==2||!Number.isSafeInteger(cursor[0])||typeof cursor[1]!=='string')fail(400,'Invalid cursor.');}
-      const query=cursor?env.DB.prepare(`SELECT * FROM ${table} WHERE owner_id=? AND (created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT ?`).bind(user.userId,cursor[0],cursor[0],cursor[1],n+1):env.DB.prepare(`SELECT * FROM ${table} WHERE owner_id=? ORDER BY created_at DESC,id DESC LIMIT ?`).bind(user.userId,n+1);
+      const conditions=['owner_id=?'],args:(string|number)[]=[user.userId];
+      const category=url.searchParams.get('category');
+      if(category&&category!=='all'){
+        if(table!=='photos'||!CATEGORIES.includes(category))fail(400,'Invalid photo category.');
+        conditions.push("json_extract(data,'$.category')=?");args.push(category);
+      }
+      const total=(await env.DB.prepare(`SELECT count(*) AS total FROM ${table} WHERE ${conditions.join(' AND ')}`).bind(...args).first<{total:number}>())?.total||0;
+      if(cursor){conditions.push('(created_at<? OR (created_at=? AND id<?))');args.push(cursor[0],cursor[0],cursor[1]);}
+      args.push(n+1);
+      const query=env.DB.prepare(`SELECT * FROM ${table} WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC,id DESC LIMIT ?`).bind(...args);
       const rows=(await query.all<DataRow>()).results,more=rows.length>n,items=rows.slice(0,n),last=items.at(-1);
-      return json({items:items.map(item),nextCursor:more&&last?JSON.stringify([last.created_at,last.id]):null});
+      return json({items:items.map(item),total,nextCursor:more&&last?JSON.stringify([last.created_at,last.id]):null});
     }
     if(TABLES.has(table)&&path.length===2){
       const id=identifier(path[1]),existing=await record(env,table,user.userId,id);
       if(method==='GET'){if(!existing)fail(404,'Record not found.');return json({item:item(existing)});}
       if(method==='PUT'){
+        const scope=url.searchParams.get('category')||'all';if(table==='photos'&&scope!=='all'&&!CATEGORIES.includes(scope))fail(400,'Invalid photo category.');
         const data=await body(request);if(data.id!==id)fail(400,'Record ID does not match.');await validateRecord(env,table,user.userId,data);
         if(existing&&table==='photos'&&data.src!==JSON.parse(existing.data).src)fail(409,'The original image cannot be replaced.');
-        const {revision:ignored,...values}=data;const now=Date.now(),raw=JSON.stringify(values);
+        const {revision:ignored,_order:ignoredOrder,...values}=data;const now=Date.now(),raw=JSON.stringify(values);
         if(existing&&existing.data!==raw&&data.revision!==existing.revision)fail(409,'This item changed in another session. Reload before saving.');
         if(existing){
           if(existing.data!==raw){const changed=await env.DB.prepare(`UPDATE ${table} SET data=?,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?`).bind(raw,now,id,user.userId,existing.revision).run();if(!changed.meta.changes)fail(409,'This item changed. Reload before saving.');}
@@ -150,7 +166,8 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
           await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (id,owner_id,data,revision,created_at,updated_at) VALUES (?,?,?,1,?,?)`).bind(id,user.userId,raw,now,now).run();
           const stored=await record(env,table,user.userId,id);if(!stored||stored.data!==raw)fail(409,'This identifier already belongs to another record.');
         }
-        return json({item:item((await record(env,table,user.userId,id))!)});
+        const total=table==='photos'?(await (scope==='all'?env.DB.prepare('SELECT count(*) AS total FROM photos WHERE owner_id=?').bind(user.userId):env.DB.prepare("SELECT count(*) AS total FROM photos WHERE owner_id=? AND json_extract(data,'$.category')=?").bind(user.userId,scope)).first<{total:number}>())?.total:undefined;
+        return json({item:item((await record(env,table,user.userId,id))!),...(total===undefined?{}:{total})});
       }
     }
     return json({error:'Not found.'},404);
