@@ -1,6 +1,6 @@
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
 import {ArrowDown, ArrowUp, Check, Download, ImagePlus, Loader2, FolderPlus, Tags, Upload, X} from 'lucide-react';
-import {CATEGORIES, categoryLabel, photoCount, UPLOAD_SAMPLES, photoSrc, styleFor} from './data';
+import {CATEGORIES, categoryLabel, photoCount, UPLOAD_SAMPLES, photoSrc, styleFor, assetUrl} from './data';
 import {exportAlbum, loadImage} from './imaging';
 
 export const NoticeContext=createContext('');
@@ -32,7 +32,7 @@ export function Header({view,onView,onUpload}) {
 export function PhotoCard({photo,selected,selecting,onToggle,onPreview}) {
   return <article className={'photo-card '+(selected?'selected ':'')+(selecting?'selecting':'')}>
     <button className="photo-image" aria-label={(selecting?'Toggle selection ':'Preview ')+photo.name} onClick={()=>selecting?onToggle(photo.id):onPreview(photo)}>
-      <img src={photoSrc(photo)} alt={photo.name} loading="lazy" draggable="false"/>
+      <img src={assetUrl(photo.renderedSrc||photo.thumbnailSrc||photo.src)} alt={photo.name} loading="lazy" draggable="false"/>
     </button>
     <button className="photo-check" aria-label={(selected?'Deselect ':'Select ')+photo.name} aria-pressed={selected} onClick={()=>onToggle(photo.id)}>
       {selected && <Check size={16} aria-hidden="true"/>}
@@ -51,10 +51,11 @@ export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab}
 function readFile(file) {
   return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Could not read '+file.name));reader.readAsDataURL(file);});
 }
-export function UploadDialog({onClose,onImport,toast}) {
+export function UploadDialog({cloud=false,onClose,onImport,toast}) {
   const [files,setFiles]=useState([]),[drag,setDrag]=useState(false),[busy,setBusy]=useState(false);
-  const input=useRef(null);
+  const input=useRef(null),prepared=useRef(null);
   function choose(list) {
+    prepared.current=null;
     const good=[...list].filter(f=>/^image\/(jpeg|png|webp)$/.test(f.type)&&f.size<=12*1024*1024);
     if(good.length!==list.length)toast('Use JPG, PNG or WebP files under 12 MB.');
     if(good.length>20)toast('Choose up to 20 photos at a time.');
@@ -63,17 +64,23 @@ export function UploadDialog({onClose,onImport,toast}) {
   async function submit() {
     setBusy(true);
     try {
-      const photos=await Promise.all(files.map(async file=>{
-        const src=await readFile(file);await loadImage(src);
-        return {id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),src,date:new Date(file.lastModified).toISOString().slice(0,10),category:'待分类',style:'original',kind:'photo'};
-      }));
-      onImport(photos);onClose();
+      if(!prepared.current){
+        const photos=[];
+        for(const file of files){
+          const src=await readFile(file),image=await loadImage(src);
+          const record={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),src,date:new Date(file.lastModified).toISOString().slice(0,10),category:'待分类',style:'original',kind:'photo'};
+          if(cloud){const canvas=document.createElement('canvas'),scale=Math.min(1,768/image.naturalWidth,768/image.naturalHeight);canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);record.file=file;record.previewBlob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.8));}
+          photos.push(record);
+        }
+        prepared.current=photos;
+      }
+      if(await onImport(prepared.current))onClose();
     } catch(error){toast(error.message);} finally{setBusy(false);}
   }
-  function samples() {
+  async function samples() {
+    setBusy(true);
     const stamp=Date.now();
-    onImport(UPLOAD_SAMPLES.map(([id,name,demoCategory])=>({id:'sample-'+id+'-'+stamp,name,src:'/photos/'+id+'.jpg',demoCategory,category:'待分类',date:'2026-11-02',style:'original',kind:'photo'})));
-    onClose();
+    try{if(await onImport(UPLOAD_SAMPLES.map(([id,name,demoCategory])=>({id:'sample-'+id+'-'+stamp,name,src:'/photos/'+id+'.jpg',demoCategory,category:'待分类',date:'2026-11-02',style:'original',kind:'photo'}))))onClose();}finally{setBusy(false);}
   }
   return <Modal title="Upload photos" onClose={onClose} className="upload-modal">
     <div className={'dropzone '+(drag?'dragging':'')} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);choose(e.dataTransfer.files);}}>
@@ -83,7 +90,7 @@ export function UploadDialog({onClose,onImport,toast}) {
       <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Choose files to upload" className="file-input" onChange={e=>choose(e.target.files)}/>
       {!!files.length&&<div className="file-list">{files.map(f=><span key={f.name+f.size}>{f.name}</span>)}</div>}
     </div>
-    <p className="muted small local-note">Stored in this browser.</p>
+    <p className="muted small local-note">{cloud?'Saved to your private library.':'Stored in this browser.'}</p>
     <footer className="modal-footer"><button className="text-button" onClick={samples}>Try 4 samples</button><Button variant="primary" disabled={!files.length||busy} icon={busy?Loader2:Upload} onClick={submit}>{busy?'Reading…':'Import'}</Button></footer>
   </Modal>;
 }
@@ -113,45 +120,48 @@ export function OrganizeDialog({photos,onClose,onSave,onAssign}) {
         <div className="group-photos">{g.photoIds.map(id=>{const p=photos.find(photo=>photo.id===id);return <div key={id}><img src={photoSrc(p)} alt={p.name}/><select aria-label={'Group '+p.name} value={g.id} onChange={e=>movePhoto(id,e.target.value)}>{groups.map(target=><option key={target.id} value={target.id}>{target.title||'Untitled'}</option>)}</select></div>;})}</div>
         {!g.photoIds.length&&<p className="empty-group">Empty group</p>}
       </section>)}</div>
-      <footer className="modal-footer"><span className="muted small">{nonempty.length} albums</span><Button variant="primary" disabled={!nonempty.length||nonempty.some(g=>!g.title.trim())} onClick={()=>{onSave(nonempty);onClose();}}>Create albums</Button></footer>
+      <footer className="modal-footer"><span className="muted small">{nonempty.length} albums</span><Button variant="primary" disabled={!nonempty.length||nonempty.some(g=>!g.title.trim())} onClick={async()=>{if(await onSave(nonempty))onClose();}}>Create albums</Button></footer>
     </>:<>
 
       <div className="category-options">{CATEGORIES.filter(c=>c!=='待分类').map(c=><button aria-pressed={category===c} className={category===c?'chosen':''} key={c} onClick={()=>setCategory(c)}>{categoryLabel(c)}{category===c&&<Check size={15}/>}</button>)}</div>
-      <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={()=>{onAssign(category,photos.map(p=>p.id));onClose();}}>Apply category</Button></footer>
+      <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={async()=>{if(await onAssign(category,photos.map(p=>p.id)))onClose();}}>Apply category</Button></footer>
     </>}
   </Modal>;
 }
 export function AlbumDialog({albums,onClose,onSave}) {
-  const [target,setTarget]=useState('new'),[title,setTitle]=useState(''),[note,setNote]=useState('');
+  const [target,setTarget]=useState('new'),[title,setTitle]=useState(''),[note,setNote]=useState(''),[saving,setSaving]=useState(false);
+  const saveId=useRef(crypto.randomUUID());
   return <Modal title={'Add to album'} onClose={onClose}>
     <label className="field">Album<select value={target} onChange={e=>setTarget(e.target.value)}><option value="new">New album</option>{albums.map(a=><option key={a.id} value={a.id}>{a.title||'Untitled album'}</option>)}</select></label>
     {target==='new'&&<><label className="field">Album name<input value={title} maxLength={48} placeholder="Untitled album" onChange={e=>setTitle(e.target.value)}/></label><details className="optional-note"><summary>Add a note</summary><label className="field"><span className="sr-only">Note</span><textarea value={note} maxLength={400} onChange={e=>setNote(e.target.value)} placeholder="Add a note…"/></label></details></>}
 
-    <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={target==='new'&&!title.trim()} onClick={()=>{onSave({target,title:title.trim(),note});onClose();}}>Save album</Button></footer>
+    <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={saving||(target==='new'&&!title.trim())} onClick={async()=>{setSaving(true);try{if(await onSave({id:saveId.current,target,title:title.trim(),note}))onClose();}finally{setSaving(false);}}}>Save album</Button></footer>
   </Modal>;
 }
 export function PhotoPreview({photo,onClose}) {
   const [original,setOriginal]=useState(false);
   return <Modal title={photo.name} onClose={onClose} className="photo-modal">
-    <img className="detail-photo" src={original?photo.src:photoSrc(photo)} alt={photo.name+(original?' original':'')}/>
+    <img className="detail-photo" src={original?assetUrl(photo.src):photoSrc(photo)} alt={photo.name+(original?' original':'')}/>
+    <a className="button" href={assetUrl(photo.src)+(photo.src.startsWith('/api/files/')?'?download=1':'')} download={photo.name}><Download size={17}/>Download original</a>
     <div className="preview-caption"><span className="muted">{categoryLabel(photo.category)} · {original||photo.style==='original'?'Original':(photo.style==='generated'?photo.recipeName:(photo.recipeName?photo.recipeName+' · ':'')+styleFor(photo.style).name)}</span>{photo.generationSource&&<span>Sample</span>}{photo.style!=='original'&&<Button onClick={()=>setOriginal(v=>!v)}>{original?'View edit':'View original'}</Button>}</div>
   </Modal>;
 }
 export function AlbumDetail({album,photos,onClose,onUpdate,toast}) {
-  const [editing,setEditing]=useState(false),[exporting,setExporting]=useState(false);
+  const [editing,setEditing]=useState(false),[exporting,setExporting]=useState(false),[working,setWorking]=useState(false);
+  const [draft,setDraft]=useState({title:album.title,note:album.note});
+  useEffect(()=>{if(!editing)setDraft({title:album.title,note:album.note});},[album,editing]);
   const ordered=album.photoIds.map(id=>photos.find(p=>p.id===id)).filter(Boolean);
-  function move(id,step) {
-    const ids=[...album.photoIds],i=ids.indexOf(id),j=i+step;if(j<0||j>=ids.length)return;[ids[i],ids[j]]=[ids[j],ids[i]];onUpdate({...album,photoIds:ids});
-  }
+  async function update(next){if(working)return null;setWorking(true);try{return await onUpdate(next);}finally{setWorking(false);}}
+  function move(id,step){const ids=[...album.photoIds],i=ids.indexOf(id),j=i+step;if(j<0||j>=ids.length)return;[ids[i],ids[j]]=[ids[j],ids[i]];return update({...album,photoIds:ids});}
   return <Modal title={album.title||'Untitled album'} onClose={onClose} className="album-detail">
-    <div className="album-tools"><span className="muted">{photoCount(ordered.length)}</span><div><button className="text-button" onClick={()=>setEditing(v=>!v)}>{editing?'Done':'Edit'}</button><Button disabled={exporting||!ordered.length} icon={Download} onClick={async()=>{setExporting(true);try{await exportAlbum(album,ordered);toast('Download started');}catch(e){toast(e.message);}finally{setExporting(false);}}}>Export</Button></div></div>
-    {editing?<div className="album-edit-fields"><label className="field">Album name<input value={album.title} maxLength={48} onChange={e=>onUpdate({...album,title:e.target.value})}/></label><label className="field">Note<textarea value={album.note} maxLength={400} onChange={e=>onUpdate({...album,note:e.target.value})}/></label></div>:album.note&&<p className="album-note">{album.note}</p>}
-    <div className={'album-story-grid '+(editing?'editing':'')}>{ordered.map((p,i)=><figure key={p.id}><img src={photoSrc(p)} alt={p.name}/>{editing&&<figcaption><span>{p.name}</span><div><IconButton icon={ArrowUp} label={'Move up '+p.name} disabled={!i} onClick={()=>move(p.id,-1)}/><IconButton icon={ArrowDown} label={'Move down '+p.name} disabled={i===ordered.length-1} onClick={()=>move(p.id,1)}/><IconButton icon={X} label={'Remove '+p.name+' from album'} onClick={()=>onUpdate({...album,photoIds:album.photoIds.filter(id=>id!==p.id)})}/></div></figcaption>}</figure>)}</div>
+    <div className="album-tools"><span className="muted">{photoCount(ordered.length)}</span><div><button disabled={working||(editing&&!draft.title.trim())} className="text-button" onClick={async()=>{if(!editing)setEditing(true);else if(await update({...album,...draft}))setEditing(false);}}>{working?'Saving…':editing?'Save changes':'Edit'}</button><Button disabled={exporting||!ordered.length} icon={Download} onClick={async()=>{setExporting(true);try{await exportAlbum(album,ordered);toast('Download started');}catch(e){toast(e.message);}finally{setExporting(false);}}}>Export</Button></div></div>
+    {editing?<div className="album-edit-fields"><label className="field">Album name<input value={draft.title} maxLength={48} onChange={e=>setDraft(d=>({...d,title:e.target.value}))}/></label><label className="field">Note<textarea value={draft.note} maxLength={400} onChange={e=>setDraft(d=>({...d,note:e.target.value}))}/></label></div>:album.note&&<p className="album-note">{album.note}</p>}
+    <div className={'album-story-grid '+(editing?'editing':'')}>{ordered.map((p,i)=><figure key={p.id}><img src={photoSrc(p)} alt={p.name}/>{editing&&<figcaption><span>{p.name}</span><div><IconButton icon={ArrowUp} label={'Move up '+p.name} disabled={working||!i} onClick={()=>move(p.id,-1)}/><IconButton icon={ArrowDown} label={'Move down '+p.name} disabled={working||i===ordered.length-1} onClick={()=>move(p.id,1)}/><IconButton icon={X} disabled={working} label={'Remove '+p.name+' from album'} onClick={()=>update({...album,photoIds:album.photoIds.filter(id=>id!==p.id)})}/></div></figcaption>}</figure>)}</div>
     {!ordered.length&&<p className="muted empty-group">No photos in this album.</p>}
   </Modal>;
 }
-export function InfoDialog({onClose,credits}) {
-  return <Modal title="About this demo" onClose={onClose}>
-    <div className="info-copy"><p>Photos, albums and styles stay in this browser.</p><p>Grouping uses existing tags. Collages are rendered locally. AI style images are pre-generated samples; live generation and cloud sync are not connected.</p><details><summary>Photo credits</summary><p>The fjord and style samples were AI-generated. Other demo photos come from Lorem Picsum / Unsplash.</p><ul>{credits.map(c=><li key={c.id}><a href={c.url} target="_blank" rel="noreferrer">{c.author} · {c.id}</a></li>)}</ul></details></div>
+export function InfoDialog({onClose,credits,cloud=false}) {
+  return <Modal title={cloud?"About your library":"About this demo"} onClose={onClose}>
+    <div className="info-copy"><p>{cloud?"Photos, albums and styles are saved to your private library.":"Photos, albums and styles stay in this browser."}</p><p>Grouping uses existing tags. Collages are rendered locally. AI style images are pre-generated samples; live generation is not connected.</p><details><summary>Photo credits</summary><p>The fjord and style samples were AI-generated. Other demo photos come from Lorem Picsum / Unsplash.</p><ul>{credits.map(c=><li key={c.id}><a href={c.url} target="_blank" rel="noreferrer">{c.author} · {c.id}</a></li>)}</ul></details></div>
   </Modal>;
 }

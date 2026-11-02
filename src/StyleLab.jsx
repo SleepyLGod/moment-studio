@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Bookmark, Check, ChevronsLeftRight, ImagePlus, Info, Layers, X} from 'lucide-react';
 import {Button, Modal} from './components';
-import {STYLES, photoCount} from './data';
+import {STYLES, photoCount, assetUrl} from './data';
 import {matchingRecipe, recipeSignature, sampleFor, LAB_RECIPES as STYLE_RECIPES} from './recipes';
 
 export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSaveResults,onApply,busy,toast}) {
@@ -9,6 +9,7 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
   const [displayed,setDisplayed]=useState(()=>({...STYLE_RECIPES[0]}));
   const [activeId,setActiveId]=useState(null),[split,setSplit]=useState(38);
   const [dialog,setDialog]=useState(null),[styleName,setStyleName]=useState('');
+  const [saving,setSaving]=useState(false),saveId=useRef(null);
   const [imageError,setImageError]=useState(false),[imageReady,setImageReady]=useState(false);
   const [basic,setBasic]=useState('film'),[imageAttempt,setImageAttempt]=useState(0);
   const referenceInput=useRef(null);
@@ -37,23 +38,24 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
       setDraft(d=>({...d,reference:{name:file.name,src}}));
     }catch(error){toast(error.message);}
   }
-  function saveStyle(e) {
+  async function saveStyle(e) {
     e.preventDefault();
     if(!styleName.trim()||!draft.prompt.trim())return;
-    const saved={...draft,id:crypto.randomUUID(),name:styleName.trim(),cover:result&&imageReady&&!imageError?result:null,createdAt:new Date().toISOString()};
-    onSaveStyle(saved);setDraft(saved);setDisplayed(saved);
-    setDialog(null);
+    if(saving)return;setSaving(true);
+    const saved={...draft,id:saveId.current||(saveId.current=crypto.randomUUID()),name:styleName.trim(),cover:result&&imageReady&&!imageError?result:null,createdAt:new Date().toISOString()};
+    try{const confirmed=await onSaveStyle(saved);if(confirmed){setDraft(confirmed);setDisplayed(confirmed);setDialog(null);saveId.current=null;}}finally{setSaving(false);}
   }
-  function saveResults(items) {
-    const count=onSaveResults(draft,items);
+  async function saveResults(items) {
+    if(saving||busy)return;setSaving(true);
+    const count=await onSaveResults(draft,items);setSaving(false);
     if(count)setDialog(null);
   }
   return <>
     <div className="section-title"><h1>Style Lab</h1><button className="demo-info" onClick={()=>setDialog('info')} aria-label="About demo mode">Demo <Info size={14}/></button><button className="text-button title-action" onClick={()=>{toast('');onChoose();}}>Choose photos</button></div>
     {photo?<>
       <div className={'comparison prompt-comparison '+(!result?'no-result':'')}>
-        <img src={photo.src} alt={photo.name+' original'}/>
-        {result&&!imageError&&<div className="comparison-overlay" style={{clipPath:'inset(0 0 0 '+split+'%)'}}><img key={result+imageAttempt} src={result} alt={title+' sample'} onLoad={()=>setImageReady(true)} onError={()=>setImageError(true)}/></div>}
+        <img src={assetUrl(photo.src)} alt={photo.name+' original'}/>
+        {result&&!imageError&&<div className="comparison-overlay" style={{clipPath:'inset(0 0 0 '+split+'%)'}}><img key={result+imageAttempt} src={assetUrl(result)} alt={title+' sample'} onLoad={()=>setImageReady(true)} onError={()=>setImageError(true)}/></div>}
         <span className="comparison-label label-original">Original</span>
         {result&&!imageError?<>
           <span className="comparison-label label-style">{imageReady?'Preview':'Loading…'}</span>
@@ -61,7 +63,7 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
           <input type="range" min="0" max="100" step="1" aria-label="Compare original and sample" value={split} onChange={e=>setSplit(Number(e.target.value))}/>
         </>:<div className="pending-result" role="status"><span>{imageError?'Image unavailable':'Not generated'}</span><p>{imageError?'Try loading the preview again.':'Save this style to try later.'}</p></div>}
       </div>
-      <div className="source-strip"><div className="source-photos" role="group" aria-label="Selected photos">{photos.map(p=><button key={p.id} aria-label={'Use '+p.name} aria-pressed={p.id===photo.id} onClick={()=>setActiveId(p.id)}><img src={p.src} alt=""/>{p.id===photo.id&&<span><Check size={12}/></span>}</button>)}</div><span className="source-count">{photoCount(photos.length)}</span></div>
+      <div className="source-strip"><div className="source-photos" role="group" aria-label="Selected photos">{photos.map(p=><button key={p.id} aria-label={'Use '+p.name} aria-pressed={p.id===photo.id} onClick={()=>setActiveId(p.id)}><img src={assetUrl(p.src)} alt=""/>{p.id===photo.id&&<span><Check size={12}/></span>}</button>)}</div><span className="source-count">{photoCount(photos.length)}</span></div>
       <div className="prompt-editor">
         <label htmlFor="creative-prompt" className="prompt-label sr-only">Describe a new look</label>
         <div className="prompt-main">
@@ -76,13 +78,13 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
         <div className="recipe-grid">{[...STYLE_RECIPES,...savedStyles].map(item=>{
           const builtin=STYLE_RECIPES.some(s=>s.id===item.id);
           const cover=builtin?'/styles/'+item.id+'-fjord.png':item.cover;
-          return <button key={item.id} className={'recipe-card '+(item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)?'active':'')} aria-pressed={item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)} onClick={()=>loadStyle(item)}>{cover?<img src={cover} alt={item.name+' preview'}/>:<div className="recipe-placeholder"><Bookmark size={22}/><span>Draft</span></div>}<span className="recipe-info"><strong>{item.name}</strong><small>{builtin?'':item.cover?'Saved':'Draft'}</small></span></button>;
+          return <button key={item.id} className={'recipe-card '+(item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)?'active':'')} aria-pressed={item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)} onClick={()=>loadStyle(item)}>{cover?<img src={assetUrl(cover)} alt={item.name+' preview'}/>:<div className="recipe-placeholder"><Bookmark size={22}/><span>Draft</span></div>}<span className="recipe-info"><strong>{item.name}</strong><small>{builtin?'':item.cover?'Saved':'Draft'}</small></span></button>;
         })}</div>
       </section>
-      <div className="lab-secondary"><details className="basic-colors"><summary>Tone</summary><div className="basic-controls"><div role="group" aria-label="Tone">{STYLES.map(s=><button aria-pressed={basic===s.id} className={basic===s.id?'active':''} key={s.id} onClick={()=>setBasic(s.id)}>{{original:'Original',film:'Film',mono:'Mono',soft:'Soft'}[s.id]}</button>)}</div><Button disabled={busy} onClick={()=>onApply(basic,photos.map(p=>p.id))}>{busy?'Applying…':'Apply tone'}</Button><p>Color adjustments only.</p></div></details><button className="text-button" disabled={!result||!imageReady||imageError} onClick={()=>saveResults([photo])}>Save image</button></div>
+      <div className="lab-secondary"><details className="basic-colors"><summary>Tone</summary><div className="basic-controls"><div role="group" aria-label="Tone">{STYLES.map(s=><button aria-pressed={basic===s.id} className={basic===s.id?'active':''} key={s.id} onClick={()=>setBasic(s.id)}>{{original:'Original',film:'Film',mono:'Mono',soft:'Soft'}[s.id]}</button>)}</div><Button disabled={busy} onClick={()=>onApply(basic,photos.map(p=>p.id))}>{busy?'Applying…':'Apply tone'}</Button><p>Color adjustments only.</p></div></details><button className="text-button" disabled={!result||!imageReady||imageError||saving||busy} onClick={()=>saveResults([photo])}>Save image</button></div>
     </>:<div className="empty-state"><h2>Choose a photo</h2><Button onClick={onChoose}>Choose photos</Button></div>}
     {dialog==='info'&&<Modal title="Demo mode" onClose={()=>setDialog(null)}><p className="info-copy">These images were generated in advance. Three photos, three styles. Custom prompts and references can be saved, but live generation is not connected.</p></Modal>}
-    {dialog==='save'&&<Modal title="Save style" onClose={()=>setDialog(null)} className="save-style-modal"><form onSubmit={saveStyle}><label className="field">Style name<input autoFocus value={styleName} maxLength={40} onChange={e=>setStyleName(e.target.value)} required/></label><div className="recipe-summary"><p>{draft.prompt}</p><span>{draft.preserve?'Keep composition':'Free composition'}{draft.reference?' · Reference attached':''}</span><small>{result?'Recipe and preview will be saved.':'Recipe only. Image not generated.'}</small></div><footer className="modal-footer"><Button type="button" onClick={()=>setDialog(null)}>Cancel</Button><Button type="submit" variant="primary" disabled={!styleName.trim()}>Save style</Button></footer></form></Modal>}
-    {dialog==='batch'&&<Modal title="Apply style" onClose={()=>setDialog(null)} className="batch-style-modal"><p className="batch-description">{title} · {reusable.length} of {photos.length} samples available.</p><div className="batch-list">{photos.map(p=>{const src=sampleFor(p,draft);return <div key={p.id}><img src={p.src} alt={p.name}/><span>{p.name}<small>{src?'Sample ready':'No sample'}</small></span>{src?<img src={src} alt={p.name+' sample'}/>:<span className="batch-unavailable">Draft</span>}</div>;})}</div><p className="muted small">Available for the three demo photos. Originals stay untouched.</p><footer className="modal-footer"><Button onClick={()=>setDialog(null)}>Cancel</Button><Button variant="primary" disabled={!reusable.length} onClick={()=>saveResults(reusable)}>Save {reusable.length} images</Button></footer></Modal>}
+    {dialog==='save'&&<Modal title="Save style" onClose={()=>setDialog(null)} className="save-style-modal"><form onSubmit={saveStyle}><label className="field">Style name<input autoFocus value={styleName} maxLength={40} onChange={e=>setStyleName(e.target.value)} required/></label><div className="recipe-summary"><p>{draft.prompt}</p><span>{draft.preserve?'Keep composition':'Free composition'}{draft.reference?' · Reference attached':''}</span><small>{result?'Recipe and preview will be saved.':'Recipe only. Image not generated.'}</small></div><footer className="modal-footer"><Button type="button" onClick={()=>setDialog(null)}>Cancel</Button><Button type="submit" variant="primary" disabled={!styleName.trim()||saving}>Save style</Button></footer></form></Modal>}
+    {dialog==='batch'&&<Modal title="Apply style" onClose={()=>setDialog(null)} className="batch-style-modal"><p className="batch-description">{title} · {reusable.length} of {photos.length} samples available.</p><div className="batch-list">{photos.map(p=>{const src=sampleFor(p,draft);return <div key={p.id}><img src={assetUrl(p.src)} alt={p.name}/><span>{p.name}<small>{src?'Sample ready':'No sample'}</small></span>{src?<img src={assetUrl(src)} alt={p.name+' sample'}/>:<span className="batch-unavailable">Draft</span>}</div>;})}</div><p className="muted small">Available for the three demo photos. Originals stay untouched.</p><footer className="modal-footer"><Button onClick={()=>setDialog(null)}>Cancel</Button><Button variant="primary" disabled={!reusable.length||saving||busy} onClick={()=>saveResults(reusable)}>Save {reusable.length} images</Button></footer></Modal>}
   </>;
 }

@@ -1,5 +1,7 @@
 # Sites 入口与 Go 图库：部署和实现设计草案
 
+> Superseded for the first milestone: the user chose Sites-native TypeScript + D1 + R2. This document is retained as a future alternative, not the current implementation plan. See [the active design](../../sites-native-design.md) and [TODO](../../../TODO.md).
+
 日期：2026-11-02。状态：用户已确认 PostgreSQL 与 Sites＋云端 Go 优先；业务后端尚未实现或部署。
 
 ## 目标与已作决定

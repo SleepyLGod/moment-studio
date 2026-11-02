@@ -1,5 +1,5 @@
-import {photoSrc,styleFor} from './data';
-export function loadImage(src){return new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Image could not load. Please try again.'));image.src=src;});}
+import {photoSrc,styleFor,assetUrl} from './data';
+export function loadImage(src){return new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Image could not load. Please try again.'));image.src=assetUrl(src);});}
 export async function renderStyle(photo,styleId){
  const generationSrc=photo.generationSrc||(photo.kind==='generation'&&photo.style==='generated'?photo.renderedSrc:null);
  if(styleId==='original')return {...photo,...(generationSrc?{generationSrc}:{}),style:generationSrc?'generated':'original',renderedSrc:generationSrc||undefined};

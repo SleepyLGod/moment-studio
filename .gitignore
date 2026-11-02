@@ -14,3 +14,13 @@ dist/
 .env.*
 !.env.example
 *.log
+
+# Sites runtime and local data
+.wrangler/
+.vinext/
+.sites-runtime/
+.next/
+.superpowers/
+dist-demo/
+*.tsbuildinfo
+.dev.vars*

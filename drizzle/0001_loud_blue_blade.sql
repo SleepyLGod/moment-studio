@@ -1,0 +1,1 @@
+ALTER TABLE `library_owner` ADD `initialized` integer DEFAULT 0 NOT NULL;

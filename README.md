@@ -1,67 +1,37 @@
 # moment
 
-A private photo workbench prototype. Collect photos, compose albums and collages, and explore reusable AI styles.
+A private photo workbench: collect photos, compose albums and collages, and save reusable Style recipes. The same React UI runs as a Sites cloud app or a browser-local static demo.
 
 ![Library](docs/screenshots/library.png)
 
-## Run locally
+## Cloud architecture
 
-Use Node.js 24 (the CI version) and npm.
+Sites hosts the TypeScript API and UI using its official Vinext starter. D1 stores owner-scoped metadata; R2 stores uploads, previews, references and rendered results. The existing Site identity and owner-private audience are preserved.
 
-    npm ci
-    npm run dev
+The first release accepts JPG, PNG and WebP, up to 12 MiB per file and 20 files per batch. Uploaded originals are immutable. Files are readable only through authenticated owner-scoped routes. Existing browser data is not automatically imported.
 
-Open http://127.0.0.1:4173/.
+Albums, category changes, Style recipes and saved creations use resource APIs. Collages and tones still render in the browser. Nine AI style samples were generated in advance: live generation and iCloud synchronization are not connected.
 
-    npm test
-    npm run build
-    npm run check
+## Development
 
-The production build is written to `dist/`. Design skills are optional and are not runtime dependencies.
+Use Node.js 24+ and npm. Install with `npm install`; run `npm run build` once to generate local Worker binding configuration. Apply the SQL files in `drizzle/` in order using the local commands in [DEPLOYMENT.md](DEPLOYMENT.md), then run `npm run dev -- --port 4174`.
 
-## What works
+The portable preview offers mock ChatGPT sign-in only on loopback. Hosted sign-in is managed by Sites; no local mock identity is used in production. Local and hosted databases/files are separate.
 
-- Upload JPG, PNG and WebP, or import bundled sample photos. Up to 20 files per batch, 12 MB per file.
-- Browse and select photos; filter categories; manually classify or group using existing tags.
-- Create albums, add notes and reorder photos. Export an album as self-contained HTML.
-- Render collages, adjust spacing, background and caption, and save or download a real JPEG.
-- Compare nine pre-generated examples: paper, clay and vintage comic applied to fjord, city and coffee photos.
-- Save and reload named Style recipes, including prompt, composition preference and an optional reference image.
-- Save supported sample results separately from their originals. Original and generated base images remain available through color adjustments.
+For the static demo, run `npm run dev:demo` (port 4173) or `npm run build:demo` (output `dist-demo/`). Demo records stay in that browser's IndexedDB and never write to the production API. Use `DEMO_BASE=/moment-studio/` for a project Pages build.
 
-![Collage](docs/screenshots/collage.png)
+## Checks
 
-## Prototype boundaries
+- `npm test`: exact pre-generated sample provenance and backend authorization/upload/resource tests.
+- `npm run typecheck`: TypeScript check.
+- `npm run build`: Sites Worker build in `dist/`.
+- `npm run build:demo`: independent static demo build.
+- `node tests/worker-smoke.mjs http://127.0.0.1:4174`: running local Workers integration; uses only bundled example photos and leaves named QA records.
 
-This is a working frontend prototype, not a production cloud photo library.
+[DEPLOYMENT.md](DEPLOYMENT.md) distinguishes local simulation, source synchronization and hosted verification. [The active design](docs/sites-native-design.md) describes the resource boundaries. [TODO.md](TODO.md) contains Go/PostgreSQL, Docker, migration, Pages publication and other future work.
 
-- Photos, albums and Styles are stored in this browser's IndexedDB. They are not backed up or synced across devices or website origins.
-- Grouping uses known tags. It does not run an image classifier.
-- AI images were generated in advance. Arbitrary prompts and references can be saved, but live model generation is not connected. Editing an input without a matching example shows a pending state.
-- There is no iCloud / PikPak connection, production sign-in, cloud upload pipeline or tens-of-GB capacity validation.
-- HEIC, full Live Photos and videos are not supported.
-- User-authored names, notes and prompts keep their language. The application controls use English / Sleet Mono, with Chinese fallbacks.
+## Boundaries
 
-## Hosting
+HEIC, Live Photos, videos, multi-user sharing, real-library migration and arbitrary-prompt AI generation are not implemented. Private records use the authenticated owner identity; sharing this Site with additional viewers requires an explicit membership design. User-authored names, notes and prompts retain their language; controls remain English with Sleet Mono and Chinese fallbacks.
 
-One repository supplies the same frontend to **Sites for the private workbench** and **GitHub Pages in demo mode**. The Pages build uses example data. The proposed Go service owns the real gallery business logic and can run locally, in Docker, or on a cloud host; it has not been implemented. Code stored on GitHub does not automatically deploy any of these services.
-
-The existing Site remains owner-private; its deployed source commit is recorded in Sites version history. The Pages demo has not been published, and the existing personal homepage is unchanged. The first backend milestone targets Sites with a cloud-hosted Go service, PostgreSQL and object storage; local/Docker development supports that delivery.
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for access, domains and the separation of code, hosting and photo storage.
-
-See the [Sites + Go design draft](docs/superpowers/specs/2026-11-02-sites-go-gallery-design.md) for service boundaries, local/Docker/cloud deployment options and implementation milestones. This is a proposal, not a working backend or cloud deployment.
-
-## Project guide
-
-| Path | Purpose |
-| --- | --- |
-| `src/` | React UI, demo recipes, browser storage and image rendering |
-| `public/` | Demo images, provenance records and the self-hosted font |
-| `scripts/check-style-samples.mjs` | Sample eligibility, provenance and original-retention checks |
-| `.openai/hosting.json` | Existing Sites identity and static output configuration |
-| `.github/workflows/check.yml` | Build and sample checks; no automatic deployment |
-| `PRODUCT.md`, `DESIGN.md` | Product boundaries and design decisions |
-| `design-qa.md` | Historical visual and interaction verification |
-
-See [asset notes](docs/ASSETS.md) for image sources, font licensing and optional design-tool provenance. Real browser captures shown above are illustrative; they do not connect to a live gallery.
+[Asset notes](docs/ASSETS.md) document the bundled example photos, generated samples and font license. The screenshots above are illustrative, not evidence of a hosted persistence test.

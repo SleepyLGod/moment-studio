@@ -28,5 +28,6 @@ export const STYLES = [
  {id:'soft',name:'Soft',subtitle:'低对比与色块示意',filter:'saturate(.75) contrast(.84) brightness(1.12)',tone:'#a7c2b4'},
 ];
 export const styleFor = id => STYLES.find(s=>s.id===id)||STYLES[0];
-export const photoSrc = photo => photo.renderedSrc || photo.src;
+export const assetUrl = src => typeof src==='string'&&/^\/(photos|styles|fonts)\//.test(src)?(import.meta.env?.BASE_URL||'/')+src.slice(1):src;
+export const photoSrc = photo => assetUrl(photo.renderedSrc || photo.src);
 export function freshState(){return {photos:SEED_PHOTOS,albums:SEED_ALBUMS,savedStyles:[]};}
