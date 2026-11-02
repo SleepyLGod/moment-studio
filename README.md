@@ -46,7 +46,7 @@ This is a working frontend prototype, not a production cloud photo library.
 
 One repository supplies the same frontend to **Sites for the private workbench** and **GitHub Pages in demo mode**. The Pages build uses example data. The proposed Go service owns the real gallery business logic and can run locally, in Docker, or on a cloud host; it has not been implemented. Code stored on GitHub does not automatically deploy any of these services.
 
-The existing Sites deployment is an earlier owner-private version. The current English frontend has not been deployed there. The Pages demo has not been published, and the existing personal homepage is unchanged.
+The existing Site remains owner-private; its deployed source commit is recorded in Sites version history. The Pages demo has not been published, and the existing personal homepage is unchanged. The first backend milestone targets Sites with a cloud-hosted Go service, PostgreSQL and object storage; local/Docker development supports that delivery.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for access, domains and the separation of code, hosting and photo storage.
 
