@@ -10,7 +10,9 @@
 - 1K/2K match ratio是用户主动选择的预设；能保持精确比例时保持，无法对齐时最多近似1%，不裁剪/拉伸。自定义比例由用户决定。
 - 后台任务保存明确尺寸，返回JPEG像素必须一致才成功；任务去重包含尺寸。原图不覆盖，结果只存一个文件，没有新增中间JPEG/额外缩略图。比较预览完整显示，比例不同时留白。
 
-## ChatGPT订阅：能力已证实，网页连接尚未实现
+## ChatGPT订阅：较早的本机验证记录
+
+**后续进展：已完成 OpenAI 云端订阅改图 → Sites MCP 回存的公开样本验证，不依赖 Mac 执行器。**见[云端验收](openai-cloud-proof.md)。以下本机调用与执行端设想保留作历史记录，并非当前必须采用的路线；网页自动唤起云任务仍待单独实现。
 
 真实调用使用已安装的原生Codex CLI、已有ChatGPT登录及内建image_generation，非外部OAuth预览或OpenAI API key。公开输入为`public/photos/1060.jpg`，输出经独立解码为1422×1106 PNG、2,592,439字节，SHA256 `c0a68091532768051e9012bff67d8bb061c3758c98aa63741a24366918a0b0e1`。请求禁止shell替代绘图与其他生成服务，进程清除OPENAI_API_KEY、CODEX_API_KEY、OPENAI_BASE_URL；原生调用exit0并生成真实图片。脱敏证据见[JSON](evidence/2026-11-03-native-codex-image.json)。
 

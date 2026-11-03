@@ -35,5 +35,6 @@ test('expired or removed public sources cannot commit and do not silently rerun'
   const env=await setup();const job=(await (await api(env,'POST')).json()).job,claim=await tool(env,'claim_public_sample');
   if(change==='expire')env.sql.prepare('UPDATE jobs SET lease_until=0').run();else env.sql.prepare("UPDATE photos SET deleted_at=1 WHERE id='1060'").run();
   assert.ok((await tool(env,'save_public_sample_result',{...output,jobId:job.id,leaseToken:claim.leaseToken})).error);assert.equal(env.objects.size,0);assert.equal((await tool(env,'claim_public_sample')).claimed,false);
+  if(change==='expire')assert.equal((await tool(env,'public_sample_status')).state,'unknown','expired executions must not remain apparently running');
  }
 });

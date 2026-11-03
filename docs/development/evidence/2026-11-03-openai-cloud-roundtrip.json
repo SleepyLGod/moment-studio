@@ -1,0 +1,79 @@
+{
+  "scope": "One public sample, explicitly started OpenAI cloud validation task; automatic website triggering is not implemented",
+  "site": "https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site",
+  "proofPage": "/cloud-proof",
+  "deployedSourceCommit": "e02f9faf391bbfc31413a37143f62035069b5cfa",
+  "siteVersion": 16,
+  "deploymentId": "appgdep_6ae9fea14dd88191901cb012e5cd571a",
+  "pluginId": "plugin_asdk_app_sites_b9b46a1a49788191878618b24fcd671b",
+  "cloudTaskUrl": "https://chatgpt.com/local/01a1a1ee-2cf7-75f4-a134-13881f3ec0b7",
+  "cloudEnvironment": "moment-subscription-probe",
+  "observedExecutionPlatform": "Linux 6.18.57 x86_64",
+  "jobId": "b4b83c60-7fc6-4c09-b9c4-77b64952dc43",
+  "source": {
+    "photoId": "1060",
+    "path": "public/photos/1060.jpg",
+    "sha256": "82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2",
+    "verification": "Actual cloud shell sha256sum output matched Site claim"
+  },
+  "execution": {
+    "nativeTool": "image_gen__imagegen",
+    "callsReportedByCloudTask": 1,
+    "cloudActivityObserved": [
+      "Public sample status",
+      "Claim public sample",
+      "sha256sum /workspace/moment-studio/public/photos/1060.jpg; uname -srm",
+      "Viewed an image",
+      "JPEG conversion of new generated PNG with Pillow",
+      "Save public sample result",
+      "Public sample status"
+    ],
+    "activityDuration": "2m 12s",
+    "browserValidationTabClosedDuringExecution": true,
+    "generatedPngPathReportedByCloudTask": "/workspace/generated_images/exec-f2cf297e-caf6-4a60-b02e-758ff331e8d4.png",
+    "pngBytesReportedByCloudTask": 2669783,
+    "macInferenceRunnerUsed": false,
+    "additionalCloudServiceCreated": false,
+    "paidOpenaiApiUsed": false,
+    "subscriptionQuotaConsumptionMeasured": false,
+    "startedAtUiLocalMinute": "2026-11-03T23:35+08:00",
+    "finishedAtUiLocalMinute": "2026-11-03T23:37+08:00",
+    "jpegConversionStartsAtQuality": 95
+  },
+  "savedResult": {
+    "photoId": "subscription-b4b83c60-7fc6-4c09-b9c4-77b64952dc43",
+    "src": "/api/files/subscription-b4b83c60-7fc6-4c09-b9c4-77b64952dc43",
+    "sha256": "181d5be03f008532f1ee1fecb22d253c7c494275347725e17fbba581a080409d",
+    "width": 1422,
+    "height": 1106,
+    "bytes": 544973,
+    "statusReadViaAuthenticatedMcp": "succeeded",
+    "pageReloadShowsResult": true,
+    "browserNaturalImageDimensionsMatch": true,
+    "downloadedFileBytes": 544973,
+    "downloadedFileSha256": "181d5be03f008532f1ee1fecb22d253c7c494275347725e17fbba581a080409d",
+    "unauthenticatedFileHttpStatus": 401,
+    "unauthenticatedMcpToolHttpStatus": 401,
+    "ordinaryGalleryListsDerivative": true,
+    "originalLinkInGalleryPreview": "/photos/1060.jpg"
+  },
+  "manualAlbums": {
+    "beforeCount": 3,
+    "afterCount": 3,
+    "allReturnedRowsExactlyUnchanged": true,
+    "nativeD1ProjectionTruncated": false
+  },
+  "localChecks": {
+    "testsPassed": 76,
+    "typecheck": "passed",
+    "demoBuild": "passed",
+    "fullstackBuild": "passed"
+  },
+  "notVerified": [
+    "Automatic website-to-OpenAI task triggering",
+    "Repeated production operation and long-term task availability",
+    "Precise subscription quota accounting",
+    "Private user photos",
+    "Batch subscription image edits"
+  ]
+}

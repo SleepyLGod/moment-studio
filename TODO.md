@@ -36,6 +36,6 @@ No real photo library or second source repository is required. Hosted analysis u
 - [ ] Replace fixed512px with tested aspect-preserving output sizes; update preview layout as well. See `docs/development/model-capabilities-and-resolution.md`.
 - [ ] Simple Connections / Models / Output settings, free-only selection and last-success preference.
 - [ ] Broader provider capability registry and bounded public-sample validation, without treating every catalog model as already integrated.
-- [ ] ChatGPT subscription-only OAuth eligibility for text/vision tasks; image generation currently unsupported by the documented subscription-sharing route. No OpenAI paid API or API-credit route.
+- [x] OpenAI cloud native subscription image editing and private Sites MCP result saving: public-sample round trip verified. This does not use the separate third-party subscription-sharing OAuth route or a paid API.
 
-- Verify public-sample OpenAI subscription cloud round trip; only then evaluate automatic hosted triggering and broader Style Lab integration. Do not treat manual test-task kickoff as an automatic website trigger.
+- Public-sample OpenAI subscription cloud round trip verified (see docs/development/openai-cloud-proof.md). Next: implement and validate automatic hosted triggering before broader Style Lab integration. Do not treat manual test-task kickoff as an automatic website trigger.

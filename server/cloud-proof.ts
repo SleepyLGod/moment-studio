@@ -9,7 +9,11 @@ export const PUBLIC_SAMPLE={photoId:'1060',src:'/photos/1060.jpg',sha256:'82586f
 type ProofRow={id:string;owner_id:string;photo_id:string;state:string;input:string;lease_token:string|null;lease_until:number|null;result:string|null;error_code:string|null;};
 async function row(env:GalleryEnv,owner:string){return env.DB.prepare('SELECT * FROM jobs WHERE owner_id=? AND work_key=? AND kind=?').bind(owner,WORK_KEY,KIND).first<ProofRow>();}
 function present(value:ProofRow|null){return value?{id:value.id,state:value.state,source:PUBLIC_SAMPLE.src,prompt:PUBLIC_SAMPLE.prompt,result:value.result?JSON.parse(value.result):null,errorCode:value.error_code}:null;}
-export async function proofStatus(env:GalleryEnv,owner:string){return present(await row(env,owner));}
+export async function proofStatus(env:GalleryEnv,owner:string){
+  const now=Date.now();
+  await env.DB.prepare("UPDATE jobs SET state='unknown',error_code='RESULT_UNKNOWN',lease_token=NULL,lease_until=NULL,updated_at=? WHERE owner_id=? AND work_key=? AND kind=? AND state='running' AND lease_until<=?").bind(now,owner,WORK_KEY,KIND,now).run();
+  return present(await row(env,owner));
+}
 export async function handleCloudProof(request:Request,env:GalleryEnv,owner:string):Promise<Response|null>{
   if(new URL(request.url).pathname!=='/api/cloud-proof')return null;
   if(request.method==='POST'){
