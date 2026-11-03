@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -6,9 +6,12 @@ import {environment} from './support.mjs';
 import {handleApi} from '../server/api.ts';
 import {handleMcp} from '../server/mcp.ts';
 const owner={userId:'owner',email:'owner@test'};
+const originalFetch=globalThis.fetch;
+before(()=>{globalThis.fetch=async()=>new Response(null,{status:202});});
+after(()=>{globalThis.fetch=originalFetch;});
 const api=(env,method='GET',user=owner,origin='https://moment.test')=>handleApi(new Request('https://moment.test/api/cloud-proof',{method,headers:{origin}}),env,user);
 async function tool(env,name,args={},user=owner){const response=await handleMcp(new Request('https://moment.test/mcp',{method:'POST',body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})}),env,user);const result=(await response.json()).result;return result.isError?{error:result.content[0].text}:JSON.parse(result.content[0].text);}
-async function setup(){const env=environment();await handleApi(new Request('https://moment.test/api/bootstrap',{method:'POST'}),env,owner);return env;}
+async function setup(){const env=environment();await handleApi(new Request('https://moment.test/api/bootstrap',{method:'POST'}),env,owner);const now=Date.now();env.sql.prepare('INSERT INTO cloud_event_subscriptions(owner_id,id,callback_url,secret,expires_at,verified_at,updated_at) VALUES(?,?,?,?,?,?,?)').run(owner.userId,'test-listener','https://chatgpt.com/test-events','whsec_'+btoa('a'.repeat(32)),now+86400000,now,now);return env;}
 const bytes=readFileSync(new URL('./fixtures/style-edit/result-512.jpg',import.meta.url));
 const output={jpegBase64:bytes.toString('base64'),sha256:createHash('sha256').update(bytes).digest('hex'),cloudTaskUrl:'https://chatgpt.com/local/test-cloud-task'};
 test('public proof queues once, claims once, verifies bytes and saves without changing originals or albums',async()=>{

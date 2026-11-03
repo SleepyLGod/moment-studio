@@ -32,3 +32,11 @@ export const jobs = sqliteTable('jobs', {
   nextRunAt: integer('next_run_at').notNull(), leaseToken: text('lease_token'), leaseUntil: integer('lease_until'),
   result: text('result'), errorCode: text('error_code'), createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(),
 }, table=>[uniqueIndex('jobs_owner_work').on(table.ownerId,table.workKey),index('jobs_due').on(table.state,table.nextRunAt),index('jobs_owner_created').on(table.ownerId,table.createdAt)]);
+
+export const cloudEventSubscriptions = sqliteTable('cloud_event_subscriptions', {
+  ownerId:text('owner_id').primaryKey(), id:text('id').notNull().unique(),
+  callbackUrl:text('callback_url').notNull(), secret:text('secret').notNull(),
+  previousSecret:text('previous_secret'), rotateUntil:integer('rotate_until'),
+  expiresAt:integer('expires_at').notNull(), verifiedAt:integer('verified_at').notNull(),
+  active:integer('active').notNull().default(1), updatedAt:integer('updated_at').notNull(),
+});

@@ -41,3 +41,5 @@ node scripts/verify-nvidia.mjs --infer --sample city --preferred nvidia/nemotron
 - [回收站、显式输出尺寸与较早订阅验证](trash-output-and-subscription.md)：恢复边界、Original/Custom，以及后续云端验收的链接；原本机执行端设想保留作历史。
 
 - [OpenAI subscription cloud round-trip proof](openai-cloud-proof.md): isolated public sample, Site MCP boundary, acceptance criteria and unverified automatic trigger.
+
+- [Website-triggered OpenAI cloud proof](openai-event-trigger.md): signed MCP Events, one-time cloud listener setup and separate hosted click-to-result acceptance.
