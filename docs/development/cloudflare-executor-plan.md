@@ -22,7 +22,7 @@ Files: `executor/worker.mjs`, `executor/wrangler.jsonc`; dedicated runner author
 
 - [x] RED: reject wrong/missing runner secret, no service bootstrap of owner, concurrent claims, expired fencing tokens, stored job/read status and invalid responses.
 - [x] GREEN: bounded job lifecycle, narrow task advancement endpoint, scheduled Worker with no public unauthenticated execution route.
-- [ ] Local SQLite + Workers verification; deploy only after Cloudflare user login and account selection.
+- [x] Local SQLite regressions and builds; actual Workers runtime verified after Cloudflare user login/account selection.
 - [ ] Cloud: create one bundled-example analysis task, close browser, observe actual Cron progress and persisted output. Repeat/overlap trigger and expired-lease recovery checks.
 - [ ] Gate: only after this slice passes do the broader UI and organization work below proceed.
 
@@ -47,8 +47,8 @@ Files: existing React cloud client/dialogs/views; focused Library rules, migrati
 
 ## Task 4: Review and release
 
-- [ ] Full existing checks + new regressions; static demo and Worker builds.
-- [ ] Independent review focused on service authorization, identity/ownership, job completion fencing, dynamic model failures, and photo-file retention.
+- [x] Full existing checks + new regressions; 30 tests, static demo and Worker builds.
+- [x] Independent review of the vertical slice, focused on service authorization, identity/ownership, job completion fencing, provider transport and photo-file retention. Broader unimplemented model selection/grouping remain outside this review.
 - [ ] Fix material findings with regression tests; preserve private audience; publish exact source; verify cloud readback without personal photos.
 - [ ] Update target diagrams, actual interface docs, deployment / secrets instructions and local-vs-hosted evidence; synchronize GitHub main.
 
@@ -71,3 +71,5 @@ Files: existing React cloud client/dialogs/views; focused Library rules, migrati
 - Independent review of the vertical slice found two Important issues and no Critical issues: provider redirects could forward credentials/image bytes, and response-body transport failure was misclassified as permanent invalid output. Both received observed RED→GREEN regression tests; 28/28 tests now pass. No material findings were deferred.
 - Added the minimum owner-only UI needed for actual cloud acceptance: capability-gated AI tags action, persistent job IDs/status polling, and saved tag chips in photo preview. The controls are absent while the production background switch is false; polling reads status and never executes tasks.
 - Cloudflare OAuth login succeeded on 2026-11-03, but workers:write alone did not authorize the script/deployment API. A second official consent was initiated for workers_scripts:write and workers_tail:read in addition to the existing scopes. It requires user confirmation; no permission bypass is attempted.
+- Release checkpoint, 2026-11-03 08:01 UTC: OAuth completed, owner-account Worker deployed with no public URL and a saved one-minute Cron. After fixing the observed Cloudflare redirect-mode incompatibility, actual scheduled execution completed the queued R2 coffee example while all app pages were closed. Reopening displayed persisted tags; original download hash matched. Simultaneous cloud runner requests processed the city example once; repeated owner submission did not create another task.
+- Task 1's closed-browser and cloud-overlap checks passed; cloud expired-lease fault injection remains explicitly pending (local recovery/fencing tests pass). Do not mark the entire multi-task plan complete. Task 2 dynamic catalog/preference and Task 3 organization/storage work remain pending. Actual current behavior and evidence: [cloud validation](cloud-executor-validation.md).

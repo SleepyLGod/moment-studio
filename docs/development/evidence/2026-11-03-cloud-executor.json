@@ -1,0 +1,95 @@
+{
+  "environment": "production Sites D1/R2 plus own-account Cloudflare Cron",
+  "sourceCommit": "95a1fee51a4990698fe628a85ff74fd17276bc45",
+  "executorVersion": "309b41e8-2542-407a-adb5-6b8b1d890adb",
+  "siteVersion": 7,
+  "siteEnvironmentRevision": 2,
+  "privateAudiencePreserved": true,
+  "publicExecutorURL": false,
+  "cron": "* * * * *",
+  "closedBrowser": {
+    "sample": "public/photos/1060.jpg",
+    "jobId": "b6065d61-cf11-4a62-8d9a-e36eae89992d",
+    "actualScheduledEvent": true,
+    "scheduledTime": 1793692694669,
+    "outcome": "ok",
+    "processed": 1,
+    "wallTimeMs": 5947,
+    "cpuTimeMs": 1,
+    "originalSha256": "82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2",
+    "downloadSha256Equal": true,
+    "manualCategoryPreserved": true,
+    "reopenedUITagsVisible": true
+  },
+  "cloudOverlap": {
+    "sample": "public/photos/1067.jpg",
+    "statuses": [
+      200,
+      200
+    ],
+    "processed": [
+      0,
+      1
+    ],
+    "repeatUISubmissionJobCount": 2
+  },
+  "jobs": [
+    {
+      "id": "68a118ac-3a61-46fd-abe0-f17c4787f176",
+      "photoId": "955e69fd-bf75-475d-a7e8-6b17138c9c3e",
+      "state": "succeeded",
+      "attempts": 1,
+      "modelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "result": {
+        "tags": [
+          "摩天大楼",
+          "城市天际线",
+          "日落"
+        ],
+        "caption": "城市高楼林立，夕阳余晖洒满天际。"
+      },
+      "createdAt": "2026-11-03T08:00:56.573Z",
+      "updatedAt": "2026-11-03T08:01:03.533Z"
+    },
+    {
+      "id": "b6065d61-cf11-4a62-8d9a-e36eae89992d",
+      "photoId": "42f83c04-71e5-43b9-ae86-026f6f7a650b",
+      "state": "succeeded",
+      "attempts": 1,
+      "modelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "result": {
+        "tags": [
+          "咖啡壶",
+          "滤纸",
+          "手冲"
+        ],
+        "caption": "倒入热水冲煮咖啡"
+      },
+      "createdAt": "2026-11-03T07:51:51.750Z",
+      "updatedAt": "2026-11-03T07:58:21.020Z"
+    }
+  ],
+  "authorization": {
+    "missingKey": 401,
+    "wrongKey": 401,
+    "validKeyEmptyQueue": 200,
+    "serviceOnlyMe": 401,
+    "serviceOnlyOriginalFile": 401
+  },
+  "local": {
+    "testsPassed": 30,
+    "typecheck": true,
+    "sitesBuild": true,
+    "staticDemoBuild": true
+  },
+  "notVerifiedInCloud": [
+    "expired lease recovery fault injection",
+    "stale executor fencing fault injection",
+    "provider rate-limit recovery"
+  ],
+  "notImplemented": [
+    "website model refresh/preference",
+    "monthly views/recent groups",
+    "live Style Lab image editing"
+  ]
+}

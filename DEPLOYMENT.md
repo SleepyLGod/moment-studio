@@ -19,6 +19,7 @@ After a build, apply each migration in filename order, substituting its exact pa
     node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_ambitious_black_cat.sql
     node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_loud_blue_blade.sql
     node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_same_gamora.sql
+    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_talented_william_stryker.sql
 
 Run `npm run dev -- --port 4174`. Mock sign-in is only for loopback development and is excluded from hosted production. `.wrangler/state` contains local simulated records and files; it is ignored and must not be treated as hosted storage or uploaded as source.
 
@@ -42,4 +43,4 @@ Pages publication is deferred until private-repository entitlement is confirmed.
 
 Local unit tests, local Workers HTTP tests and hosted browser tests are separate evidence. Hosted acceptance requires example upload/download byte equality, owner-only reads, persisted album/style/creation records, re-authentication and readback after redeployment. Record actual results in `docs/cloud-validation.md` when performed.
 
-Code-version rollback does not restore database or uploaded files. Before a real gallery is onboarded, design database/file export and perform a restore drill. No implicit real-browser-data migration, real-library upload, live-model call or file cleanup is part of this release.
+Code-version rollback does not restore database or uploaded files. Before a real gallery is onboarded, design database/file export and perform a restore drill. Live analysis acceptance uses only explicit bundled examples. No implicit browser-data migration, real-library upload, live image generation or file cleanup is part of this release.

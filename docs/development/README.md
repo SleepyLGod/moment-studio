@@ -5,14 +5,15 @@
 - [交互版架构文档](architecture-review.html)：下载后用浏览器打开；不依赖运行网站。
 - [Sites / NVIDIA 执行能力验证](execution-verification.md)：文档证据、真实调用、失败与未验证项分开记录。
 - [当前已实现的 Sites 云图库](../sites-native-design.md) · [已有云端验收](../cloud-validation.md)
+- [独立执行器云端验收与当前接口图](cloud-executor-validation.md)：实际 Cron、关闭页面后的完成、原图校验和剩余验证范围。
 
 图的可编辑源文件在 `diagrams/*.json`，由 Archify 2.8 生成 SVG；SVG 和交互 HTML 已随文档保存。修改图时同步更新源文件与输出，不必给应用安装 Archify。参考思想与来源见架构文档末尾。
 
 ## 当前实施门槛
 
-2026-11-03：NVIDIA 目录刷新、选定模型的自有示例图片输入、中文结构化输出与刷新后复用模型已做本地真实 API 验证。NVIDIA 尚未配置到 Sites 生产环境。
+2026-11-03：NVIDIA 已配置到 Sites 生产环境。同 repo 的 own-account Cloudflare Cron 执行器已上线；关闭全部图库页后，咖啡示例经实际 scheduled 事件完成识图并保存 D1。重新打开可读标签，原图下载 hash 一致。云端重叠调用只领取一次；租约过期/旧执行者保护仅通过本地测试，尚未云端故障注入。
 
-当前 Sites 工具/指导提供云端 Agent 定时更新，但没有确认可配置低层可靠队列、Cron 或 Workflows。关闭所有网页后的持续执行与中断恢复尚未通过云端验证，因此新增 AI 后台尚未启用；Task 1 的本地代码与离线回归已开始，但不得当作无人值守云端验收通过。用户已接受同 repo 的 own-account Cloudflare 执行器；实施步骤与验证门槛见 [执行计划](cloudflare-executor-plan.md)。账户登录及云端验证仍待完成；不能用浏览器轮询或短期 waitUntil 冒充持久后台。
+Sites 自身仍没有已确认的低层 Cron/Queue/Workflow 配置入口；外部执行器只负责定时唤醒，D1 仍是唯一任务状态源。每次处理上限为一张，不用浏览器轮询承担执行。模型目录刷新/最近成功偏好、月份视图和自动分组尚未接到网站；见 [执行计划](cloudflare-executor-plan.md)。
 
 ## 复现 NVIDIA 验证
 

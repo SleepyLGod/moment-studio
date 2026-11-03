@@ -46,13 +46,23 @@ sequenceDiagram
 - 07:54:15，实际 Cron 事件触发，但 Worker 抛出 `Invalid redirect value`。Cloudflare 接受 follow/manual，不接受 error。任务仍 queued、attempts=0，没有假成功。
 - 根因修复：执行器及 NVIDIA 请求改为 manual，任何非 200 的重定向均拒绝；不把凭证或图像转发到另一个源。回归先观察失败，再修复通过。新增执行器与模型的 302 拒绝检查。
 
-## 尚待完成
+## 修复后的实测结果
 
-- 发布重定向修复，并观察真正的 Cron → Sites → NVIDIA → D1 成功链路。
-- 重新打开图库，读取标签；下载原图比较 SHA-256。
-- 云端重复提交/重叠执行；记录租约故障恢复的验证范围。
+- Sites v7，源码 `95a1fee51a4990698fe628a85ff74fd17276bc45`，部署 `appgdep_6ae993fa6fac819197065fe34465216c`，环境修订 2，07:58:05 发布成功。执行器版本 `309b41e8-2542-407a-adb5-6b8b1d890adb`，相同 Cron 配置。
+- 07:58:15 实际 scheduled 事件，outcome=ok、processed=1；墙钟 5947 ms、CPU 1 ms。这是单次观察，不是速度承诺。调用期间所有图库页仍关闭，网页轮询没有参与执行。
+- 07:58:21 D1 任务为 succeeded、attempts=1，结果为「咖啡壶、滤纸、手冲」，简述「倒入热水冲煮咖啡」。同一个 photo 保存相同 AI 字段和 jobId，原来的人工分类「旅行」、原图引用、共用缩略图引用保留。
+- 在新标签重新打开图库，照片预览显示 AI 标签和原来的 Travel 分类。通过登录用户的 Download original 下载文件，其 SHA-256 与项目 `1060.jpg` 完全相同：`82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2`。
+- 另外导入项目 `1067.jpg` 城市示例（命名 `moment-cron-overlap-example`），经 owner UI 创建任务 `68a118ac-3a61-46fd-abe0-f17c4787f176`。08:01:02 同时提交两次经过认证的 runner 请求，均 HTTP 200，processed 分别为 0 和 1。D1 该任务 succeeded、attempts=1、结果为「摩天大楼、城市天际线、日落」。
+- 本地 30/30 测试、TypeScript、Sites 和静态 demo 构建通过；GitHub 对 `95a1fee` 的 CI `41599893256` 通过。先前独立审查的两个重要问题已修复，实际 Cloudflare 重定向差异也有回归。
+- 城市示例完成后再次点击 AI tags，D1 仍只有上述两条任务，各 attempts=1；重复提交没有新增任务。可复查[脱敏结果记录](evidence/2026-11-03-cloud-executor.json)。
 
-本地测试、模拟与实际云端结果分开记录。当前不把部署成功或 Cron 已触发视为模型识图成功。
+## 验证边界
+
+关闭网页、真实定时触发、生产 Sites 到 NVIDIA、D1 写入和重新打开读取已通过；不是模拟结果。第一次失败记录保留，部署成功不替代功能验收。
+
+云端过期租约恢复尚未故障注入。有限重试、过期租约重领、旧执行 token 拒写及重试耗尽仅由本地 SQLite 与伪提供方测试验证。没有为验收添加生产 SQL 写入接口或匿名调试接口，也不宣称供应商 exactly-once。
+
+目录刷新和上次成功模型策略尚未实现到网站；当前任务冻结已验证的单一 Nemotron 模型。Style Lab 继续使用预生成示例，没有实时图像编辑服务。该切片不自动生成相册，也不处理真实图库。
 
 ## 来源
 

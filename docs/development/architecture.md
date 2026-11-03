@@ -2,6 +2,8 @@
 
 2026-11-03 · 目标架构基本确认；新增 AI 功能须先通过平台验证。
 
+更新：Jobs/Runner、单一 NVIDIA 识图适配器及 own-account Cron 唤醒已部署并完成关闭网页验收，见[当前部署与接口图](cloud-executor-validation.md)。下文和原有 SVG 保留完整目标设计，月份视图、自动分组、动态选模与图像编辑部分仍待实现；不能将目标接口误当作现有 API。
+
 当前已实现的云图库见 [Sites 原生设计](../sites-native-design.md)；最新验证结论见 [执行能力验证](execution-verification.md)。本文件描述目标接口，不代表全部已经实现。
 
 ## 结论
