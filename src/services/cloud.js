@@ -1,6 +1,6 @@
 /** A resource client: no cloud records or image bytes are persisted in browser storage. */
 export function createCloudLibrary(){
-  let cursor=null,category='all',month='all',visible=new Set(),total=0,analysisEnabled=false;
+  let cursor=null,category='all',month='all',visible=new Set(),total=0,analysisEnabled=false,imageEditEnabled=false;
   const scope=()=>'?category='+encodeURIComponent(category)+'&month='+encodeURIComponent(month);
   async function request(path,options={}){
     const response=await fetch('/api'+path,{...options,credentials:'same-origin',headers:{...(options.body&&typeof options.body==='string'?{'content-type':'application/json'}:{}),...options.headers}});
@@ -56,7 +56,7 @@ export function createCloudLibrary(){
   async function resolve(ids){const items=[];for(let i=0;i<ids.length;i+=50){const page=await request('/photos/resolve',{method:'POST',body:JSON.stringify({ids:ids.slice(i,i+50)})});items.push(...page.items);}return items;}
   return {
     async load(seed=true){
-      const me=await request('/me');analysisEnabled=me.features?.analysis===true;if(seed&&!me.initialized)await request('/bootstrap',{method:'POST',body:'{}'});
+      const me=await request('/me');analysisEnabled=me.features?.analysis===true;imageEditEnabled=me.features?.imageEdit===true;if(seed&&!me.initialized)await request('/bootstrap',{method:'POST',body:'{}'});
       const photos=await list('photos');
       const albums=await all('albums');
       const related=[...new Set([...albums.flatMap(a=>a.photoIds.slice(0,3)),'1015','1067','1060','1043','1011'])].filter(id=>!photos.items.some(p=>p.id===id));
@@ -64,6 +64,9 @@ export function createCloudLibrary(){
       cursor=photos.nextCursor;return {photos:[...photos.items,...extras],albums,savedStyles:await all('styles')};
     },
     canAnalyze:()=>analysisEnabled,
+    canGenerate:()=>imageEditEnabled,
+    editJobs:()=>request('/jobs?kind=edit').then(data=>data.jobs),
+    async generate(photoIds,recipe,requestId){const draft={...recipe};if(recipe.reference?.src)draft.reference={...recipe.reference,src:await materialize(recipe.reference.src,recipe.reference.name||'reference.jpg','reference')};return (await request('/jobs',{method:'POST',body:JSON.stringify({kind:'edit',photoIds,recipe:draft,requestId})})).jobs;},
     models:()=>request('/ai/models'),
     refreshModels:()=>request('/ai/models/refresh',{method:'POST',body:'{}'}),
     months:(category='all',next=null)=>request('/photos/months?category='+encodeURIComponent(category)+(next?'&cursor='+encodeURIComponent(next):'')),

@@ -1,12 +1,12 @@
 # Custom-photo image editing services
 
-Checked 2026-11-03. Official documentation research only: no new account, paid plan, AI permission or paid inference was created. Provider account entitlement and inference quality remain untested.
+Checked 2026-11-03. Official documentation research only: no new account, paid plan, AI permission or paid inference was created. This research note predates the actual Cloudflare trials; see [current implementation and evidence](cloudflare-style-edit.md). Other provider entitlements remain untested.
 
 ## First candidate: Cloudflare Workers AI FLUX.2 Klein
 
 - [FLUX.2 Klein 4B](https://developers.cloudflare.com/workers-ai/models/flux-2-klein-4b/) supports editing. The official [multi-reference API example](https://developers.cloudflare.com/changelog/post/2026-01-28-flux-2-klein-9b-workers-ai/) covers 4B/9B using binary `input_image_0`–`input_image_3`, unlike NVIDIA's preset-image preview. The example limits inputs to 512×512; check the exact current schema before implementation.
 - [Pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/): 10,000 free neurons/day on Free and Paid plans; listed 4B costs are 5.37 neurons per input 512×512 tile and 26.05 per output tile. Do not promise a fixed number of free generations without exact dimensions, shared account usage and live metering.
-- Workers Free stops at the free allocation; Paid can charge overages. The owner's current plan/model entitlement is unverified. Existing Cron authorization does not prove permission to invoke Workers AI. No entitlement change or AI binding was deployed.
+- Workers Free stops at the free allocation; Paid can charge overages. Update: the owner’s dashboard shows Free / Current plan. Two actual image edits via a temporary AI-bound Worker succeeded; the 768px existing-preview input was also accepted. See the acceptance record.
 - Suggested next validation: check access/plan, use one public project photo, bound dimensions/request count, measure output and usage. This can fit the existing own-account executor without another host.
 
 ## Alternative: Alibaba Cloud Model Studio Singapore

@@ -25,7 +25,8 @@ The active implementation uses Sites TypeScript/Workers + D1 + R2. These items d
 - [ ] Live Photo pairs, HDR-preserving creative input and full-resolution HEIC editing.
 - [ ] iCloud/PikPak import or synchronization after confirming supported interfaces.
 - [ ] Large-file multipart resume, abandoned-upload retention policy and storage usage controls.
-- [ ] Live image editing integration, explicit generation provenance, cost limits and provider retry reconciliation. Text-output photo analysis is already connected; Style Lab still uses pre-generated examples.
+- [x] Cloudflare Free FLUX.2 Klein 4B image edit integration with immutable derivatives and conservative unknown-state handling. See `docs/development/cloudflare-style-edit.md`.
+- [ ] Higher-resolution profiles, richer task history and long-running provider reconciliation after first live acceptance.
 - [ ] Multi-user sharing and explicit membership roles; the first release remains owner-private.
 
 No real photo library or second source repository is required. Hosted analysis uses a server-side NVIDIA key and the owner's Cloudflare executor account; credentials remain outside source.

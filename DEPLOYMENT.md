@@ -46,3 +46,7 @@ Pages publication is deferred until private-repository entitlement is confirmed.
 Local unit tests, local Workers HTTP tests and hosted browser tests are separate evidence. Hosted acceptance requires example upload/download byte equality, owner-only reads, persisted album/style/creation records, re-authentication and readback after redeployment. Record actual results in `docs/cloud-validation.md` when performed.
 
 Code-version rollback does not restore database or uploaded files. Before a real gallery is onboarded, design database/file export and perform a restore drill. Live analysis acceptance uses only explicit bundled examples. No implicit browser-data migration, real-library upload, live image generation or file cleanup is part of this release.
+
+## Cloud image editing
+
+Deploy the own-account executor with its AI binding and existing encrypted secrets, then set `MOMENT_IMAGE_EDIT_ENABLED=true` on the private Site and publish the matching version. Keep the account on Workers Free; do not activate Paid. See [image editing](docs/development/cloudflare-style-edit.md). No schema migration is needed. Static demo builds remain sample-only.

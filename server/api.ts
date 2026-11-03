@@ -5,7 +5,8 @@ import {handleModels} from './ai/catalog.ts';
 import {handleLibraryViews,photoScope,presentPhoto} from './library.ts';
 import {timeline} from '../src/services/organization.js';
 import {photoMime} from '../src/services/photo-format.js';
-export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; ASSETS?: Fetcher; }
+import {finishEditJob} from './edit-jobs.ts';
+export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; MOMENT_IMAGE_EDIT_ENABLED?:string; ASSETS?: Fetcher; }
 export interface Identity { userId: string; email: string; }
 type RecordData = Record<string, any>;
 type FileRow = {id:string;owner_id:string;name:string;mime:string;size:number;object_key:string;purpose:string;status:string;};
@@ -66,6 +67,7 @@ async function validateRecord(env:GalleryEnv,table:string,user:string,data:Recor
 export async function handleApi(request:Request,env:GalleryEnv,identity:Identity|null):Promise<Response>{
   try{
     if(new URL(request.url).pathname==='/api/internal/jobs/run')return await runInternalJobs(request,env);
+    const editResult=/^\/api\/internal\/jobs\/([a-zA-Z0-9_-]{1,100})\/result$/.exec(new URL(request.url).pathname);if(editResult)return await finishEditJob(request,env,editResult[1]);
     const user=await authorize(env,identity),url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,'').split('/').filter(Boolean),method=request.method;
     if(!['GET','HEAD'].includes(method)){
       const origin=request.headers.get('origin');if(origin&&origin!==url.origin)fail(403,'Cross-origin writes are not allowed.');
@@ -75,7 +77,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
     const jobResponse=await handleJobs(request,env,user);if(jobResponse)return jobResponse;
     if(path[0]==='me'&&method==='GET'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();
-      return json({user:{id:user.userId,email:user.email},storage:'cloud',initialized:Boolean(row?.initialized),features:{analysis:Boolean(env.NVIDIA_API_KEY&&env.MOMENT_EXECUTOR_KEY&&env.MOMENT_BACKGROUND_ENABLED==='true')}});
+      return json({user:{id:user.userId,email:user.email},storage:'cloud',initialized:Boolean(row?.initialized),features:{analysis:Boolean(env.NVIDIA_API_KEY&&env.MOMENT_EXECUTOR_KEY&&env.MOMENT_BACKGROUND_ENABLED==='true'),imageEdit:Boolean(env.MOMENT_EXECUTOR_KEY&&env.MOMENT_BACKGROUND_ENABLED==='true'&&env.MOMENT_IMAGE_EDIT_ENABLED==='true')}});
     }
     if(path[0]==='bootstrap'&&path.length===1&&method==='POST'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();

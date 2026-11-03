@@ -4,6 +4,7 @@
   "main": "worker.mjs",
   "compatibility_date": "2026-05-15",
   "workers_dev": false,
+  "ai": {"binding": "AI"},
   "triggers": {"crons": ["* * * * *"]},
   "observability": {"enabled": true}
 }

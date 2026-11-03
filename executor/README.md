@@ -1,6 +1,6 @@
 # Own-account executor
 
-This Worker is in the same repository as the Sites app. Its scheduled handler awaits one bounded call to the fixed moment Site, once per minute. D1 stores tasks; no second queue or database is introduced. The Site runs the analysis business code, while this Worker supplies the scheduled invocation independent of browser state.
+This Worker is in the same repository as the Sites app. Its scheduled handler awaits one bounded call to the fixed moment Site, once per minute. D1 stores tasks; no second queue or database is introduced. The Site runs analysis business code and persists all task state. For image edits, this Worker invokes its AI binding once and returns the bytes to the authenticated Site completion endpoint. Both flows run independently of browser state.
 
 ## Configuration
 
@@ -35,3 +35,9 @@ The dry-run bundles code without deploying or configuring Cron. It does not prov
 5. Exercise overlap and expired-lease recovery in the cloud; preserve downloaded original hash. Then enable the broader UI work in the implementation plan.
 
 Closed-browser completion, actual scheduled logs, D1 readback, original hash and cloud overlap checks passed. Expired-lease recovery and old-token fencing passed local SQLite tests only; production fault injection remains pending. No personal library was processed.
+
+## Free-only image edits
+
+The `AI` binding invokes only `@cf/black-forest-labs/flux-2-klein-4b`, with existing previews and optional style reference, fixed 512×512 output. Enable `MOMENT_IMAGE_EDIT_ENABLED=true` on the Site only after verifying the owner account is Workers Free. No paid plan is activated by this configuration; the provider’s daily free limit is the cap. Upgrading the account later would change that billing behavior and requires a separate decision.
+
+The existing secrets also authorize `POST /api/internal/jobs/:id/result`, fenced by `x-job-lease`. The executor retries delivery of the same result at most twice; it never repeats an uncertain model call. An expired image lease becomes `unknown`, while NVIDIA analysis retains its existing safe retry rules. See [image editing contract and evidence](../docs/development/cloudflare-style-edit.md).

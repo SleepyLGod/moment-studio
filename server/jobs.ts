@@ -3,22 +3,26 @@ import {body,fail,identifier,json} from './http.ts';
 
 import {analyze,AnalysisError,RULE_VERSION} from './ai/nvidia.ts';
 import {models,refreshModels} from './ai/catalog.ts';
-type JobRow={id:string;owner_id:string;photo_id:string;input:string;model_id:string;state:string;result:string|null;error_code:string|null;lease_token:string|null;lease_until:number|null;attempts:number;};
-function present(row:JobRow){return {id:row.id,photoId:row.photo_id,kind:'analyze',state:row.state,result:row.result?JSON.parse(row.result):null,errorCode:row.error_code};}
+import {claimEdit,createEditJobs,presentEdit} from './edit-jobs.ts';
+import {executorOwner} from './executor-auth.ts';
+type JobRow={id:string;owner_id:string;photo_id:string;kind:string;input:string;model_id:string;state:string;result:string|null;error_code:string|null;lease_token:string|null;lease_until:number|null;attempts:number;};
+function present(row:JobRow){return row.kind==='edit'?presentEdit(row):{id:row.id,photoId:row.photo_id,kind:'analyze',state:row.state,result:row.result?JSON.parse(row.result):null,errorCode:row.error_code};}
 
 /** Gallery-owner routes create/read tasks, but cannot impersonate the executor. */
 export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):Promise<Response|null>{
   const url=new URL(request.url);
   if(url.pathname!=='/api/jobs')return null;
   if(request.method==='GET'){
+    if(url.searchParams.get('kind')==='edit'&&!url.searchParams.get('ids')){const rows=await env.DB.prepare("SELECT * FROM jobs WHERE owner_id=? AND kind='edit' ORDER BY created_at DESC,id DESC LIMIT 20").bind(user.userId).all<JobRow>();return json({jobs:rows.results.map(present)});}
     const ids=(url.searchParams.get('ids')||'').split(',').filter(Boolean).map(identifier);
     if(!ids.length||ids.length>20)fail(400,'Read up to 20 task IDs.');
     const rows=await env.DB.prepare(`SELECT * FROM jobs WHERE owner_id=? AND id IN (${ids.map(()=>'?').join(',')})`).bind(user.userId,...ids).all<JobRow>();
     return json({jobs:rows.results.map(present)});
   }
   if(request.method!=='POST')fail(405,'Use GET or POST.');
-  if(!env.NVIDIA_API_KEY||!env.MOMENT_EXECUTOR_KEY||env.MOMENT_BACKGROUND_ENABLED!=='true')fail(503,'Background analysis is not configured.');
   const data=await body(request);
+  if(data.kind==='edit')return createEditJobs(env,user,data);
+  if(!env.NVIDIA_API_KEY||!env.MOMENT_EXECUTOR_KEY||env.MOMENT_BACKGROUND_ENABLED!=='true')fail(503,'Background analysis is not configured.');
   if(data.kind!=='analyze')fail(400,'Only photo analysis is available.');
   if(!Array.isArray(data.photoIds)||!data.photoIds.length||data.photoIds.length>20)fail(400,'Select 1 to 20 photos.');
   const ids=[...new Set(data.photoIds.map(identifier))],rows=[];
@@ -41,21 +45,13 @@ export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):P
   return json({jobs:selected.results.map(present)},202);
 }
 
-async function sameSecret(actual:string,expected:string){
-  if(actual.length>256)return false;
-  const [a,b]=await Promise.all([actual,expected].map(value=>crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))));
-  let difference=0;const x=new Uint8Array(a),y=new Uint8Array(b);for(let i=0;i<x.length;i++)difference|=x[i]^y[i];return difference===0;
-}
-
 /** Platform service access is not visitor identity. This narrow endpoint uses its own key. */
 export async function runInternalJobs(request:Request,env:GalleryEnv):Promise<Response>{
-  if(request.method!=='POST')fail(405,'Use POST.');
-  const supplied=request.headers.get('x-moment-executor-key');
-  if(!env.MOMENT_EXECUTOR_KEY||!supplied||!await sameSecret(supplied,env.MOMENT_EXECUTOR_KEY))fail(401,'Executor authorization required.');
-  const owner=await env.DB.prepare('SELECT user_id FROM library_owner WHERE id=1').first<{user_id:string}>();
-  if(!owner)fail(503,'The library owner must initialize the library first.');
+  const owner=await executorOwner(request,env),editTask=await claimEdit(env,owner);
+  if(editTask)return json({processed:0,editTask});
+  if(env.MOMENT_IMAGE_EDIT_ENABLED==='true'&&!env.NVIDIA_API_KEY)return json({processed:0});
   if(!env.NVIDIA_API_KEY)fail(503,'The analyzer is not configured.');
-  return json(await runDue(env,owner.user_id));
+  return json(await runDue(env,owner));
 }
 
 async function inputBytes(env:GalleryEnv,job:JobRow){
@@ -79,8 +75,8 @@ async function inputBytes(env:GalleryEnv,job:JobRow){
 /** One bounded step per tick. An expired execution cannot commit after another claim. */
 async function runDue(env:GalleryEnv,ownerId:string){
   const now=Date.now(),token=crypto.randomUUID();
-  await env.DB.prepare("UPDATE jobs SET state='failed',error_code='RETRY_EXHAUSTED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE owner_id=? AND state='running' AND lease_until<=? AND attempts>=3").bind(now,ownerId,now).run();
-  const job=await env.DB.prepare("UPDATE jobs SET state='running',lease_token=?,lease_until=?,attempts=attempts+1,updated_at=? WHERE id=(SELECT id FROM jobs WHERE owner_id=? AND attempts<3 AND ((state='queued' AND next_run_at<=?) OR (state='running' AND lease_until<=?)) ORDER BY next_run_at,created_at LIMIT 1) RETURNING *").bind(token,now+60000,now,ownerId,now,now).first<JobRow>();
+  await env.DB.prepare("UPDATE jobs SET state='failed',error_code='RETRY_EXHAUSTED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE owner_id=? AND kind='analyze' AND state='running' AND lease_until<=? AND attempts>=3").bind(now,ownerId,now).run();
+  const job=await env.DB.prepare("UPDATE jobs SET state='running',lease_token=?,lease_until=?,attempts=attempts+1,updated_at=? WHERE id=(SELECT id FROM jobs WHERE owner_id=? AND kind='analyze' AND attempts<3 AND ((state='queued' AND next_run_at<=?) OR (state='running' AND lease_until<=?)) ORDER BY next_run_at,created_at LIMIT 1) RETURNING *").bind(token,now+60000,now,ownerId,now,now).first<JobRow>();
   if(!job)return {processed:0};
   try{
     const input=await inputBytes(env,job);

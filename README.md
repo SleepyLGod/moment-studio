@@ -10,11 +10,11 @@ Sites hosts the TypeScript API and UI using its official Vinext starter. D1 stor
 
 Uploads accept still HEIC, JPG, PNG and WebP, up to 12 MiB per file and 20 files per batch. Uploaded originals are immutable. The browser creates one upright JPEG preview (maximum 768 pixels), without persisting an extra full-size JPEG. HEIC display, tones and collages use that preview; original downloads retain the uploaded bytes. Files are readable only through authenticated owner-scoped routes. Existing browser data is not automatically imported.
 
-Albums, category changes, Style recipes and saved creations use resource APIs. Collages and tones still render in the browser. Nine AI style samples were generated in advance: live generation and iCloud synchronization are not connected.
+Albums, category changes, Style recipes and saved creations use resource APIs. Collages and tones still render in the browser. Cloud Style Lab uses FLUX.2 Klein 4B on the owner’s Cloudflare Workers AI account for prompt-based image editing. It saves a new 512px result while preserving the original. The static demo retains nine pre-generated examples. iCloud synchronization is not connected.
 
 ## Development
 
-[Developer documentation](docs/development/README.md) contains architecture diagrams, interface contracts and separate local/cloud evidence. Owner-only **AI tags** submits persisted analysis jobs, advanced by an own-account Cloudflare Cron Worker while the page is closed. Models refresh on page load and prefer the last successful compatible profile. **Months** opens indexed monthly photo pages; **Recent** derives small groups from existing AI tags and dates, without changing manual albums. See [rules and acceptance](docs/development/models-and-organization.md). Live image generation remains pending.
+[Developer documentation](docs/development/README.md) contains architecture diagrams, interface contracts and separate local/cloud evidence. Owner-only **AI tags** submits persisted analysis jobs, advanced by an own-account Cloudflare Cron Worker while the page is closed. Models refresh on page load and prefer the last successful compatible profile. **Months** opens indexed monthly photo pages; **Recent** derives small groups from existing AI tags and dates, without changing manual albums. See [rules and acceptance](docs/development/models-and-organization.md). See [live image editing](docs/development/cloudflare-style-edit.md) for the free-only profile and task contract.
 
 Use Node.js 24+ and npm. Install with `npm install`; run `npm run build` once to generate local Worker binding configuration. Apply the SQL files in `drizzle/` in order using the local commands in [DEPLOYMENT.md](DEPLOYMENT.md), then run `npm run dev -- --port 4174`.
 
@@ -34,6 +34,6 @@ For the static demo, run `npm run dev:demo` (port 4173) or `npm run build:demo` 
 
 ## Boundaries
 
-EXIF capture dates drive monthly organization. Unknown camera timezones stay explicitly unknown; missing capture dates use file modification dates. See [import behavior and validation](docs/development/heic-import.md). Live Photos, HEIC sequences, videos, multi-user sharing, real-library migration and arbitrary-prompt AI generation are not implemented. Private records use the authenticated owner identity; sharing this Site with additional viewers requires an explicit membership design. User-authored names, notes and prompts retain their language; controls remain English with Sleet Mono and Chinese fallbacks.
+EXIF capture dates drive monthly organization. Unknown camera timezones stay explicitly unknown; missing capture dates use file modification dates. See [import behavior and validation](docs/development/heic-import.md). Live Photos, HEIC sequences, videos, multi-user sharing, real-library migration are not implemented. Private records use the authenticated owner identity; sharing this Site with additional viewers requires an explicit membership design. User-authored names, notes and prompts retain their language; controls remain English with Sleet Mono and Chinese fallbacks.
 
 [Asset notes](docs/ASSETS.md) document the bundled example photos, generated samples and font license. The screenshots above are illustrative, not evidence of a hosted persistence test.
