@@ -1,0 +1,100 @@
+{
+  "scope": "Local process calling real NVIDIA APIs with bundled examples. Not a hosted Sites test. No personal library sent.",
+  "failures": [
+    {
+      "checkedAt": "2026-11-03T05:52:43.138Z",
+      "model": "meta/llama-3.2-11b-vision-instruct",
+      "status": 404,
+      "elapsedMs": 435,
+      "image": "bundled public/photos/1060.jpg",
+      "requestId": "2c71a3cc-8c98-44a7-818e-0d8f3833ad7f",
+      "errorType": "upstream_function_not_found"
+    },
+    {
+      "checkedAt": "2026-11-03T05:53:06.704Z",
+      "model": "google/gemma-3-4b-it",
+      "status": 404,
+      "elapsedMs": 345,
+      "image": "bundled public/photos/1060.jpg",
+      "requestId": "0e37e691-7208-4776-8aae-8354972649f9",
+      "errorType": "provider_error"
+    },
+    {
+      "checkedAt": "2026-11-03T05:53:24.924Z",
+      "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "status": 200,
+      "elapsedMs": 2810,
+      "image": "bundled public/photos/1060.jpg",
+      "content": null,
+      "requestId": "f772b1b8-c051-4bcc-9b76-aec494792c4d"
+    }
+  ],
+  "successfulReproducibleProbes": [
+    {
+      "checkedAt": "2026-11-03T05:56:37.236Z",
+      "scope": "local live-provider probe, not a hosted Sites test",
+      "catalog": {
+        "status": 200,
+        "elapsedMs": 203,
+        "count": 85,
+        "sha256": "9853a07a3edf36fc7a6e418bf236de4f08958459dde9e8d2e46b0fddd97eb50f",
+        "registeredCandidates": [
+          "nvidia/nemotron-3.5-super-vl-120b-a12b",
+          "meta/llama-3.2-11b-vision-instruct",
+          "google/gemma-3-4b-it"
+        ]
+      },
+      "inference": {
+        "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+        "preferredReused": true,
+        "sample": "public/photos/1060.jpg",
+        "imageSha256": "82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2",
+        "status": 200,
+        "elapsedMs": 908,
+        "requestId": "b9089672-f4ea-4c14-9c5d-42b1d196c3d9",
+        "finishReason": "stop",
+        "analysis": {
+          "tags": [
+            "咖啡",
+            "滴滤",
+            "手冲"
+          ],
+          "caption": "手冲咖啡滴滤过程"
+        }
+      }
+    },
+    {
+      "checkedAt": "2026-11-03T05:55:24.422Z",
+      "scope": "local live-provider probe, not a hosted Sites test",
+      "catalog": {
+        "status": 200,
+        "elapsedMs": 209,
+        "count": 85,
+        "sha256": "9853a07a3edf36fc7a6e418bf236de4f08958459dde9e8d2e46b0fddd97eb50f",
+        "registeredCandidates": [
+          "nvidia/nemotron-3.5-super-vl-120b-a12b",
+          "meta/llama-3.2-11b-vision-instruct",
+          "google/gemma-3-4b-it"
+        ]
+      },
+      "inference": {
+        "model": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+        "preferredReused": true,
+        "sample": "public/photos/1067.jpg",
+        "imageSha256": "477c3915d130a726c98dfae661e80a95a91d1affef24bfd6293e8aa68696a039",
+        "status": 200,
+        "elapsedMs": 987,
+        "requestId": "5e67a067-75c4-4c27-858b-be994c11dd1e",
+        "finishReason": "stop",
+        "analysis": {
+          "tags": [
+            "摩天大楼",
+            "城市天际线",
+            "日落"
+          ],
+          "caption": "城市高楼林立，夕阳余晖洒满天际。"
+        }
+      }
+    }
+  ]
+}

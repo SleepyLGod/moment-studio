@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "moment / 一个应用，四个职责边界",
+    "subtitle": "设计提案 · 现有 Sites + D1 + R2 保留；新增 AI 与后台执行边界尚未实现",
+    "viewBox": [
+      1240,
+      850
+    ]
+  },
+  "components": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Web UI",
+      "sublabel": "图库 / 拼图 / Style Lab",
+      "pos": [
+        40,
+        230
+      ],
+      "size": [
+        160,
+        72
+      ],
+      "tag": "已有"
+    },
+    {
+      "id": "api",
+      "type": "security",
+      "label": "HTTP API",
+      "sublabel": "身份 · 归属 · 输入校验",
+      "pos": [
+        270,
+        230
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "已有，扩展接口"
+    },
+    {
+      "id": "library",
+      "type": "backend",
+      "label": "Library",
+      "sublabel": "照片 · 相册 · 结果保存",
+      "pos": [
+        510,
+        100
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "从现有 API 整理"
+    },
+    {
+      "id": "jobs",
+      "type": "backend",
+      "label": "Jobs",
+      "sublabel": "去重 · 状态 · 任务领取",
+      "pos": [
+        510,
+        330
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "新增"
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "Task Runner",
+      "sublabel": "执行 · 校验 · 提交结果",
+      "pos": [
+        750,
+        330
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "新增，同一代码库"
+    },
+    {
+      "id": "adapter",
+      "type": "backend",
+      "label": "NVIDIA Adapter",
+      "sublabel": "模型目录 · 选模 · 推理",
+      "pos": [
+        750,
+        500
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "新增"
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "D1 / DB",
+      "sublabel": "图库记录 + jobs + 选模偏好",
+      "pos": [
+        1030,
+        100
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "已有，新增迁移"
+    },
+    {
+      "id": "r2",
+      "type": "cloud",
+      "label": "R2 / BUCKET",
+      "sublabel": "原图 · 共用缩略图 · 成果",
+      "pos": [
+        1030,
+        250
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "已有"
+    },
+    {
+      "id": "nv",
+      "type": "external",
+      "label": "NVIDIA API",
+      "sublabel": "免费视觉接口优先验证",
+      "pos": [
+        1030,
+        500
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "外部服务"
+    },
+    {
+      "id": "wake",
+      "type": "messagebus",
+      "label": "Durable Trigger",
+      "sublabel": "可靠唤醒与恢复，平台能力待验",
+      "pos": [
+        750,
+        690
+      ],
+      "size": [
+        220,
+        72
+      ],
+      "tag": "上线前必须落实"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "SITES WORKER / 逻辑模块，不是四个微服务",
+      "wraps": [
+        "api",
+        "library",
+        "jobs",
+        "runner",
+        "adapter"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "ui",
+      "to": "api",
+      "variant": "emphasis"
+    },
+    {
+      "from": "api",
+      "to": "library",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          480,
+          266
+        ],
+        [
+          480,
+          136
+        ]
+      ]
+    },
+    {
+      "from": "api",
+      "to": "jobs",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          480,
+          266
+        ],
+        [
+          480,
+          366
+        ]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "db",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "library",
+      "to": "r2",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          970,
+          136
+        ],
+        [
+          970,
+          286
+        ]
+      ]
+    },
+    {
+      "from": "jobs",
+      "to": "db",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "via": [
+        [
+          600,
+          210
+        ],
+        [
+          1120,
+          210
+        ]
+      ]
+    },
+    {
+      "from": "runner",
+      "to": "jobs",
+      "variant": "default"
+    },
+    {
+      "from": "runner",
+      "to": "library",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "via": [
+        [
+          840,
+          215
+        ],
+        [
+          600,
+          215
+        ]
+      ]
+    },
+    {
+      "from": "runner",
+      "to": "adapter",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "adapter",
+      "to": "nv",
+      "variant": "emphasis"
+    },
+    {
+      "from": "wake",
+      "to": "runner",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          995,
+          726
+        ],
+        [
+          995,
+          366
+        ]
+      ]
+    }
+  ],
+  "cards": []
+}

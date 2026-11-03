@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "moment / 接口与模块对应图",
+    "subtitle": "提案 · HTTP 只处理请求契约；模块之间用类型化函数调用，供应商协议留在 AI Adapter",
+    "viewBox": [
+      1180,
+      910
+    ]
+  },
+  "components": [
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Web UI",
+      "sublabel": "只提交业务意图",
+      "pos": [
+        40,
+        390
+      ],
+      "size": [
+        160,
+        72
+      ]
+    },
+    {
+      "id": "auth",
+      "type": "security",
+      "label": "HTTP boundary",
+      "sublabel": "身份 / 归属 / 输入校验",
+      "pos": [
+        270,
+        390
+      ],
+      "size": [
+        180,
+        72
+      ]
+    },
+    {
+      "id": "upload",
+      "type": "backend",
+      "label": "Upload API",
+      "sublabel": "POST /uploads + body + complete",
+      "pos": [
+        520,
+        70
+      ],
+      "size": [
+        250,
+        72
+      ]
+    },
+    {
+      "id": "file",
+      "type": "backend",
+      "label": "File API",
+      "sublabel": "GET /files/:id",
+      "pos": [
+        520,
+        230
+      ],
+      "size": [
+        250,
+        72
+      ]
+    },
+    {
+      "id": "libraryApi",
+      "type": "backend",
+      "label": "Library API",
+      "sublabel": "GET / PUT photos, albums, styles",
+      "pos": [
+        520,
+        390
+      ],
+      "size": [
+        250,
+        72
+      ]
+    },
+    {
+      "id": "jobsApi",
+      "type": "backend",
+      "label": "Jobs API",
+      "sublabel": "POST /jobs · GET /jobs",
+      "pos": [
+        520,
+        550
+      ],
+      "size": [
+        250,
+        72
+      ]
+    },
+    {
+      "id": "modelsApi",
+      "type": "backend",
+      "label": "Models API",
+      "sublabel": "POST /ai/models/refresh",
+      "pos": [
+        520,
+        710
+      ],
+      "size": [
+        250,
+        72
+      ]
+    },
+    {
+      "id": "files",
+      "type": "cloud",
+      "label": "File access",
+      "sublabel": "上传 / 鉴权读取 / 结果保存",
+      "pos": [
+        880,
+        150
+      ],
+      "size": [
+        240,
+        72
+      ]
+    },
+    {
+      "id": "library",
+      "type": "backend",
+      "label": "Library",
+      "sublabel": "月份 · 人工组织 · 应用结果",
+      "pos": [
+        880,
+        390
+      ],
+      "size": [
+        240,
+        72
+      ]
+    },
+    {
+      "id": "jobs",
+      "type": "backend",
+      "label": "Jobs + Runner",
+      "sublabel": "创建 / 领取 / 推进任务",
+      "pos": [
+        880,
+        550
+      ],
+      "size": [
+        240,
+        72
+      ]
+    },
+    {
+      "id": "models",
+      "type": "external",
+      "label": "AI interfaces",
+      "sublabel": "refresh / analyze / edit / check",
+      "pos": [
+        880,
+        710
+      ],
+      "size": [
+        240,
+        72
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "web",
+      "to": "auth",
+      "variant": "emphasis"
+    },
+    {
+      "from": "auth",
+      "to": "upload",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          485,
+          426
+        ],
+        [
+          485,
+          106
+        ]
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "file",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          485,
+          426
+        ],
+        [
+          485,
+          266
+        ]
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "libraryApi",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          485,
+          426
+        ],
+        [
+          485,
+          426
+        ]
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "jobsApi",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          485,
+          426
+        ],
+        [
+          485,
+          586
+        ]
+      ]
+    },
+    {
+      "from": "auth",
+      "to": "modelsApi",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [
+        [
+          485,
+          426
+        ],
+        [
+          485,
+          746
+        ]
+      ]
+    },
+    {
+      "from": "upload",
+      "to": "files",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "route": "orthogonal-h"
+    },
+    {
+      "from": "file",
+      "to": "files",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "route": "orthogonal-h"
+    },
+    {
+      "from": "libraryApi",
+      "to": "library",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "route": "orthogonal-h"
+    },
+    {
+      "from": "jobsApi",
+      "to": "jobs",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "route": "orthogonal-h"
+    },
+    {
+      "from": "modelsApi",
+      "to": "models",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left",
+      "route": "orthogonal-h"
+    },
+    {
+      "from": "jobs",
+      "to": "models",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "jobs",
+      "to": "library",
+      "variant": "default",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "HTTP CONTRACT / 保留现有接口，按需扩展",
+      "wraps": [
+        "auth",
+        "upload",
+        "file",
+        "libraryApi",
+        "jobsApi",
+        "modelsApi"
+      ]
+    }
+  ],
+  "cards": []
+}

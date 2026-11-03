@@ -1,5 +1,7 @@
 # Sites-native private library
 
+This document describes the implemented cloud library. The accepted target architecture and AI execution gates are in [development documentation](development/README.md); those new interfaces are not yet implemented.
+
 Approved direction: the existing owner-private Site runs the UI and TypeScript API; Sites provisions D1 (`DB`) for records and R2 (`BUCKET`) for files. Go/PostgreSQL and alternative hosting are deferred in `TODO.md`.
 
 The shared React UI uses a cloud resource client on Sites and browser storage only in the static demo. It does not migrate existing browser data. Library initialization inserts bundled example metadata once through an atomic D1 batch; sample images remain bundled public examples. User uploads, references and saved rendered results are private R2 objects.

@@ -13,6 +13,8 @@ The active implementation uses Sites TypeScript/Workers + D1 + R2. These items d
 
 ## Gallery expansion
 
+- [ ] Resolve the verified Sites execution gap before enabling AI jobs; see [readiness evidence](docs/development/execution-verification.md). No Queue/Cron provisioning path or closed-browser recovery has been verified for the managed Site.
+
 - [ ] Real-library onboarding after backup/restore and larger-volume validation.
 - [ ] HEIC previews, original retention, Live Photo pairs and capture metadata.
 - [ ] iCloud/PikPak import or synchronization after confirming supported interfaces.

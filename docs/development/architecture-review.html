@@ -1,0 +1,2468 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>moment · 架构讨论稿</title><style>
+:root{color-scheme:light;--ink:#243530;--muted:#65706c;--line:#dedfd8;--accent:#216c58;--paper:#f7f7f2;--panel:#fff}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",sans-serif}main{max-width:1260px;margin:auto;padding:42px 32px 80px}.eyebrow{font:12px ui-monospace,monospace;letter-spacing:.12em;color:var(--accent)}h1{font-size:34px;font-weight:550;letter-spacing:-.03em;line-height:1.3;margin:16px 0}h2{font-size:23px;font-weight:550;margin:28px 0 14px}h3{font-size:17px;margin:22px 0 8px}p{max-width:85ch;margin:10px 0}.muted{color:var(--muted)}nav{display:flex;gap:8px;border-bottom:1px solid var(--line);margin:28px 0 24px}nav button{font:inherit;border:0;background:none;cursor:pointer;padding:12px 18px;border-bottom:2px solid transparent;color:var(--muted)}nav button[aria-selected=true]{color:var(--accent);border-color:var(--accent);font-weight:600}button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #b78b32;outline-offset:3px}section[hidden]{display:none}.lead{font-size:19px}.note{border-left:3px solid #c08a3c;background:#f2ede1;padding:13px 18px;margin:20px 0}.note p{margin:0}.diagram{width:100%;border:1px solid var(--line);border-radius:12px;display:block;background:var(--panel);margin:22px 0}.architecture{height:1080px}.interfaces{height:1140px}.keyline{display:flex;gap:25px;flex-wrap:wrap;font-size:14px;color:var(--muted)}table{width:100%;border-collapse:collapse;font-size:14px;margin:18px 0;background:white}th{text-align:left;background:#eeefe8;color:#43544c}td,th{padding:12px 15px;border-bottom:1px solid var(--line);vertical-align:top}code,pre{font:13px/1.7 ui-monospace,SFMono-Regular,monospace}code{overflow-wrap:anywhere}pre{padding:20px;background:#e9eee8;border-radius:10px;overflow:auto}a{color:var(--accent)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.box{border-top:1px solid var(--line);padding-top:12px}summary{cursor:pointer;font-weight:550;padding:12px 0}footer{margin-top:30px;padding-top:15px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}@media(max-width:760px){main{padding:25px 16px}.grid{grid-template-columns:1fr}h1{font-size:28px}nav button{padding:12px 8px;font-size:14px}.architecture{height:790px}.interfaces{height:1090px}table{display:block;overflow:auto}}
+</style></head><body><main>
+<div class="eyebrow">MOMENT / ARCHITECTURE REVIEW / 2026.11.03</div>
+<h1>一个应用，边界清楚。</h1>
+<p class="lead">图库管理你的照片，任务模块管理执行，模型接口处理供应商变化。</p>
+<p class="muted">讨论稿 · 已有 Sites / D1 / R2 保留 · 新增设计尚未实现 · 不修改当前网站</p>
+<nav role="tablist" aria-label="架构文档"><button role="tab" id="tab-system" aria-controls="system" aria-selected="true">01 系统架构</button><button role="tab" id="tab-contracts" aria-controls="contracts" aria-selected="false">02 接口与调用</button><button role="tab" id="tab-decisions" aria-controls="decisions" aria-selected="false">03 设计取舍</button></nav>
+<section id="system" role="tabpanel" aria-labelledby="tab-system">
+<p>图里的 Library、Jobs、Runner、Adapter 是<strong>同一个应用里的代码模块</strong>。保留一个仓库与两种存储，模型调用不会直接改相册。</p>
+<div class="keyline"><span>已有：登录 / 私人图库 / D1 / R2</span><span>新增：任务与 NVIDIA 接入</span><span>待验证：可靠后台唤醒</span></div>
+<iframe class="diagram architecture" title="系统架构图，可切换主题并导出" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot; data-theme=&quot;dark&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+  &lt;meta name=&quot;generator&quot; content=&quot;archify 2.8.0&quot;&gt;
+  &lt;title&gt;moment / 一个应用，四个职责边界 Diagram&lt;/title&gt;
+  &lt;script&gt;
+    // Resolve the theme before first paint so light-preference users don&#x27;t
+    // see a dark flash. The toolbar script below re-applies with UI state.
+    (function () {
+      try {
+        var theme = null;
+        try {
+          var param = new URLSearchParams(window.location.search).get(&#x27;theme&#x27;);
+          if (param === &#x27;light&#x27; || param === &#x27;dark&#x27;) theme = param;
+        } catch (_) {}
+        if (!theme) {
+          try { theme = localStorage.getItem(&#x27;archify-theme&#x27;); } catch (_) {}
+        }
+        if (theme !== &#x27;light&#x27; &amp;&amp; theme !== &#x27;dark&#x27;) {
+          theme = window.matchMedia(&#x27;(prefers-color-scheme: light)&#x27;).matches ? &#x27;light&#x27; : &#x27;dark&#x27;;
+        }
+        document.documentElement.setAttribute(&#x27;data-theme&#x27;, theme);
+      } catch (_) {}
+    })();
+  &lt;/script&gt;
+  &lt;!-- Async font load: a blackholed network must not block first paint.
+       The body font stack falls back to system monospace until it lands. --&gt;
+  &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
+  &lt;link href=&quot;https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap&quot;
+        rel=&quot;stylesheet&quot; media=&quot;print&quot; onload=&quot;this.media=&#x27;all&#x27;&quot;&gt;
+  &lt;noscript&gt;
+    &lt;link href=&quot;https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap&quot; rel=&quot;stylesheet&quot;&gt;
+  &lt;/noscript&gt;
+  &lt;style&gt;
+    /* ==========================================================
+       THEME VARIABLES — switch by toggling [data-theme] on &lt;html&gt;
+       ========================================================== */
+    :root,
+    [data-theme=&quot;dark&quot;] {
+      --bg: #020617;
+      --grid: #1e293b;
+      --text: #ffffff;
+      --text-muted: #94a3b8;
+      --text-dim: #475569;
+      /* UI chrome (menu hints, footer) needs more contrast than SVG .t-dim accents */
+      --text-faint: #7d8da1;
+
+      --panel: rgba(15, 23, 42, 0.5);
+      --panel-border: #1e293b;
+      --lane-fill: rgba(15, 23, 42, 0.22);
+      --lane-stroke: #334155;
+
+      --arrow: #64748b;
+      --arrow-emphasis: #34d399;
+
+      /* Opaque mask color used behind semi-transparent component fills
+         so the arrows drawn underneath are properly hidden. */
+      --mask: #0f172a;
+
+      --frontend-fill:    rgba(8, 51, 68, 0.4);
+      --frontend-stroke:  #22d3ee;
+      --backend-fill:     rgba(6, 78, 59, 0.4);
+      --backend-stroke:   #34d399;
+      --database-fill:    rgba(76, 29, 149, 0.4);
+      --database-stroke:  #a78bfa;
+      --cloud-fill:       rgba(120, 53, 15, 0.3);
+      --cloud-stroke:     #fbbf24;
+      --security-fill:    rgba(136, 19, 55, 0.4);
+      --security-stroke:  #fb7185;
+      --messagebus-fill:  rgba(251, 146, 60, 0.3);
+      --messagebus-stroke:#fb923c;
+      --external-fill:    rgba(30, 41, 59, 0.5);
+      --external-stroke:  #94a3b8;
+
+      --toolbar-bg:       rgba(15, 23, 42, 0.8);
+      --toolbar-border:   #334155;
+      --toolbar-text:     #e2e8f0;
+      --toolbar-hover:    rgba(15, 23, 42, 0.95);
+      --toolbar-menu-bg:  #0f172a;
+    }
+
+    [data-theme=&quot;light&quot;] {
+      --bg: #f8fafc;
+      --grid: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --text-faint: #64748b;
+
+      --panel: #ffffff;
+      --panel-border: #e2e8f0;
+      --lane-fill: rgba(248, 250, 252, 0.65);
+      --lane-stroke: #cbd5e1;
+
+      --arrow: #94a3b8;
+      --arrow-emphasis: #059669;
+
+      --mask: #ffffff;
+
+      --frontend-fill:    rgba(34, 211, 238, 0.15);
+      --frontend-stroke:  #0891b2;
+      --backend-fill:     rgba(52, 211, 153, 0.18);
+      --backend-stroke:   #059669;
+      --database-fill:    rgba(167, 139, 250, 0.2);
+      --database-stroke:  #7c3aed;
+      --cloud-fill:       rgba(251, 191, 36, 0.18);
+      --cloud-stroke:     #d97706;
+      --security-fill:    rgba(251, 113, 133, 0.15);
+      --security-stroke:  #e11d48;
+      --messagebus-fill:  rgba(251, 146, 60, 0.15);
+      --messagebus-stroke:#ea580c;
+      --external-fill:    rgba(148, 163, 184, 0.18);
+      --external-stroke:  #64748b;
+
+      --toolbar-bg:       rgba(255, 255, 255, 0.92);
+      --toolbar-border:   #cbd5e1;
+      --toolbar-text:     #334155;
+      --toolbar-hover:    #ffffff;
+      --toolbar-menu-bg:  #ffffff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: &#x27;JetBrains Mono&#x27;, ui-monospace, SFMono-Regular, Menlo, Consolas, &#x27;DejaVu Sans Mono&#x27;, &#x27;Liberation Mono&#x27;, &#x27;Noto Sans Mono CJK SC&#x27;, &#x27;PingFang SC&#x27;, &#x27;Hiragino Sans GB&#x27;, &#x27;Microsoft YaHei&#x27;, monospace;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 2rem;
+      color: var(--text);
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .header { margin-bottom: 2rem; }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pulse-dot {
+      width: 12px;
+      height: 12px;
+      background: var(--frontend-stroke);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-left: 1.75rem;
+    }
+
+    .diagram-container {
+      background: var(--panel);
+      border-radius: 1rem;
+      border: 1px solid var(--panel-border);
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    svg {
+      width: 100%;
+      min-width: min(900px, 100%);
+      display: block;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: 0.75rem;
+      border: 1px solid var(--panel-border);
+      padding: 1.25rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .card-dot.cyan     { background: var(--frontend-stroke); }
+    .card-dot.emerald  { background: var(--backend-stroke); }
+    .card-dot.violet   { background: var(--database-stroke); }
+    .card-dot.amber    { background: var(--cloud-stroke); }
+    .card-dot.rose     { background: var(--security-stroke); }
+    .card-dot.orange   { background: var(--messagebus-stroke); }
+    .card-dot.slate    { background: var(--external-stroke); }
+
+    .card h3 { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+
+    .card ul {
+      list-style: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .card li { margin-bottom: 0.375rem; }
+
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--text-faint);
+      font-size: 0.75rem;
+    }
+
+    /* ==========================================================
+       Print stylesheet — hide interactive controls, force light,
+       drop the grid so the diagram doesn&#x27;t waste ink, use landscape
+       so wide diagrams fit, pack summary cards into 2 columns to
+       avoid an orphan card on a trailing page.
+       ========================================================== */
+    @page { size: landscape; margin: 1.5cm; }
+
+    @media print {
+      /* Force the FULL light palette — including component fills/strokes and
+         lane/arrow colors — so printing from dark theme doesn&#x27;t put neon
+         strokes and translucent dark fills on white paper. */
+      :root, [data-theme=&quot;dark&quot;], [data-theme=&quot;light&quot;] {
+        --bg: #ffffff;
+        --grid: transparent;
+        --panel: #ffffff;
+        --panel-border: #e2e8f0;
+        --text: #0f172a;
+        --text-muted: #475569;
+        --text-dim: #94a3b8;
+        --text-faint: #64748b;
+        --mask: #ffffff;
+        --lane-fill: rgba(248, 250, 252, 0.65);
+        --lane-stroke: #cbd5e1;
+        --arrow: #94a3b8;
+        --arrow-emphasis: #059669;
+        --frontend-fill:    rgba(34, 211, 238, 0.15);
+        --frontend-stroke:  #0891b2;
+        --backend-fill:     rgba(52, 211, 153, 0.18);
+        --backend-stroke:   #059669;
+        --database-fill:    rgba(167, 139, 250, 0.2);
+        --database-stroke:  #7c3aed;
+        --cloud-fill:       rgba(251, 191, 36, 0.18);
+        --cloud-stroke:     #d97706;
+        --security-fill:    rgba(251, 113, 133, 0.15);
+        --security-stroke:  #e11d48;
+        --messagebus-fill:  rgba(251, 146, 60, 0.15);
+        --messagebus-stroke:#ea580c;
+        --external-fill:    rgba(148, 163, 184, 0.18);
+        --external-stroke:  #64748b;
+      }
+      body { background: #ffffff !important; padding: 0; }
+      .container { max-width: none; }
+      .toolbar, .archify-toast, .no-print { display: none !important; }
+      .diagram-container, .card { box-shadow: none; border-color: #e2e8f0; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      /* Ensure elements break sensibly across pages */
+      .card { break-inside: avoid; page-break-inside: avoid; }
+      .diagram-container { break-inside: avoid; page-break-inside: avoid; }
+      h1, .subtitle { color: #0f172a; }
+    }
+
+    /* ==========================================================
+       TOOLBAR (theme toggle + export menu)
+       ========================================================== */
+    .toolbar {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 100;
+    }
+    .toolbar button {
+      background: var(--toolbar-bg);
+      color: var(--toolbar-text);
+      border: 1px solid var(--toolbar-border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.15s, border-color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+    .toolbar button:hover {
+      background: var(--toolbar-hover);
+      border-color: var(--arrow);
+    }
+    .toolbar button:focus-visible {
+      outline: 2px solid var(--frontend-stroke);
+      outline-offset: 2px;
+    }
+    .toolbar .export-wrap { position: relative; }
+    .toolbar .export-menu {
+      position: absolute;
+      top: calc(100% + 0.375rem);
+      right: 0;
+      background: var(--toolbar-menu-bg);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.5rem;
+      padding: 0.375rem;
+      min-width: 160px;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .toolbar .export-menu.open { display: flex; }
+    .toolbar .export-menu button {
+      background: transparent;
+      border: 0;
+      justify-content: space-between;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+    }
+    .toolbar .export-menu button:hover {
+      background: var(--toolbar-hover);
+    }
+    .toolbar .export-menu .hint {
+      color: var(--text-faint);
+      font-size: 0.625rem;
+    }
+    .toolbar .export-menu hr {
+      border: 0;
+      border-top: 1px solid var(--toolbar-border);
+      margin: 0.25rem 0.375rem;
+      opacity: 0.5;
+    }
+
+    /* Toast — brief feedback for actions like &quot;copied&quot; */
+    .archify-toast {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--toolbar-menu-bg);
+      color: var(--text);
+      border: 1px solid var(--toolbar-border);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 200;
+      pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .archify-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .toolbar {
+        position: static;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
+      .header { margin-bottom: 1.25rem; }
+      .header-row {
+        gap: 0.75rem;
+        align-items: flex-start;
+      }
+      h1 {
+        font-size: 1.25rem;
+        line-height: 1.25;
+      }
+      .subtitle {
+        margin-left: 0;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+      .diagram-container {
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+      }
+      .cards {
+        grid-template-columns: 1fr;
+        margin-top: 1rem;
+      }
+    }
+
+    /* ==========================================================
+       SVG SEMANTIC CLASSES — use these instead of inline fill/stroke
+       ========================================================== */
+    .c-grid       { stroke: var(--grid); fill: none; }
+    .c-mask       { fill: var(--mask); stroke: none; }
+
+    .c-frontend   { fill: var(--frontend-fill);   stroke: var(--frontend-stroke); }
+    .c-backend    { fill: var(--backend-fill);    stroke: var(--backend-stroke); }
+    .c-database   { fill: var(--database-fill);   stroke: var(--database-stroke); }
+    .c-cloud      { fill: var(--cloud-fill);      stroke: var(--cloud-stroke); }
+    .c-security   { fill: var(--security-fill);   stroke: var(--security-stroke); }
+    .c-messagebus { fill: var(--messagebus-fill); stroke: var(--messagebus-stroke); }
+    .c-external   { fill: var(--external-fill);   stroke: var(--external-stroke); }
+
+    /* Text helpers */
+    .t-primary { fill: var(--text); }
+    .t-muted   { fill: var(--text-muted); }
+    .t-dim     { fill: var(--text-dim); }
+    .t-frontend   { fill: var(--frontend-stroke); }
+    .t-backend    { fill: var(--backend-stroke); }
+    .t-database   { fill: var(--database-stroke); }
+    .t-cloud      { fill: var(--cloud-stroke); }
+    .t-security   { fill: var(--security-stroke); }
+    .t-messagebus { fill: var(--messagebus-stroke); }
+    .t-external   { fill: var(--external-stroke); }
+
+    /* Arrows */
+    .a-default   { stroke: var(--arrow); fill: none; }
+    .a-emphasis  { stroke: var(--arrow-emphasis); fill: none; }
+    .a-security  { stroke: var(--security-stroke); fill: none; stroke-dasharray: 5,5; }
+    .a-dashed    { stroke: var(--database-stroke); fill: none; stroke-dasharray: 4,4; }
+
+    /* Arrowhead markers reference these */
+    .m-default   { fill: var(--arrow); }
+    .m-emphasis  { fill: var(--arrow-emphasis); }
+    .m-security  { fill: var(--security-stroke); }
+    .m-dashed    { fill: var(--database-stroke); }
+
+    /* Dashed boundary variants */
+    .c-security-group { fill: transparent; stroke: var(--security-stroke); stroke-dasharray: 4,4; }
+    .c-region         { fill: rgba(251, 191, 36, 0.05); stroke: var(--cloud-stroke); stroke-dasharray: 8,4; }
+    .c-lane           { fill: var(--lane-fill); stroke: var(--lane-stroke); stroke-dasharray: 6,6; }
+
+    /* Optional trace animation, enabled only by meta.animation = &quot;trace&quot;.
+       Static diagrams do not carry data-animation and render exactly as before. */
+    svg[data-animation=&quot;trace&quot;] [data-animate=&quot;edge&quot;] {
+      stroke-dasharray: 10 8;
+      stroke-dashoffset: 54;
+      animation: archify-edge-flow 2.4s linear infinite;
+      animation-delay: calc(var(--step, 0) * 160ms);
+    }
+    svg[data-animation=&quot;trace&quot;] [data-animate=&quot;node&quot;] {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: archify-node-pulse 3.6s ease-in-out infinite;
+      animation-delay: calc(var(--step, 0) * 160ms);
+    }
+    @keyframes archify-edge-flow {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes archify-node-pulse {
+      0%, 72%, 100% { filter: none; stroke-width: 1.5; }
+      18%, 36% {
+        filter: drop-shadow(0 0 8px var(--arrow-emphasis));
+        stroke-width: 2.4;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      svg[data-animation=&quot;trace&quot;] [data-animate] {
+        animation: none !important;
+        stroke-dashoffset: 0;
+      }
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;!-- Toolbar: theme toggle + export menu (present on every generated diagram)
+       Keyboard: T toggles theme, E opens export menu (when no input focused) --&gt;
+  &lt;div class=&quot;toolbar&quot; role=&quot;toolbar&quot; aria-label=&quot;Diagram actions&quot;&gt;
+    &lt;button id=&quot;btn-theme&quot; type=&quot;button&quot;
+            title=&quot;Toggle theme (T)&quot;
+            aria-label=&quot;Toggle color theme&quot;
+            aria-pressed=&quot;false&quot;&gt;
+      &lt;span id=&quot;theme-icon&quot; aria-hidden=&quot;true&quot;&gt;&amp;#9790;&lt;/span&gt;
+      &lt;span id=&quot;theme-label&quot;&gt;Dark&lt;/span&gt;
+    &lt;/button&gt;
+    &lt;div class=&quot;export-wrap&quot;&gt;
+      &lt;button id=&quot;btn-export&quot; type=&quot;button&quot;
+              title=&quot;Export diagram (E)&quot;
+              aria-label=&quot;Export diagram&quot;
+              aria-haspopup=&quot;menu&quot;
+              aria-expanded=&quot;false&quot;
+              aria-controls=&quot;export-menu&quot;&gt;
+        Export &lt;span aria-hidden=&quot;true&quot;&gt;&amp;#9662;&lt;/span&gt;
+      &lt;/button&gt;
+      &lt;div class=&quot;export-menu&quot; id=&quot;export-menu&quot; role=&quot;menu&quot; aria-label=&quot;Export&quot;&gt;
+        &lt;button data-action=&quot;copy&quot;  type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Copy to clipboard &lt;span class=&quot;hint&quot;&gt;PNG&lt;/span&gt;&lt;/button&gt;
+        &lt;hr role=&quot;separator&quot;&gt;
+        &lt;button data-format=&quot;png&quot;   type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download PNG&lt;/button&gt;
+        &lt;button data-format=&quot;jpeg&quot;  type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download JPEG&lt;/button&gt;
+        &lt;button data-format=&quot;webp&quot;  type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download WebP&lt;/button&gt;
+        &lt;hr role=&quot;separator&quot;&gt;
+        &lt;button data-format=&quot;svg&quot;   type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download SVG &lt;span class=&quot;hint&quot;&gt;vector&lt;/span&gt;&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;!-- Header --&gt;
+    &lt;div class=&quot;header&quot;&gt;
+      &lt;div class=&quot;header-row&quot;&gt;
+        &lt;div class=&quot;pulse-dot&quot;&gt;&lt;/div&gt;
+        &lt;h1&gt;moment / 一个应用，四个职责边界&lt;/h1&gt;
+      &lt;/div&gt;
+      &lt;p class=&quot;subtitle&quot;&gt;设计提案 · 现有 Sites + D1 + R2 保留；新增 AI 与后台执行边界尚未实现&lt;/p&gt;
+    &lt;/div&gt;
+
+    &lt;!-- Main Diagram --&gt;
+    &lt;div class=&quot;diagram-container&quot;&gt;
+      &lt;svg viewBox=&quot;0 0 1240 850&quot; role=&quot;img&quot; aria-label=&quot;moment / 一个应用，四个职责边界 — 设计提案 · 现有 Sites + D1 + R2 保留；新增 AI 与后台执行边界尚未实现 (architecture diagram)&quot;&gt;
+        &lt;!-- Definitions --&gt;
+        &lt;defs&gt;
+          &lt;marker id=&quot;arrowhead&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-default&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;marker id=&quot;arrowhead-emphasis&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-emphasis&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;marker id=&quot;arrowhead-security&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-security&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;marker id=&quot;arrowhead-dashed&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-dashed&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;pattern id=&quot;grid&quot; width=&quot;40&quot; height=&quot;40&quot; patternUnits=&quot;userSpaceOnUse&quot;&gt;
+            &lt;path d=&quot;M 40 0 L 0 0 0 40&quot; class=&quot;c-grid&quot; stroke-width=&quot;0.5&quot;/&gt;
+          &lt;/pattern&gt;
+        &lt;/defs&gt;
+
+        &lt;!-- Background Grid --&gt;
+        &lt;rect width=&quot;100%&quot; height=&quot;100%&quot; fill=&quot;url(#grid)&quot; /&gt;
+
+        &lt;!-- Boundaries (behind everything) --&gt;
+        &lt;rect x=&quot;240&quot; y=&quot;70&quot; width=&quot;720&quot; height=&quot;522&quot; rx=&quot;12&quot; class=&quot;c-region&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;248&quot; y=&quot;88&quot; class=&quot;t-cloud&quot; font-size=&quot;9&quot; font-weight=&quot;600&quot;&gt;SITES WORKER / 逻辑模块，不是四个微服务&lt;/text&gt;
+
+        &lt;!-- Connection paths (before components for correct z-order) --&gt;
+        &lt;path d=&quot;M 200 266 L 270 266&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 450 266 L 472 266 Q 480 266 480 258 L 480 144 Q 480 136 488 136 L 510 136&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 450 266 L 472 266 Q 480 266 480 274 L 480 358 Q 480 366 488 366 L 510 366&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 690 136 L 1030 136&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 690 136 L 962 136 Q 970 136 970 144 L 970 278 Q 970 286 978 286 L 1030 286&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 600 330 L 600 218 Q 600 210 608 210 L 1112 210 Q 1120 210 1120 202 L 1120 172&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 750 366 L 690 366&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 840 330 L 840 223 Q 840 215 832 215 L 608 215 Q 600 215 600 207 L 600 172&quot; class=&quot;a-dashed&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead-dashed)&quot;/&gt;
+        &lt;path d=&quot;M 840 402 L 840 500&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 930 536 L 1030 536&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 970 726 L 987 726 Q 995 726 995 718 L 995 374 Q 995 366 987 366 L 930 366&quot; class=&quot;a-dashed&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead-dashed)&quot;/&gt;
+
+        &lt;!-- Components --&gt;
+        &lt;rect x=&quot;40&quot; y=&quot;230&quot; width=&quot;160&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;40&quot; y=&quot;230&quot; width=&quot;160&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-frontend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;120&quot; y=&quot;264&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Web UI&lt;/text&gt;
+        &lt;text x=&quot;120&quot; y=&quot;280&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;图库 / 拼图 / Style Lab&lt;/text&gt;
+        &lt;text x=&quot;120&quot; y=&quot;294&quot; class=&quot;t-frontend&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;已有&lt;/text&gt;
+
+        &lt;rect x=&quot;270&quot; y=&quot;230&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;270&quot; y=&quot;230&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-security&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;360&quot; y=&quot;264&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;HTTP API&lt;/text&gt;
+        &lt;text x=&quot;360&quot; y=&quot;280&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;身份 · 归属 · 输入校验&lt;/text&gt;
+        &lt;text x=&quot;360&quot; y=&quot;294&quot; class=&quot;t-security&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;已有，扩展接口&lt;/text&gt;
+
+        &lt;rect x=&quot;510&quot; y=&quot;100&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;510&quot; y=&quot;100&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;600&quot; y=&quot;134&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Library&lt;/text&gt;
+        &lt;text x=&quot;600&quot; y=&quot;150&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;照片 · 相册 · 结果保存&lt;/text&gt;
+        &lt;text x=&quot;600&quot; y=&quot;164&quot; class=&quot;t-backend&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;从现有 API 整理&lt;/text&gt;
+
+        &lt;rect x=&quot;510&quot; y=&quot;330&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;510&quot; y=&quot;330&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;600&quot; y=&quot;364&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Jobs&lt;/text&gt;
+        &lt;text x=&quot;600&quot; y=&quot;380&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;去重 · 状态 · 任务领取&lt;/text&gt;
+        &lt;text x=&quot;600&quot; y=&quot;394&quot; class=&quot;t-backend&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;新增&lt;/text&gt;
+
+        &lt;rect x=&quot;750&quot; y=&quot;330&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;750&quot; y=&quot;330&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;840&quot; y=&quot;364&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Task Runner&lt;/text&gt;
+        &lt;text x=&quot;840&quot; y=&quot;380&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;执行 · 校验 · 提交结果&lt;/text&gt;
+        &lt;text x=&quot;840&quot; y=&quot;394&quot; class=&quot;t-backend&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;新增，同一代码库&lt;/text&gt;
+
+        &lt;rect x=&quot;750&quot; y=&quot;500&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;750&quot; y=&quot;500&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;840&quot; y=&quot;534&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;NVIDIA Adapter&lt;/text&gt;
+        &lt;text x=&quot;840&quot; y=&quot;550&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;模型目录 · 选模 · 推理&lt;/text&gt;
+        &lt;text x=&quot;840&quot; y=&quot;564&quot; class=&quot;t-backend&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;新增&lt;/text&gt;
+
+        &lt;rect x=&quot;1030&quot; y=&quot;100&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;1030&quot; y=&quot;100&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-database&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;134&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;D1 / DB&lt;/text&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;150&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;图库记录 + jobs + 选模偏好&lt;/text&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;164&quot; class=&quot;t-database&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;已有，新增迁移&lt;/text&gt;
+
+        &lt;rect x=&quot;1030&quot; y=&quot;250&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;1030&quot; y=&quot;250&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-cloud&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;284&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;R2 / BUCKET&lt;/text&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;300&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;原图 · 共用缩略图 · 成果&lt;/text&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;314&quot; class=&quot;t-cloud&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;已有&lt;/text&gt;
+
+        &lt;rect x=&quot;1030&quot; y=&quot;500&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;1030&quot; y=&quot;500&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-external&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;534&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;NVIDIA API&lt;/text&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;550&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;免费视觉接口优先验证&lt;/text&gt;
+        &lt;text x=&quot;1120&quot; y=&quot;564&quot; class=&quot;t-external&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;外部服务&lt;/text&gt;
+
+        &lt;rect x=&quot;750&quot; y=&quot;690&quot; width=&quot;220&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;750&quot; y=&quot;690&quot; width=&quot;220&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-messagebus&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;860&quot; y=&quot;724&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Durable Trigger&lt;/text&gt;
+        &lt;text x=&quot;860&quot; y=&quot;740&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;可靠唤醒与恢复，平台能力待验&lt;/text&gt;
+        &lt;text x=&quot;860&quot; y=&quot;754&quot; class=&quot;t-messagebus&quot; font-size=&quot;7&quot; text-anchor=&quot;middle&quot;&gt;上线前必须落实&lt;/text&gt;
+
+        &lt;!-- Connection labels --&gt;
+
+
+
+
+
+
+
+
+
+
+
+
+        &lt;!-- Legend --&gt;
+        &lt;text x=&quot;40&quot; y=&quot;821&quot; class=&quot;t-primary&quot; font-size=&quot;9&quot; font-weight=&quot;600&quot;&gt;Legend&lt;/text&gt;
+        &lt;rect x=&quot;40&quot; y=&quot;826&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-frontend&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;60&quot; y=&quot;834&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Frontend&lt;/text&gt;
+        &lt;rect x=&quot;138&quot; y=&quot;826&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-security&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;158&quot; y=&quot;834&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Security&lt;/text&gt;
+        &lt;rect x=&quot;236&quot; y=&quot;826&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-backend&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;256&quot; y=&quot;834&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Backend&lt;/text&gt;
+        &lt;rect x=&quot;329&quot; y=&quot;826&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-database&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;349&quot; y=&quot;834&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Database&lt;/text&gt;
+        &lt;rect x=&quot;427&quot; y=&quot;826&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-cloud&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;447&quot; y=&quot;834&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Cloud&lt;/text&gt;
+        &lt;rect x=&quot;510&quot; y=&quot;826&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-external&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;530&quot; y=&quot;834&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;External&lt;/text&gt;
+        &lt;rect x=&quot;608&quot; y=&quot;826&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-messagebus&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;628&quot; y=&quot;834&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Message bus&lt;/text&gt;
+      &lt;/svg&gt;
+    &lt;/div&gt;
+
+    &lt;!-- Info Cards --&gt;
+    &lt;div class=&quot;cards&quot;&gt;
+
+    &lt;/div&gt;
+
+    &lt;!-- Footer --&gt;
+    &lt;p class=&quot;footer&quot;&gt;
+      Architecture diagram &amp;bull; Built with Archify&lt;span class=&quot;no-print&quot;&gt; &amp;bull; Press &lt;kbd&gt;T&lt;/kbd&gt; for theme and &lt;kbd&gt;E&lt;/kbd&gt; for export&lt;/span&gt;
+    &lt;/p&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    /* ============================================================
+       Theme toggle — persists to localStorage, respects system pref
+       ============================================================ */
+    var Archify = {};
+
+    Archify.theme = (function () {
+      var STORAGE_KEY = &#x27;archify-theme&#x27;;
+      var html = document.documentElement;
+      var btn = document.getElementById(&#x27;btn-theme&#x27;);
+      var icon = document.getElementById(&#x27;theme-icon&#x27;);
+      var label = document.getElementById(&#x27;theme-label&#x27;);
+
+      // localStorage can throw (blocked cookies, sandboxed iframes); the whole
+      // script element dies on an uncaught error, so guard every access.
+      function readStored() {
+        try { return localStorage.getItem(STORAGE_KEY); } catch (_) { return null; }
+      }
+      function writeStored(value) {
+        try { localStorage.setItem(STORAGE_KEY, value); } catch (_) {}
+      }
+      function urlOverride() {
+        // URL param wins (useful for deterministic screenshots / share links)
+        try {
+          var param = new URLSearchParams(window.location.search).get(&#x27;theme&#x27;);
+          if (param === &#x27;light&#x27; || param === &#x27;dark&#x27;) return param;
+        } catch (_) {}
+        return null;
+      }
+
+      function resolveInitial() {
+        var fromUrl = urlOverride();
+        if (fromUrl) return fromUrl;
+        var saved = readStored();
+        if (saved === &#x27;light&#x27; || saved === &#x27;dark&#x27;) return saved;
+        return window.matchMedia(&#x27;(prefers-color-scheme: light)&#x27;).matches ? &#x27;light&#x27; : &#x27;dark&#x27;;
+      }
+
+      function apply(theme) {
+        html.setAttribute(&#x27;data-theme&#x27;, theme);
+        icon.textContent = theme === &#x27;dark&#x27; ? &#x27;\u263E&#x27; : &#x27;\u263C&#x27;;
+        label.textContent = theme === &#x27;dark&#x27; ? &#x27;Dark&#x27; : &#x27;Light&#x27;;
+        btn.setAttribute(&#x27;aria-pressed&#x27;, theme === &#x27;light&#x27; ? &#x27;true&#x27; : &#x27;false&#x27;);
+      }
+
+      function toggle() {
+        var next = html.getAttribute(&#x27;data-theme&#x27;) === &#x27;dark&#x27; ? &#x27;light&#x27; : &#x27;dark&#x27;;
+        apply(next);
+        writeStored(next);
+      }
+
+      apply(resolveInitial());
+      btn.addEventListener(&#x27;click&#x27;, toggle);
+
+      // Follow live OS theme changes while the user has no explicit preference.
+      try {
+        var media = window.matchMedia(&#x27;(prefers-color-scheme: light)&#x27;);
+        var onChange = function (e) {
+          var saved = readStored();
+          if (urlOverride() || saved === &#x27;light&#x27; || saved === &#x27;dark&#x27;) return;
+          apply(e.matches ? &#x27;light&#x27; : &#x27;dark&#x27;);
+        };
+        if (media.addEventListener) media.addEventListener(&#x27;change&#x27;, onChange);
+        else if (media.addListener) media.addListener(onChange);
+      } catch (_) {}
+
+      return { toggle: toggle };
+    })();
+
+    /* ============================================================
+       Export — PNG / JPEG / WebP / SVG (download) and Copy PNG (clipboard)
+
+       Raster exports are always rendered at 4x source resolution for
+       maximum sharpness. The trick: we set the serialized SVG&#x27;s
+       `width`/`height` to viewBox * 4 so the browser rasterizes the
+       vectors at that resolution natively. drawImage then draws at
+       the image&#x27;s natural size (no upscaling = no blur).
+
+       JPEG/WebP paint the current theme&#x27;s background explicitly since
+       those formats have no alpha channel.
+       ============================================================ */
+    (function () {
+      var RASTER_SCALE = 4;
+
+      function diagramFilename() {
+        var title = (document.title || &#x27;diagram&#x27;)
+          .replace(/\s+Architecture(\s+Diagram)?$/i, &#x27;&#x27;)
+          .replace(/\s+Diagram$/i, &#x27;&#x27;)
+          .trim();
+        return title.replace(/[^a-z0-9_\-]+/gi, &#x27;-&#x27;)
+                    .toLowerCase()
+                    .replace(/^-+|-+$/g, &#x27;&#x27;) || &#x27;diagram&#x27;;
+      }
+
+      function currentBg() {
+        return getComputedStyle(document.body).backgroundColor || &#x27;#ffffff&#x27;;
+      }
+
+      /**
+       * Serialize the main SVG into a standalone document.
+       *
+       * Two modes:
+       * - Default (opts.autoTheme=false) — locks the serialized SVG to the
+       *   viewer&#x27;s current theme. Used by the raster pipeline
+       *   (PNG/JPEG/WebP/clipboard) because canvas rasterization needs
+       *   deterministic colors; a raster cannot react to
+       *   prefers-color-scheme after encoding.
+       * - autoTheme=true — emits BOTH dark and light variable sets plus a
+       *   `@media (prefers-color-scheme)` rule so the resulting SVG
+       *   self-themes when embedded in GitHub READMEs or other hosts that
+       *   expose a color scheme. Used for &quot;Download SVG&quot;.
+       */
+      function serializeSvg(scale, opts) {
+        // scale: integer multiplier for intrinsic SVG pixel dimensions used by
+        // the raster path. Defaults to 1 (natural size) for SVG download.
+        scale = scale || 1;
+        opts = opts || {};
+        var autoTheme = opts.autoTheme === true;
+
+        var svg = document.querySelector(&#x27;.diagram-container svg&#x27;);
+        var clone = svg.cloneNode(true);
+
+        var vb = svg.viewBox.baseVal;
+        // Scale width/height so the browser rasterizes the vectors at target
+        // resolution directly. viewBox stays unchanged so coordinates don&#x27;t
+        // shift. This is the key to sharp rasters — do NOT scale later via
+        // canvas upscaling.
+        clone.setAttribute(&#x27;width&#x27;, vb.width * scale);
+        clone.setAttribute(&#x27;height&#x27;, vb.height * scale);
+        clone.setAttribute(&#x27;xmlns&#x27;, &#x27;http://www.w3.org/2000/svg&#x27;);
+
+        // Only the SVG-relevant rules: semantic classes, markers, and the
+        // theme variable blocks. Toolbar/cards/print CSS can never apply
+        // inside a standalone SVG and would only bloat the export.
+        var hostStyle = (function () {
+          var out = [];
+          Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+            var rules;
+            try { rules = sheet.cssRules; } catch (_) { return; } // cross-origin
+            if (!rules) return;
+            Array.prototype.forEach.call(rules, function (rule) {
+              if (rule.type !== 1) return; // plain style rules only
+              var sel = rule.selectorText || &#x27;&#x27;;
+              if (/(^|,)\s*(svg|:root|\[data-theme|\.c-|\.t-|\.a-|\.m-)/.test(sel)) {
+                out.push(rule.cssText);
+              }
+            });
+          });
+          return out.join(&#x27;\n&#x27;);
+        })();
+
+        // Derive the variable list from the stylesheet so newly added theme
+        // variables can never be missed by the export pipeline again
+        // (--lane-fill/--lane-stroke once were).
+        var varNames = (function () {
+          var seen = {};
+          var names = [];
+          (hostStyle.match(/--[a-zA-Z0-9-]+(?=\s*:)/g) || []).forEach(function (n) {
+            if (!seen[n]) { seen[n] = true; names.push(n); }
+          });
+          return names;
+        })();
+
+        // Resolve the full variable set for a given data-theme via an
+        // off-DOM probe, independent of what the viewer is currently set to.
+        function resolveVars(themeAttr) {
+          var probe = document.createElement(&#x27;div&#x27;);
+          probe.setAttribute(&#x27;data-theme&#x27;, themeAttr);
+          probe.style.cssText = &#x27;position:absolute;width:0;height:0;visibility:hidden;&#x27;;
+          document.body.appendChild(probe);
+          try {
+            var c = getComputedStyle(probe);
+            return varNames.map(function (n) {
+              return n + &#x27;: &#x27; + c.getPropertyValue(n).trim() + &#x27;;&#x27;;
+            }).join(&#x27; &#x27;);
+          } finally {
+            document.body.removeChild(probe);
+          }
+        }
+
+        // Prepend a local()-only @font-face block for each weight so that the
+        // sandboxed image-rendering context used during PNG/JPEG/WebP export
+        // can find JetBrains Mono if the user has it installed locally, and
+        // falls through cleanly to the monospace stack otherwise. The usual
+        // Google-Fonts &lt;link&gt; in the host document is unreachable from the
+        // serialized SVG, so url()-sourced faces would just hang.
+        var fontFallback = [400, 500, 600, 700].map(function (w) {
+          return &quot;@font-face { font-family: &#x27;JetBrains Mono&#x27;; font-weight: &quot; + w +
+                 &quot;; src: local(&#x27;JetBrains Mono&#x27;), local(&#x27;JetBrainsMono-Regular&#x27;); }&quot;;
+        }).join(&#x27;\n&#x27;);
+
+        var style = document.createElementNS(&#x27;http://www.w3.org/2000/svg&#x27;, &#x27;style&#x27;);
+        var bgRect = document.createElementNS(&#x27;http://www.w3.org/2000/svg&#x27;, &#x27;rect&#x27;);
+        bgRect.setAttribute(&#x27;width&#x27;, &#x27;100%&#x27;);
+        bgRect.setAttribute(&#x27;height&#x27;, &#x27;100%&#x27;);
+
+        if (autoTheme) {
+          // Dual-theme SVG. Dark is the default (so hosts without
+          // prefers-color-scheme still render), light swaps in via media
+          // query, and svg[data-theme=&quot;...&quot;] still lets downstream
+          // consumers force a specific theme.
+          var darkVars = resolveVars(&#x27;dark&#x27;);
+          var lightVars = resolveVars(&#x27;light&#x27;);
+
+          style.textContent =
+            fontFallback + &quot;\n&quot; +
+            &quot;svg { font-family: &#x27;JetBrains Mono&#x27;, ui-monospace, SFMono-Regular, Menlo, Consolas, &#x27;DejaVu Sans Mono&#x27;, &#x27;Liberation Mono&#x27;, &#x27;Noto Sans Mono CJK SC&#x27;, &#x27;PingFang SC&#x27;, &#x27;Hiragino Sans GB&#x27;, &#x27;Microsoft YaHei&#x27;, monospace; }\n&quot; +
+            hostStyle + &quot;\n&quot; +
+            &quot;:root, svg { &quot; + darkVars + &quot; }\n&quot; +
+            &quot;@media (prefers-color-scheme: light) { :root, svg { &quot; + lightVars + &quot; } }\n&quot; +
+            &quot;svg[data-theme=\&quot;light\&quot;] { &quot; + lightVars + &quot; }\n&quot; +
+            &quot;svg[data-theme=\&quot;dark\&quot;] { &quot; + darkVars + &quot; }\n&quot; +
+            &quot;rect.c-bg-rect { fill: var(--bg); }\n&quot;;
+
+          // Don&#x27;t lock the serialized SVG to the viewer&#x27;s current theme.
+          clone.removeAttribute(&#x27;data-theme&#x27;);
+          // Background follows the CSS variable, not a fixed color, so it
+          // swaps with the media query.
+          bgRect.setAttribute(&#x27;class&#x27;, &#x27;c-bg-rect&#x27;);
+        } else {
+          // Raster path: lock to the viewer&#x27;s current theme.
+          var theme = document.documentElement.getAttribute(&#x27;data-theme&#x27;) || &#x27;dark&#x27;;
+          var themeHost = document.querySelector(&#x27;[data-theme=&quot;&#x27; + theme + &#x27;&quot;]&#x27;) || document.documentElement;
+          var computed = getComputedStyle(themeHost);
+          var vars = varNames.map(function (n) {
+            return n + &#x27;: &#x27; + computed.getPropertyValue(n).trim() + &#x27;;&#x27;;
+          }).join(&#x27; &#x27;);
+
+          // IMPORTANT: inject the resolved variables AFTER hostStyle,
+          // otherwise hostStyle&#x27;s &quot;:root, [data-theme=\&quot;dark\&quot;] { ... }&quot; rule
+          // overrides our chosen theme via later-in-cascade equal-specificity.
+          // Keep this order.
+          style.textContent =
+            fontFallback + &quot;\n&quot; +
+            &quot;svg { font-family: &#x27;JetBrains Mono&#x27;, ui-monospace, SFMono-Regular, Menlo, Consolas, &#x27;DejaVu Sans Mono&#x27;, &#x27;Liberation Mono&#x27;, &#x27;Noto Sans Mono CJK SC&#x27;, &#x27;PingFang SC&#x27;, &#x27;Hiragino Sans GB&#x27;, &#x27;Microsoft YaHei&#x27;, monospace; }\n&quot; +
+            hostStyle + &quot;\n&quot; +
+            &quot;:root, svg { &quot; + vars + &quot; }\n&quot;;
+
+          bgRect.setAttribute(&#x27;fill&#x27;, computed.getPropertyValue(&#x27;--bg&#x27;).trim() || &#x27;#ffffff&#x27;);
+        }
+
+        clone.insertBefore(style, clone.firstChild);
+        clone.insertBefore(bgRect, style.nextSibling);
+
+        return {
+          svgString: new XMLSerializer().serializeToString(clone),
+          width: vb.width * scale,
+          height: vb.height * scale
+        };
+      }
+
+      function download(blob, filename) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement(&#x27;a&#x27;);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      }
+
+      // Conservative upper bound on total canvas pixels. Older Safari on iOS
+      // silently produces a blank canvas above ~16 Mpx; Chrome / Firefox /
+      // desktop Safari are far higher but start failing on memory-constrained
+      // devices. We pick the largest integer scale in {4,3,2,1} whose target
+      // pixel count fits under this cap.
+      var MAX_CANVAS_PIXELS = 16 * 1024 * 1024;
+
+      function pickSafeScale(vbW, vbH) {
+        for (var s = RASTER_SCALE; s &gt;= 1; s--) {
+          if (vbW * s * vbH * s &lt;= MAX_CANVAS_PIXELS) return s;
+        }
+        return 1;
+      }
+
+      function rasterize(format) {
+        // Serialize at a safe scale (RASTER_SCALE=4 by default, reduced if the
+        // resulting canvas would exceed MAX_CANVAS_PIXELS). The SVG itself is
+        // rasterized at target resolution natively; drawImage draws at natural
+        // size — no upsampling blur.
+        var svg = document.querySelector(&#x27;.diagram-container svg&#x27;);
+        var vb = svg.viewBox.baseVal;
+        var scale = pickSafeScale(vb.width, vb.height);
+        var data = serializeSvg(scale);
+        var svgBlob = new Blob([data.svgString], { type: &#x27;image/svg+xml;charset=utf-8&#x27; });
+        var svgUrl = URL.createObjectURL(svgBlob);
+
+        return new Promise(function (resolve, reject) {
+          var img = new Image();
+          img.onload = function () {
+            var canvas = document.createElement(&#x27;canvas&#x27;);
+            canvas.width = data.width;
+            canvas.height = data.height;
+            var ctx = canvas.getContext(&#x27;2d&#x27;);
+            if (format === &#x27;jpeg&#x27;) {
+              ctx.fillStyle = currentBg();
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            // Draw at natural size — SVG was already rasterized at target res.
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(svgUrl);
+            var mime = format === &#x27;jpeg&#x27; ? &#x27;image/jpeg&#x27; :
+                       format === &#x27;webp&#x27; ? &#x27;image/webp&#x27; : &#x27;image/png&#x27;;
+            var quality = format === &#x27;png&#x27; ? undefined : 0.95;
+            canvas.toBlob(function (blob) {
+              if (!blob) reject(new Error(&#x27;toBlob returned null for &#x27; + format));
+              else resolve(blob);
+            }, mime, quality);
+          };
+          img.onerror = function (e) {
+            URL.revokeObjectURL(svgUrl);
+            reject(e);
+          };
+          img.src = svgUrl;
+        });
+      }
+
+      var menu = document.getElementById(&#x27;export-menu&#x27;);
+      var btn = document.getElementById(&#x27;btn-export&#x27;);
+      var items = function () {
+        return Array.prototype.slice.call(menu.querySelectorAll(&#x27;button[role=&quot;menuitem&quot;]&#x27;));
+      };
+
+      // ---- Clipboard support ----------------------------------------------
+      function canCopyImage() {
+        return typeof ClipboardItem !== &#x27;undefined&#x27; &amp;&amp;
+               navigator.clipboard &amp;&amp;
+               typeof navigator.clipboard.write === &#x27;function&#x27;;
+      }
+
+      // ---- Raster format detection ----------------------------------------
+      // canvas.toBlob(&#x27;image/webp&#x27;) silently returns a PNG on browsers without
+      // WebP encoding (older Safari), so detect explicitly.
+      function supports(format) {
+        if (format === &#x27;svg&#x27; || format === &#x27;png&#x27;) return true;
+        var mime = format === &#x27;jpeg&#x27; ? &#x27;image/jpeg&#x27; : &#x27;image/webp&#x27;;
+        try {
+          var c = document.createElement(&#x27;canvas&#x27;);
+          c.width = c.height = 2;
+          return c.toDataURL(mime).indexOf(&#x27;data:&#x27; + mime) === 0;
+        } catch (_) { return false; }
+      }
+
+      // Gray out unsupported items.
+      items().forEach(function (it) {
+        if (it.dataset.format &amp;&amp; !supports(it.dataset.format)) {
+          it.disabled = true;
+          it.title = &#x27;Not supported by this browser&#x27;;
+          it.style.opacity = &#x27;0.5&#x27;;
+        }
+        if (it.dataset.action === &#x27;copy&#x27; &amp;&amp; !canCopyImage()) {
+          it.disabled = true;
+          it.title = &#x27;Clipboard image write not supported by this browser&#x27;;
+          it.style.opacity = &#x27;0.5&#x27;;
+        }
+      });
+
+      // ---- Toast ----------------------------------------------------------
+      // A live region only announces CHANGES to an existing node, so the toast
+      // element is created once up front and updated in place.
+      var toastEl = document.createElement(&#x27;div&#x27;);
+      toastEl.className = &#x27;archify-toast&#x27;;
+      toastEl.setAttribute(&#x27;role&#x27;, &#x27;status&#x27;);
+      document.body.appendChild(toastEl);
+      var toastTimer = null;
+
+      function toast(msg) {
+        toastEl.textContent = &#x27;&#x27;;
+        requestAnimationFrame(function () {
+          toastEl.textContent = msg;
+          toastEl.classList.add(&#x27;show&#x27;);
+        });
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove(&#x27;show&#x27;); }, 1500);
+      }
+
+      function open(focusLast) {
+        menu.classList.add(&#x27;open&#x27;);
+        btn.setAttribute(&#x27;aria-expanded&#x27;, &#x27;true&#x27;);
+        var available = items().filter(function (i) { return !i.disabled; });
+        var target = focusLast ? available[available.length - 1] : available[0];
+        if (target) target.focus();
+      }
+      function close(focusTrigger) {
+        menu.classList.remove(&#x27;open&#x27;);
+        btn.setAttribute(&#x27;aria-expanded&#x27;, &#x27;false&#x27;);
+        if (focusTrigger) btn.focus();
+      }
+      function isOpen() { return menu.classList.contains(&#x27;open&#x27;); }
+
+      btn.addEventListener(&#x27;click&#x27;, function (e) {
+        e.stopPropagation();
+        if (isOpen()) close(false);
+        else open();
+      });
+      // APG menu-button pattern: ArrowDown/ArrowUp on the trigger opens the menu.
+      btn.addEventListener(&#x27;keydown&#x27;, function (e) {
+        if (e.key === &#x27;ArrowDown&#x27; || e.key === &#x27;ArrowUp&#x27;) {
+          e.preventDefault();
+          if (!isOpen()) open(e.key === &#x27;ArrowUp&#x27;);
+        }
+      });
+      document.addEventListener(&#x27;click&#x27;, function (e) {
+        if (!menu.contains(e.target) &amp;&amp; e.target !== btn) close(false);
+      });
+
+      // Keyboard navigation inside the menu.
+      //   Menu items: Up/Down, Home/End.
+      //   Esc closes + returns focus to trigger; Tab closes.
+      menu.addEventListener(&#x27;keydown&#x27;, function (e) {
+        if (e.key === &#x27;Escape&#x27;) { e.preventDefault(); close(true); return; }
+        if (e.key === &#x27;Tab&#x27;)    { close(false); return; }
+
+        var available = items().filter(function (i) { return !i.disabled; });
+        var current = available.indexOf(document.activeElement);
+        switch (e.key) {
+          case &#x27;ArrowDown&#x27;:
+            e.preventDefault();
+            if (available.length) available[(current + 1 + available.length) % available.length].focus();
+            break;
+          case &#x27;ArrowUp&#x27;:
+            e.preventDefault();
+            if (available.length) available[(current - 1 + available.length) % available.length].focus();
+            break;
+          case &#x27;Home&#x27;:
+            e.preventDefault();
+            if (available[0]) available[0].focus();
+            break;
+          case &#x27;End&#x27;:
+            e.preventDefault();
+            if (available.length) available[available.length - 1].focus();
+            break;
+        }
+      });
+
+      function runExport(format) {
+        var base = diagramFilename();
+        close(true);
+        return (format === &#x27;svg&#x27;
+          ? Promise.resolve(serializeSvg(1, { autoTheme: true })).then(function (d) {
+              download(new Blob([d.svgString], { type: &#x27;image/svg+xml;charset=utf-8&#x27; }), base + &#x27;.svg&#x27;);
+            })
+          : rasterize(format).then(function (blob) {
+              download(blob, base + &#x27;.&#x27; + format);
+            })
+        ).catch(function (err) {
+          console.error(err);
+          alert(&#x27;Export failed: &#x27; + (err &amp;&amp; err.message ? err.message : format));
+        });
+      }
+
+      function runCopy() {
+        close(true);
+        if (!canCopyImage()) {
+          alert(&#x27;Clipboard image write not supported in this browser.&#x27;);
+          return;
+        }
+        // WebKit requires ClipboardItem to be constructed synchronously inside
+        // the user gesture — pass the pending Promise&lt;Blob&gt; as the item value.
+        // Browsers that reject promise values throw synchronously; fall back
+        // to awaiting the blob first (works in Chromium/Firefox).
+        var blobPromise = rasterize(&#x27;png&#x27;);
+        var writePromise;
+        try {
+          writePromise = navigator.clipboard.write([new ClipboardItem({ &#x27;image/png&#x27;: blobPromise })]);
+        } catch (_) {
+          writePromise = blobPromise.then(function (blob) {
+            return navigator.clipboard.write([new ClipboardItem({ &#x27;image/png&#x27;: blob })]);
+          });
+        }
+        return writePromise.then(function () {
+          toast(&#x27;Copied PNG to clipboard&#x27;);
+        }).catch(function (err) {
+          console.error(err);
+          alert(&#x27;Copy failed: &#x27; + (err &amp;&amp; err.message ? err.message : &#x27;unknown&#x27;));
+        });
+      }
+
+      menu.addEventListener(&#x27;click&#x27;, function (e) {
+        var copyBtn = e.target.closest(&#x27;button[data-action=&quot;copy&quot;]&#x27;);
+        if (copyBtn &amp;&amp; !copyBtn.disabled) { runCopy(); return; }
+
+        var formatBtn = e.target.closest(&#x27;button[data-format]&#x27;);
+        if (formatBtn &amp;&amp; !formatBtn.disabled) { runExport(formatBtn.dataset.format); }
+      });
+
+      Archify.exportMenu = { open: open, close: close, isOpen: isOpen, run: runExport };
+
+      // Auto-open on page load for demo/screenshot purposes: ?openExport=1
+      // Wait for fonts (so the menu doesn&#x27;t flash before typography lands)
+      // and paint before opening. Fallback timeout for browsers without the
+      // Font Loading API.
+      try {
+        if (new URLSearchParams(window.location.search).get(&#x27;openExport&#x27;) === &#x27;1&#x27;) {
+          var openWhenReady = function () {
+            requestAnimationFrame(function () { requestAnimationFrame(open); });
+          };
+          if (document.fonts &amp;&amp; document.fonts.ready) {
+            document.fonts.ready.then(openWhenReady);
+          } else {
+            setTimeout(openWhenReady, 200);
+          }
+        }
+      } catch (_) {}
+    })();
+
+    /* ============================================================
+       Global keyboard shortcuts
+         T -&gt; toggle theme
+         E -&gt; open export menu
+       Ignored when focus is inside an input/textarea/contenteditable.
+       ============================================================ */
+    document.addEventListener(&#x27;keydown&#x27;, function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target;
+      if (t &amp;&amp; (t.tagName === &#x27;INPUT&#x27; || t.tagName === &#x27;TEXTAREA&#x27; || t.isContentEditable)) return;
+      if (e.key === &#x27;t&#x27; || e.key === &#x27;T&#x27;) {
+        e.preventDefault();
+        Archify.theme.toggle();
+      } else if (e.key === &#x27;e&#x27; || e.key === &#x27;E&#x27;) {
+        e.preventDefault();
+        if (!Archify.exportMenu.isOpen()) Archify.exportMenu.open();
+      }
+    });
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+<div class="grid"><div class="box"><h3>怎么整理</h3><p>月份是时间视图；相册由你创建；AI 标签直接应用，短期分组单独出现。AI 不覆盖人工修改，不增加逐项确认。</p></div><div class="box"><h3>怎么省空间</h3><p>一份原图、一张共用缩略图。色调保存参数；相册保存引用；AI 只长期保留你保存的成果。</p></div></div>
+<div class="note"><p><strong>一个必须先解决的事实：</strong>当前项目还没验证可靠后台触发入口。D1 中有 job 不代表它会自己执行；关闭网页后继续完成，需要真实云端验证。</p></div>
+</section>
+<section id="contracts" role="tabpanel" aria-labelledby="tab-contracts" hidden>
+<details open><summary>接口与模块的对应关系</summary><iframe class="diagram interfaces" title="HTTP 接口与内部模块对应图，可导出" srcdoc="&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot; data-theme=&quot;dark&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;UTF-8&quot;&gt;
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;
+  &lt;meta name=&quot;generator&quot; content=&quot;archify 2.8.0&quot;&gt;
+  &lt;title&gt;moment / 接口与模块对应图 Diagram&lt;/title&gt;
+  &lt;script&gt;
+    // Resolve the theme before first paint so light-preference users don&#x27;t
+    // see a dark flash. The toolbar script below re-applies with UI state.
+    (function () {
+      try {
+        var theme = null;
+        try {
+          var param = new URLSearchParams(window.location.search).get(&#x27;theme&#x27;);
+          if (param === &#x27;light&#x27; || param === &#x27;dark&#x27;) theme = param;
+        } catch (_) {}
+        if (!theme) {
+          try { theme = localStorage.getItem(&#x27;archify-theme&#x27;); } catch (_) {}
+        }
+        if (theme !== &#x27;light&#x27; &amp;&amp; theme !== &#x27;dark&#x27;) {
+          theme = window.matchMedia(&#x27;(prefers-color-scheme: light)&#x27;).matches ? &#x27;light&#x27; : &#x27;dark&#x27;;
+        }
+        document.documentElement.setAttribute(&#x27;data-theme&#x27;, theme);
+      } catch (_) {}
+    })();
+  &lt;/script&gt;
+  &lt;!-- Async font load: a blackholed network must not block first paint.
+       The body font stack falls back to system monospace until it lands. --&gt;
+  &lt;link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin&gt;
+  &lt;link href=&quot;https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap&quot;
+        rel=&quot;stylesheet&quot; media=&quot;print&quot; onload=&quot;this.media=&#x27;all&#x27;&quot;&gt;
+  &lt;noscript&gt;
+    &lt;link href=&quot;https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap&quot; rel=&quot;stylesheet&quot;&gt;
+  &lt;/noscript&gt;
+  &lt;style&gt;
+    /* ==========================================================
+       THEME VARIABLES — switch by toggling [data-theme] on &lt;html&gt;
+       ========================================================== */
+    :root,
+    [data-theme=&quot;dark&quot;] {
+      --bg: #020617;
+      --grid: #1e293b;
+      --text: #ffffff;
+      --text-muted: #94a3b8;
+      --text-dim: #475569;
+      /* UI chrome (menu hints, footer) needs more contrast than SVG .t-dim accents */
+      --text-faint: #7d8da1;
+
+      --panel: rgba(15, 23, 42, 0.5);
+      --panel-border: #1e293b;
+      --lane-fill: rgba(15, 23, 42, 0.22);
+      --lane-stroke: #334155;
+
+      --arrow: #64748b;
+      --arrow-emphasis: #34d399;
+
+      /* Opaque mask color used behind semi-transparent component fills
+         so the arrows drawn underneath are properly hidden. */
+      --mask: #0f172a;
+
+      --frontend-fill:    rgba(8, 51, 68, 0.4);
+      --frontend-stroke:  #22d3ee;
+      --backend-fill:     rgba(6, 78, 59, 0.4);
+      --backend-stroke:   #34d399;
+      --database-fill:    rgba(76, 29, 149, 0.4);
+      --database-stroke:  #a78bfa;
+      --cloud-fill:       rgba(120, 53, 15, 0.3);
+      --cloud-stroke:     #fbbf24;
+      --security-fill:    rgba(136, 19, 55, 0.4);
+      --security-stroke:  #fb7185;
+      --messagebus-fill:  rgba(251, 146, 60, 0.3);
+      --messagebus-stroke:#fb923c;
+      --external-fill:    rgba(30, 41, 59, 0.5);
+      --external-stroke:  #94a3b8;
+
+      --toolbar-bg:       rgba(15, 23, 42, 0.8);
+      --toolbar-border:   #334155;
+      --toolbar-text:     #e2e8f0;
+      --toolbar-hover:    rgba(15, 23, 42, 0.95);
+      --toolbar-menu-bg:  #0f172a;
+    }
+
+    [data-theme=&quot;light&quot;] {
+      --bg: #f8fafc;
+      --grid: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --text-faint: #64748b;
+
+      --panel: #ffffff;
+      --panel-border: #e2e8f0;
+      --lane-fill: rgba(248, 250, 252, 0.65);
+      --lane-stroke: #cbd5e1;
+
+      --arrow: #94a3b8;
+      --arrow-emphasis: #059669;
+
+      --mask: #ffffff;
+
+      --frontend-fill:    rgba(34, 211, 238, 0.15);
+      --frontend-stroke:  #0891b2;
+      --backend-fill:     rgba(52, 211, 153, 0.18);
+      --backend-stroke:   #059669;
+      --database-fill:    rgba(167, 139, 250, 0.2);
+      --database-stroke:  #7c3aed;
+      --cloud-fill:       rgba(251, 191, 36, 0.18);
+      --cloud-stroke:     #d97706;
+      --security-fill:    rgba(251, 113, 133, 0.15);
+      --security-stroke:  #e11d48;
+      --messagebus-fill:  rgba(251, 146, 60, 0.15);
+      --messagebus-stroke:#ea580c;
+      --external-fill:    rgba(148, 163, 184, 0.18);
+      --external-stroke:  #64748b;
+
+      --toolbar-bg:       rgba(255, 255, 255, 0.92);
+      --toolbar-border:   #cbd5e1;
+      --toolbar-text:     #334155;
+      --toolbar-hover:    #ffffff;
+      --toolbar-menu-bg:  #ffffff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: &#x27;JetBrains Mono&#x27;, ui-monospace, SFMono-Regular, Menlo, Consolas, &#x27;DejaVu Sans Mono&#x27;, &#x27;Liberation Mono&#x27;, &#x27;Noto Sans Mono CJK SC&#x27;, &#x27;PingFang SC&#x27;, &#x27;Hiragino Sans GB&#x27;, &#x27;Microsoft YaHei&#x27;, monospace;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 2rem;
+      color: var(--text);
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    .header { margin-bottom: 2rem; }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pulse-dot {
+      width: 12px;
+      height: 12px;
+      background: var(--frontend-stroke);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-left: 1.75rem;
+    }
+
+    .diagram-container {
+      background: var(--panel);
+      border-radius: 1rem;
+      border: 1px solid var(--panel-border);
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+
+    svg {
+      width: 100%;
+      min-width: min(900px, 100%);
+      display: block;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: 0.75rem;
+      border: 1px solid var(--panel-border);
+      padding: 1.25rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .card-dot.cyan     { background: var(--frontend-stroke); }
+    .card-dot.emerald  { background: var(--backend-stroke); }
+    .card-dot.violet   { background: var(--database-stroke); }
+    .card-dot.amber    { background: var(--cloud-stroke); }
+    .card-dot.rose     { background: var(--security-stroke); }
+    .card-dot.orange   { background: var(--messagebus-stroke); }
+    .card-dot.slate    { background: var(--external-stroke); }
+
+    .card h3 { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+
+    .card ul {
+      list-style: none;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    .card li { margin-bottom: 0.375rem; }
+
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--text-faint);
+      font-size: 0.75rem;
+    }
+
+    /* ==========================================================
+       Print stylesheet — hide interactive controls, force light,
+       drop the grid so the diagram doesn&#x27;t waste ink, use landscape
+       so wide diagrams fit, pack summary cards into 2 columns to
+       avoid an orphan card on a trailing page.
+       ========================================================== */
+    @page { size: landscape; margin: 1.5cm; }
+
+    @media print {
+      /* Force the FULL light palette — including component fills/strokes and
+         lane/arrow colors — so printing from dark theme doesn&#x27;t put neon
+         strokes and translucent dark fills on white paper. */
+      :root, [data-theme=&quot;dark&quot;], [data-theme=&quot;light&quot;] {
+        --bg: #ffffff;
+        --grid: transparent;
+        --panel: #ffffff;
+        --panel-border: #e2e8f0;
+        --text: #0f172a;
+        --text-muted: #475569;
+        --text-dim: #94a3b8;
+        --text-faint: #64748b;
+        --mask: #ffffff;
+        --lane-fill: rgba(248, 250, 252, 0.65);
+        --lane-stroke: #cbd5e1;
+        --arrow: #94a3b8;
+        --arrow-emphasis: #059669;
+        --frontend-fill:    rgba(34, 211, 238, 0.15);
+        --frontend-stroke:  #0891b2;
+        --backend-fill:     rgba(52, 211, 153, 0.18);
+        --backend-stroke:   #059669;
+        --database-fill:    rgba(167, 139, 250, 0.2);
+        --database-stroke:  #7c3aed;
+        --cloud-fill:       rgba(251, 191, 36, 0.18);
+        --cloud-stroke:     #d97706;
+        --security-fill:    rgba(251, 113, 133, 0.15);
+        --security-stroke:  #e11d48;
+        --messagebus-fill:  rgba(251, 146, 60, 0.15);
+        --messagebus-stroke:#ea580c;
+        --external-fill:    rgba(148, 163, 184, 0.18);
+        --external-stroke:  #64748b;
+      }
+      body { background: #ffffff !important; padding: 0; }
+      .container { max-width: none; }
+      .toolbar, .archify-toast, .no-print { display: none !important; }
+      .diagram-container, .card { box-shadow: none; border-color: #e2e8f0; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      /* Ensure elements break sensibly across pages */
+      .card { break-inside: avoid; page-break-inside: avoid; }
+      .diagram-container { break-inside: avoid; page-break-inside: avoid; }
+      h1, .subtitle { color: #0f172a; }
+    }
+
+    /* ==========================================================
+       TOOLBAR (theme toggle + export menu)
+       ========================================================== */
+    .toolbar {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 100;
+    }
+    .toolbar button {
+      background: var(--toolbar-bg);
+      color: var(--toolbar-text);
+      border: 1px solid var(--toolbar-border);
+      padding: 0.5rem 0.875rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: background 0.15s, border-color 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+    .toolbar button:hover {
+      background: var(--toolbar-hover);
+      border-color: var(--arrow);
+    }
+    .toolbar button:focus-visible {
+      outline: 2px solid var(--frontend-stroke);
+      outline-offset: 2px;
+    }
+    .toolbar .export-wrap { position: relative; }
+    .toolbar .export-menu {
+      position: absolute;
+      top: calc(100% + 0.375rem);
+      right: 0;
+      background: var(--toolbar-menu-bg);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 0.5rem;
+      padding: 0.375rem;
+      min-width: 160px;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .toolbar .export-menu.open { display: flex; }
+    .toolbar .export-menu button {
+      background: transparent;
+      border: 0;
+      justify-content: space-between;
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+    }
+    .toolbar .export-menu button:hover {
+      background: var(--toolbar-hover);
+    }
+    .toolbar .export-menu .hint {
+      color: var(--text-faint);
+      font-size: 0.625rem;
+    }
+    .toolbar .export-menu hr {
+      border: 0;
+      border-top: 1px solid var(--toolbar-border);
+      margin: 0.25rem 0.375rem;
+      opacity: 0.5;
+    }
+
+    /* Toast — brief feedback for actions like &quot;copied&quot; */
+    .archify-toast {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--toolbar-menu-bg);
+      color: var(--text);
+      border: 1px solid var(--toolbar-border);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-family: inherit;
+      font-size: 0.75rem;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 200;
+      pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .archify-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      .toolbar {
+        position: static;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
+      .header { margin-bottom: 1.25rem; }
+      .header-row {
+        gap: 0.75rem;
+        align-items: flex-start;
+      }
+      h1 {
+        font-size: 1.25rem;
+        line-height: 1.25;
+      }
+      .subtitle {
+        margin-left: 0;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+      .diagram-container {
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+      }
+      .cards {
+        grid-template-columns: 1fr;
+        margin-top: 1rem;
+      }
+    }
+
+    /* ==========================================================
+       SVG SEMANTIC CLASSES — use these instead of inline fill/stroke
+       ========================================================== */
+    .c-grid       { stroke: var(--grid); fill: none; }
+    .c-mask       { fill: var(--mask); stroke: none; }
+
+    .c-frontend   { fill: var(--frontend-fill);   stroke: var(--frontend-stroke); }
+    .c-backend    { fill: var(--backend-fill);    stroke: var(--backend-stroke); }
+    .c-database   { fill: var(--database-fill);   stroke: var(--database-stroke); }
+    .c-cloud      { fill: var(--cloud-fill);      stroke: var(--cloud-stroke); }
+    .c-security   { fill: var(--security-fill);   stroke: var(--security-stroke); }
+    .c-messagebus { fill: var(--messagebus-fill); stroke: var(--messagebus-stroke); }
+    .c-external   { fill: var(--external-fill);   stroke: var(--external-stroke); }
+
+    /* Text helpers */
+    .t-primary { fill: var(--text); }
+    .t-muted   { fill: var(--text-muted); }
+    .t-dim     { fill: var(--text-dim); }
+    .t-frontend   { fill: var(--frontend-stroke); }
+    .t-backend    { fill: var(--backend-stroke); }
+    .t-database   { fill: var(--database-stroke); }
+    .t-cloud      { fill: var(--cloud-stroke); }
+    .t-security   { fill: var(--security-stroke); }
+    .t-messagebus { fill: var(--messagebus-stroke); }
+    .t-external   { fill: var(--external-stroke); }
+
+    /* Arrows */
+    .a-default   { stroke: var(--arrow); fill: none; }
+    .a-emphasis  { stroke: var(--arrow-emphasis); fill: none; }
+    .a-security  { stroke: var(--security-stroke); fill: none; stroke-dasharray: 5,5; }
+    .a-dashed    { stroke: var(--database-stroke); fill: none; stroke-dasharray: 4,4; }
+
+    /* Arrowhead markers reference these */
+    .m-default   { fill: var(--arrow); }
+    .m-emphasis  { fill: var(--arrow-emphasis); }
+    .m-security  { fill: var(--security-stroke); }
+    .m-dashed    { fill: var(--database-stroke); }
+
+    /* Dashed boundary variants */
+    .c-security-group { fill: transparent; stroke: var(--security-stroke); stroke-dasharray: 4,4; }
+    .c-region         { fill: rgba(251, 191, 36, 0.05); stroke: var(--cloud-stroke); stroke-dasharray: 8,4; }
+    .c-lane           { fill: var(--lane-fill); stroke: var(--lane-stroke); stroke-dasharray: 6,6; }
+
+    /* Optional trace animation, enabled only by meta.animation = &quot;trace&quot;.
+       Static diagrams do not carry data-animation and render exactly as before. */
+    svg[data-animation=&quot;trace&quot;] [data-animate=&quot;edge&quot;] {
+      stroke-dasharray: 10 8;
+      stroke-dashoffset: 54;
+      animation: archify-edge-flow 2.4s linear infinite;
+      animation-delay: calc(var(--step, 0) * 160ms);
+    }
+    svg[data-animation=&quot;trace&quot;] [data-animate=&quot;node&quot;] {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: archify-node-pulse 3.6s ease-in-out infinite;
+      animation-delay: calc(var(--step, 0) * 160ms);
+    }
+    @keyframes archify-edge-flow {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes archify-node-pulse {
+      0%, 72%, 100% { filter: none; stroke-width: 1.5; }
+      18%, 36% {
+        filter: drop-shadow(0 0 8px var(--arrow-emphasis));
+        stroke-width: 2.4;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      svg[data-animation=&quot;trace&quot;] [data-animate] {
+        animation: none !important;
+        stroke-dashoffset: 0;
+      }
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;!-- Toolbar: theme toggle + export menu (present on every generated diagram)
+       Keyboard: T toggles theme, E opens export menu (when no input focused) --&gt;
+  &lt;div class=&quot;toolbar&quot; role=&quot;toolbar&quot; aria-label=&quot;Diagram actions&quot;&gt;
+    &lt;button id=&quot;btn-theme&quot; type=&quot;button&quot;
+            title=&quot;Toggle theme (T)&quot;
+            aria-label=&quot;Toggle color theme&quot;
+            aria-pressed=&quot;false&quot;&gt;
+      &lt;span id=&quot;theme-icon&quot; aria-hidden=&quot;true&quot;&gt;&amp;#9790;&lt;/span&gt;
+      &lt;span id=&quot;theme-label&quot;&gt;Dark&lt;/span&gt;
+    &lt;/button&gt;
+    &lt;div class=&quot;export-wrap&quot;&gt;
+      &lt;button id=&quot;btn-export&quot; type=&quot;button&quot;
+              title=&quot;Export diagram (E)&quot;
+              aria-label=&quot;Export diagram&quot;
+              aria-haspopup=&quot;menu&quot;
+              aria-expanded=&quot;false&quot;
+              aria-controls=&quot;export-menu&quot;&gt;
+        Export &lt;span aria-hidden=&quot;true&quot;&gt;&amp;#9662;&lt;/span&gt;
+      &lt;/button&gt;
+      &lt;div class=&quot;export-menu&quot; id=&quot;export-menu&quot; role=&quot;menu&quot; aria-label=&quot;Export&quot;&gt;
+        &lt;button data-action=&quot;copy&quot;  type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Copy to clipboard &lt;span class=&quot;hint&quot;&gt;PNG&lt;/span&gt;&lt;/button&gt;
+        &lt;hr role=&quot;separator&quot;&gt;
+        &lt;button data-format=&quot;png&quot;   type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download PNG&lt;/button&gt;
+        &lt;button data-format=&quot;jpeg&quot;  type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download JPEG&lt;/button&gt;
+        &lt;button data-format=&quot;webp&quot;  type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download WebP&lt;/button&gt;
+        &lt;hr role=&quot;separator&quot;&gt;
+        &lt;button data-format=&quot;svg&quot;   type=&quot;button&quot; role=&quot;menuitem&quot; tabindex=&quot;-1&quot;&gt;Download SVG &lt;span class=&quot;hint&quot;&gt;vector&lt;/span&gt;&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;container&quot;&gt;
+    &lt;!-- Header --&gt;
+    &lt;div class=&quot;header&quot;&gt;
+      &lt;div class=&quot;header-row&quot;&gt;
+        &lt;div class=&quot;pulse-dot&quot;&gt;&lt;/div&gt;
+        &lt;h1&gt;moment / 接口与模块对应图&lt;/h1&gt;
+      &lt;/div&gt;
+      &lt;p class=&quot;subtitle&quot;&gt;提案 · HTTP 只处理请求契约；模块之间用类型化函数调用，供应商协议留在 AI Adapter&lt;/p&gt;
+    &lt;/div&gt;
+
+    &lt;!-- Main Diagram --&gt;
+    &lt;div class=&quot;diagram-container&quot;&gt;
+      &lt;svg viewBox=&quot;0 0 1180 910&quot; role=&quot;img&quot; aria-label=&quot;moment / 接口与模块对应图 — 提案 · HTTP 只处理请求契约；模块之间用类型化函数调用，供应商协议留在 AI Adapter (architecture diagram)&quot;&gt;
+        &lt;!-- Definitions --&gt;
+        &lt;defs&gt;
+          &lt;marker id=&quot;arrowhead&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-default&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;marker id=&quot;arrowhead-emphasis&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-emphasis&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;marker id=&quot;arrowhead-security&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-security&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;marker id=&quot;arrowhead-dashed&quot; markerWidth=&quot;10&quot; markerHeight=&quot;7&quot; refX=&quot;9&quot; refY=&quot;3.5&quot; orient=&quot;auto&quot;&gt;
+            &lt;polygon points=&quot;0 0, 10 3.5, 0 7&quot; class=&quot;m-dashed&quot; /&gt;
+          &lt;/marker&gt;
+          &lt;pattern id=&quot;grid&quot; width=&quot;40&quot; height=&quot;40&quot; patternUnits=&quot;userSpaceOnUse&quot;&gt;
+            &lt;path d=&quot;M 40 0 L 0 0 0 40&quot; class=&quot;c-grid&quot; stroke-width=&quot;0.5&quot;/&gt;
+          &lt;/pattern&gt;
+        &lt;/defs&gt;
+
+        &lt;!-- Background Grid --&gt;
+        &lt;rect width=&quot;100%&quot; height=&quot;100%&quot; fill=&quot;url(#grid)&quot; /&gt;
+
+        &lt;!-- Boundaries (behind everything) --&gt;
+        &lt;rect x=&quot;240&quot; y=&quot;40&quot; width=&quot;560&quot; height=&quot;762&quot; rx=&quot;12&quot; class=&quot;c-region&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;248&quot; y=&quot;58&quot; class=&quot;t-cloud&quot; font-size=&quot;9&quot; font-weight=&quot;600&quot;&gt;HTTP CONTRACT / 保留现有接口，按需扩展&lt;/text&gt;
+
+        &lt;!-- Connection paths (before components for correct z-order) --&gt;
+        &lt;path d=&quot;M 200 426 L 270 426&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 450 426 L 477 426 Q 485 426 485 418 L 485 114 Q 485 106 493 106 L 520 106&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 450 426 L 477 426 Q 485 426 485 418 L 485 274 Q 485 266 493 266 L 520 266&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 450 426 L 485 426 L 485 426 L 520 426&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 450 426 L 477 426 Q 485 426 485 434 L 485 578 Q 485 586 493 586 L 520 586&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 450 426 L 477 426 Q 485 426 485 434 L 485 738 Q 485 746 493 746 L 520 746&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+        &lt;path d=&quot;M 770 106 L 817 106 Q 825 106 825 114 L 825 178 Q 825 186 833 186 L 880 186&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 770 266 L 817 266 Q 825 266 825 258 L 825 194 Q 825 186 833 186 L 880 186&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 770 426 L 825 426 L 825 426 L 880 426&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 770 586 L 825 586 L 825 586 L 880 586&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 770 746 L 825 746 L 825 746 L 880 746&quot; class=&quot;a-emphasis&quot; stroke-width=&quot;1.8&quot; marker-end=&quot;url(#arrowhead-emphasis)&quot;/&gt;
+        &lt;path d=&quot;M 1000 622 L 1000 710&quot; class=&quot;a-dashed&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead-dashed)&quot;/&gt;
+        &lt;path d=&quot;M 1000 550 L 1000 462&quot; class=&quot;a-default&quot; stroke-width=&quot;1.5&quot; marker-end=&quot;url(#arrowhead)&quot;/&gt;
+
+        &lt;!-- Components --&gt;
+        &lt;rect x=&quot;40&quot; y=&quot;390&quot; width=&quot;160&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;40&quot; y=&quot;390&quot; width=&quot;160&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-frontend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;120&quot; y=&quot;424&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Web UI&lt;/text&gt;
+        &lt;text x=&quot;120&quot; y=&quot;440&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;只提交业务意图&lt;/text&gt;
+
+        &lt;rect x=&quot;270&quot; y=&quot;390&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;270&quot; y=&quot;390&quot; width=&quot;180&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-security&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;360&quot; y=&quot;424&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;HTTP boundary&lt;/text&gt;
+        &lt;text x=&quot;360&quot; y=&quot;440&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;身份 / 归属 / 输入校验&lt;/text&gt;
+
+        &lt;rect x=&quot;520&quot; y=&quot;70&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;520&quot; y=&quot;70&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;645&quot; y=&quot;104&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Upload API&lt;/text&gt;
+        &lt;text x=&quot;645&quot; y=&quot;120&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;POST /uploads + body + complete&lt;/text&gt;
+
+        &lt;rect x=&quot;520&quot; y=&quot;230&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;520&quot; y=&quot;230&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;645&quot; y=&quot;264&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;File API&lt;/text&gt;
+        &lt;text x=&quot;645&quot; y=&quot;280&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;GET /files/:id&lt;/text&gt;
+
+        &lt;rect x=&quot;520&quot; y=&quot;390&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;520&quot; y=&quot;390&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;645&quot; y=&quot;424&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Library API&lt;/text&gt;
+        &lt;text x=&quot;645&quot; y=&quot;440&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;GET / PUT photos, albums, styles&lt;/text&gt;
+
+        &lt;rect x=&quot;520&quot; y=&quot;550&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;520&quot; y=&quot;550&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;645&quot; y=&quot;584&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Jobs API&lt;/text&gt;
+        &lt;text x=&quot;645&quot; y=&quot;600&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;POST /jobs · GET /jobs&lt;/text&gt;
+
+        &lt;rect x=&quot;520&quot; y=&quot;710&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;520&quot; y=&quot;710&quot; width=&quot;250&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;645&quot; y=&quot;744&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Models API&lt;/text&gt;
+        &lt;text x=&quot;645&quot; y=&quot;760&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;POST /ai/models/refresh&lt;/text&gt;
+
+        &lt;rect x=&quot;880&quot; y=&quot;150&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;880&quot; y=&quot;150&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-cloud&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;184&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;File access&lt;/text&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;200&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;上传 / 鉴权读取 / 结果保存&lt;/text&gt;
+
+        &lt;rect x=&quot;880&quot; y=&quot;390&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;880&quot; y=&quot;390&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;424&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Library&lt;/text&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;440&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;月份 · 人工组织 · 应用结果&lt;/text&gt;
+
+        &lt;rect x=&quot;880&quot; y=&quot;550&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;880&quot; y=&quot;550&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-backend&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;584&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;Jobs + Runner&lt;/text&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;600&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;创建 / 领取 / 推进任务&lt;/text&gt;
+
+        &lt;rect x=&quot;880&quot; y=&quot;710&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-mask&quot;/&gt;
+        &lt;rect x=&quot;880&quot; y=&quot;710&quot; width=&quot;240&quot; height=&quot;72&quot; rx=&quot;6&quot; class=&quot;c-external&quot; stroke-width=&quot;1.5&quot;/&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;744&quot; class=&quot;t-primary&quot; font-size=&quot;11&quot; font-weight=&quot;600&quot; text-anchor=&quot;middle&quot;&gt;AI interfaces&lt;/text&gt;
+        &lt;text x=&quot;1000&quot; y=&quot;760&quot; class=&quot;t-muted&quot; font-size=&quot;9&quot; text-anchor=&quot;middle&quot;&gt;refresh / analyze / edit / check&lt;/text&gt;
+
+        &lt;!-- Connection labels --&gt;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        &lt;!-- Legend --&gt;
+        &lt;text x=&quot;40&quot; y=&quot;881&quot; class=&quot;t-primary&quot; font-size=&quot;9&quot; font-weight=&quot;600&quot;&gt;Legend&lt;/text&gt;
+        &lt;rect x=&quot;40&quot; y=&quot;886&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-frontend&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;60&quot; y=&quot;894&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Frontend&lt;/text&gt;
+        &lt;rect x=&quot;138&quot; y=&quot;886&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-security&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;158&quot; y=&quot;894&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Security&lt;/text&gt;
+        &lt;rect x=&quot;236&quot; y=&quot;886&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-backend&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;256&quot; y=&quot;894&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Backend&lt;/text&gt;
+        &lt;rect x=&quot;329&quot; y=&quot;886&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-cloud&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;349&quot; y=&quot;894&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;Cloud&lt;/text&gt;
+        &lt;rect x=&quot;412&quot; y=&quot;886&quot; width=&quot;14&quot; height=&quot;9&quot; rx=&quot;2&quot; class=&quot;c-external&quot; stroke-width=&quot;1&quot;/&gt;
+        &lt;text x=&quot;432&quot; y=&quot;894&quot; class=&quot;t-muted&quot; font-size=&quot;8&quot;&gt;External&lt;/text&gt;
+      &lt;/svg&gt;
+    &lt;/div&gt;
+
+    &lt;!-- Info Cards --&gt;
+    &lt;div class=&quot;cards&quot;&gt;
+
+    &lt;/div&gt;
+
+    &lt;!-- Footer --&gt;
+    &lt;p class=&quot;footer&quot;&gt;
+      Architecture diagram &amp;bull; Built with Archify&lt;span class=&quot;no-print&quot;&gt; &amp;bull; Press &lt;kbd&gt;T&lt;/kbd&gt; for theme and &lt;kbd&gt;E&lt;/kbd&gt; for export&lt;/span&gt;
+    &lt;/p&gt;
+  &lt;/div&gt;
+
+  &lt;script&gt;
+    /* ============================================================
+       Theme toggle — persists to localStorage, respects system pref
+       ============================================================ */
+    var Archify = {};
+
+    Archify.theme = (function () {
+      var STORAGE_KEY = &#x27;archify-theme&#x27;;
+      var html = document.documentElement;
+      var btn = document.getElementById(&#x27;btn-theme&#x27;);
+      var icon = document.getElementById(&#x27;theme-icon&#x27;);
+      var label = document.getElementById(&#x27;theme-label&#x27;);
+
+      // localStorage can throw (blocked cookies, sandboxed iframes); the whole
+      // script element dies on an uncaught error, so guard every access.
+      function readStored() {
+        try { return localStorage.getItem(STORAGE_KEY); } catch (_) { return null; }
+      }
+      function writeStored(value) {
+        try { localStorage.setItem(STORAGE_KEY, value); } catch (_) {}
+      }
+      function urlOverride() {
+        // URL param wins (useful for deterministic screenshots / share links)
+        try {
+          var param = new URLSearchParams(window.location.search).get(&#x27;theme&#x27;);
+          if (param === &#x27;light&#x27; || param === &#x27;dark&#x27;) return param;
+        } catch (_) {}
+        return null;
+      }
+
+      function resolveInitial() {
+        var fromUrl = urlOverride();
+        if (fromUrl) return fromUrl;
+        var saved = readStored();
+        if (saved === &#x27;light&#x27; || saved === &#x27;dark&#x27;) return saved;
+        return window.matchMedia(&#x27;(prefers-color-scheme: light)&#x27;).matches ? &#x27;light&#x27; : &#x27;dark&#x27;;
+      }
+
+      function apply(theme) {
+        html.setAttribute(&#x27;data-theme&#x27;, theme);
+        icon.textContent = theme === &#x27;dark&#x27; ? &#x27;\u263E&#x27; : &#x27;\u263C&#x27;;
+        label.textContent = theme === &#x27;dark&#x27; ? &#x27;Dark&#x27; : &#x27;Light&#x27;;
+        btn.setAttribute(&#x27;aria-pressed&#x27;, theme === &#x27;light&#x27; ? &#x27;true&#x27; : &#x27;false&#x27;);
+      }
+
+      function toggle() {
+        var next = html.getAttribute(&#x27;data-theme&#x27;) === &#x27;dark&#x27; ? &#x27;light&#x27; : &#x27;dark&#x27;;
+        apply(next);
+        writeStored(next);
+      }
+
+      apply(resolveInitial());
+      btn.addEventListener(&#x27;click&#x27;, toggle);
+
+      // Follow live OS theme changes while the user has no explicit preference.
+      try {
+        var media = window.matchMedia(&#x27;(prefers-color-scheme: light)&#x27;);
+        var onChange = function (e) {
+          var saved = readStored();
+          if (urlOverride() || saved === &#x27;light&#x27; || saved === &#x27;dark&#x27;) return;
+          apply(e.matches ? &#x27;light&#x27; : &#x27;dark&#x27;);
+        };
+        if (media.addEventListener) media.addEventListener(&#x27;change&#x27;, onChange);
+        else if (media.addListener) media.addListener(onChange);
+      } catch (_) {}
+
+      return { toggle: toggle };
+    })();
+
+    /* ============================================================
+       Export — PNG / JPEG / WebP / SVG (download) and Copy PNG (clipboard)
+
+       Raster exports are always rendered at 4x source resolution for
+       maximum sharpness. The trick: we set the serialized SVG&#x27;s
+       `width`/`height` to viewBox * 4 so the browser rasterizes the
+       vectors at that resolution natively. drawImage then draws at
+       the image&#x27;s natural size (no upscaling = no blur).
+
+       JPEG/WebP paint the current theme&#x27;s background explicitly since
+       those formats have no alpha channel.
+       ============================================================ */
+    (function () {
+      var RASTER_SCALE = 4;
+
+      function diagramFilename() {
+        var title = (document.title || &#x27;diagram&#x27;)
+          .replace(/\s+Architecture(\s+Diagram)?$/i, &#x27;&#x27;)
+          .replace(/\s+Diagram$/i, &#x27;&#x27;)
+          .trim();
+        return title.replace(/[^a-z0-9_\-]+/gi, &#x27;-&#x27;)
+                    .toLowerCase()
+                    .replace(/^-+|-+$/g, &#x27;&#x27;) || &#x27;diagram&#x27;;
+      }
+
+      function currentBg() {
+        return getComputedStyle(document.body).backgroundColor || &#x27;#ffffff&#x27;;
+      }
+
+      /**
+       * Serialize the main SVG into a standalone document.
+       *
+       * Two modes:
+       * - Default (opts.autoTheme=false) — locks the serialized SVG to the
+       *   viewer&#x27;s current theme. Used by the raster pipeline
+       *   (PNG/JPEG/WebP/clipboard) because canvas rasterization needs
+       *   deterministic colors; a raster cannot react to
+       *   prefers-color-scheme after encoding.
+       * - autoTheme=true — emits BOTH dark and light variable sets plus a
+       *   `@media (prefers-color-scheme)` rule so the resulting SVG
+       *   self-themes when embedded in GitHub READMEs or other hosts that
+       *   expose a color scheme. Used for &quot;Download SVG&quot;.
+       */
+      function serializeSvg(scale, opts) {
+        // scale: integer multiplier for intrinsic SVG pixel dimensions used by
+        // the raster path. Defaults to 1 (natural size) for SVG download.
+        scale = scale || 1;
+        opts = opts || {};
+        var autoTheme = opts.autoTheme === true;
+
+        var svg = document.querySelector(&#x27;.diagram-container svg&#x27;);
+        var clone = svg.cloneNode(true);
+
+        var vb = svg.viewBox.baseVal;
+        // Scale width/height so the browser rasterizes the vectors at target
+        // resolution directly. viewBox stays unchanged so coordinates don&#x27;t
+        // shift. This is the key to sharp rasters — do NOT scale later via
+        // canvas upscaling.
+        clone.setAttribute(&#x27;width&#x27;, vb.width * scale);
+        clone.setAttribute(&#x27;height&#x27;, vb.height * scale);
+        clone.setAttribute(&#x27;xmlns&#x27;, &#x27;http://www.w3.org/2000/svg&#x27;);
+
+        // Only the SVG-relevant rules: semantic classes, markers, and the
+        // theme variable blocks. Toolbar/cards/print CSS can never apply
+        // inside a standalone SVG and would only bloat the export.
+        var hostStyle = (function () {
+          var out = [];
+          Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+            var rules;
+            try { rules = sheet.cssRules; } catch (_) { return; } // cross-origin
+            if (!rules) return;
+            Array.prototype.forEach.call(rules, function (rule) {
+              if (rule.type !== 1) return; // plain style rules only
+              var sel = rule.selectorText || &#x27;&#x27;;
+              if (/(^|,)\s*(svg|:root|\[data-theme|\.c-|\.t-|\.a-|\.m-)/.test(sel)) {
+                out.push(rule.cssText);
+              }
+            });
+          });
+          return out.join(&#x27;\n&#x27;);
+        })();
+
+        // Derive the variable list from the stylesheet so newly added theme
+        // variables can never be missed by the export pipeline again
+        // (--lane-fill/--lane-stroke once were).
+        var varNames = (function () {
+          var seen = {};
+          var names = [];
+          (hostStyle.match(/--[a-zA-Z0-9-]+(?=\s*:)/g) || []).forEach(function (n) {
+            if (!seen[n]) { seen[n] = true; names.push(n); }
+          });
+          return names;
+        })();
+
+        // Resolve the full variable set for a given data-theme via an
+        // off-DOM probe, independent of what the viewer is currently set to.
+        function resolveVars(themeAttr) {
+          var probe = document.createElement(&#x27;div&#x27;);
+          probe.setAttribute(&#x27;data-theme&#x27;, themeAttr);
+          probe.style.cssText = &#x27;position:absolute;width:0;height:0;visibility:hidden;&#x27;;
+          document.body.appendChild(probe);
+          try {
+            var c = getComputedStyle(probe);
+            return varNames.map(function (n) {
+              return n + &#x27;: &#x27; + c.getPropertyValue(n).trim() + &#x27;;&#x27;;
+            }).join(&#x27; &#x27;);
+          } finally {
+            document.body.removeChild(probe);
+          }
+        }
+
+        // Prepend a local()-only @font-face block for each weight so that the
+        // sandboxed image-rendering context used during PNG/JPEG/WebP export
+        // can find JetBrains Mono if the user has it installed locally, and
+        // falls through cleanly to the monospace stack otherwise. The usual
+        // Google-Fonts &lt;link&gt; in the host document is unreachable from the
+        // serialized SVG, so url()-sourced faces would just hang.
+        var fontFallback = [400, 500, 600, 700].map(function (w) {
+          return &quot;@font-face { font-family: &#x27;JetBrains Mono&#x27;; font-weight: &quot; + w +
+                 &quot;; src: local(&#x27;JetBrains Mono&#x27;), local(&#x27;JetBrainsMono-Regular&#x27;); }&quot;;
+        }).join(&#x27;\n&#x27;);
+
+        var style = document.createElementNS(&#x27;http://www.w3.org/2000/svg&#x27;, &#x27;style&#x27;);
+        var bgRect = document.createElementNS(&#x27;http://www.w3.org/2000/svg&#x27;, &#x27;rect&#x27;);
+        bgRect.setAttribute(&#x27;width&#x27;, &#x27;100%&#x27;);
+        bgRect.setAttribute(&#x27;height&#x27;, &#x27;100%&#x27;);
+
+        if (autoTheme) {
+          // Dual-theme SVG. Dark is the default (so hosts without
+          // prefers-color-scheme still render), light swaps in via media
+          // query, and svg[data-theme=&quot;...&quot;] still lets downstream
+          // consumers force a specific theme.
+          var darkVars = resolveVars(&#x27;dark&#x27;);
+          var lightVars = resolveVars(&#x27;light&#x27;);
+
+          style.textContent =
+            fontFallback + &quot;\n&quot; +
+            &quot;svg { font-family: &#x27;JetBrains Mono&#x27;, ui-monospace, SFMono-Regular, Menlo, Consolas, &#x27;DejaVu Sans Mono&#x27;, &#x27;Liberation Mono&#x27;, &#x27;Noto Sans Mono CJK SC&#x27;, &#x27;PingFang SC&#x27;, &#x27;Hiragino Sans GB&#x27;, &#x27;Microsoft YaHei&#x27;, monospace; }\n&quot; +
+            hostStyle + &quot;\n&quot; +
+            &quot;:root, svg { &quot; + darkVars + &quot; }\n&quot; +
+            &quot;@media (prefers-color-scheme: light) { :root, svg { &quot; + lightVars + &quot; } }\n&quot; +
+            &quot;svg[data-theme=\&quot;light\&quot;] { &quot; + lightVars + &quot; }\n&quot; +
+            &quot;svg[data-theme=\&quot;dark\&quot;] { &quot; + darkVars + &quot; }\n&quot; +
+            &quot;rect.c-bg-rect { fill: var(--bg); }\n&quot;;
+
+          // Don&#x27;t lock the serialized SVG to the viewer&#x27;s current theme.
+          clone.removeAttribute(&#x27;data-theme&#x27;);
+          // Background follows the CSS variable, not a fixed color, so it
+          // swaps with the media query.
+          bgRect.setAttribute(&#x27;class&#x27;, &#x27;c-bg-rect&#x27;);
+        } else {
+          // Raster path: lock to the viewer&#x27;s current theme.
+          var theme = document.documentElement.getAttribute(&#x27;data-theme&#x27;) || &#x27;dark&#x27;;
+          var themeHost = document.querySelector(&#x27;[data-theme=&quot;&#x27; + theme + &#x27;&quot;]&#x27;) || document.documentElement;
+          var computed = getComputedStyle(themeHost);
+          var vars = varNames.map(function (n) {
+            return n + &#x27;: &#x27; + computed.getPropertyValue(n).trim() + &#x27;;&#x27;;
+          }).join(&#x27; &#x27;);
+
+          // IMPORTANT: inject the resolved variables AFTER hostStyle,
+          // otherwise hostStyle&#x27;s &quot;:root, [data-theme=\&quot;dark\&quot;] { ... }&quot; rule
+          // overrides our chosen theme via later-in-cascade equal-specificity.
+          // Keep this order.
+          style.textContent =
+            fontFallback + &quot;\n&quot; +
+            &quot;svg { font-family: &#x27;JetBrains Mono&#x27;, ui-monospace, SFMono-Regular, Menlo, Consolas, &#x27;DejaVu Sans Mono&#x27;, &#x27;Liberation Mono&#x27;, &#x27;Noto Sans Mono CJK SC&#x27;, &#x27;PingFang SC&#x27;, &#x27;Hiragino Sans GB&#x27;, &#x27;Microsoft YaHei&#x27;, monospace; }\n&quot; +
+            hostStyle + &quot;\n&quot; +
+            &quot;:root, svg { &quot; + vars + &quot; }\n&quot;;
+
+          bgRect.setAttribute(&#x27;fill&#x27;, computed.getPropertyValue(&#x27;--bg&#x27;).trim() || &#x27;#ffffff&#x27;);
+        }
+
+        clone.insertBefore(style, clone.firstChild);
+        clone.insertBefore(bgRect, style.nextSibling);
+
+        return {
+          svgString: new XMLSerializer().serializeToString(clone),
+          width: vb.width * scale,
+          height: vb.height * scale
+        };
+      }
+
+      function download(blob, filename) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement(&#x27;a&#x27;);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      }
+
+      // Conservative upper bound on total canvas pixels. Older Safari on iOS
+      // silently produces a blank canvas above ~16 Mpx; Chrome / Firefox /
+      // desktop Safari are far higher but start failing on memory-constrained
+      // devices. We pick the largest integer scale in {4,3,2,1} whose target
+      // pixel count fits under this cap.
+      var MAX_CANVAS_PIXELS = 16 * 1024 * 1024;
+
+      function pickSafeScale(vbW, vbH) {
+        for (var s = RASTER_SCALE; s &gt;= 1; s--) {
+          if (vbW * s * vbH * s &lt;= MAX_CANVAS_PIXELS) return s;
+        }
+        return 1;
+      }
+
+      function rasterize(format) {
+        // Serialize at a safe scale (RASTER_SCALE=4 by default, reduced if the
+        // resulting canvas would exceed MAX_CANVAS_PIXELS). The SVG itself is
+        // rasterized at target resolution natively; drawImage draws at natural
+        // size — no upsampling blur.
+        var svg = document.querySelector(&#x27;.diagram-container svg&#x27;);
+        var vb = svg.viewBox.baseVal;
+        var scale = pickSafeScale(vb.width, vb.height);
+        var data = serializeSvg(scale);
+        var svgBlob = new Blob([data.svgString], { type: &#x27;image/svg+xml;charset=utf-8&#x27; });
+        var svgUrl = URL.createObjectURL(svgBlob);
+
+        return new Promise(function (resolve, reject) {
+          var img = new Image();
+          img.onload = function () {
+            var canvas = document.createElement(&#x27;canvas&#x27;);
+            canvas.width = data.width;
+            canvas.height = data.height;
+            var ctx = canvas.getContext(&#x27;2d&#x27;);
+            if (format === &#x27;jpeg&#x27;) {
+              ctx.fillStyle = currentBg();
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            // Draw at natural size — SVG was already rasterized at target res.
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(svgUrl);
+            var mime = format === &#x27;jpeg&#x27; ? &#x27;image/jpeg&#x27; :
+                       format === &#x27;webp&#x27; ? &#x27;image/webp&#x27; : &#x27;image/png&#x27;;
+            var quality = format === &#x27;png&#x27; ? undefined : 0.95;
+            canvas.toBlob(function (blob) {
+              if (!blob) reject(new Error(&#x27;toBlob returned null for &#x27; + format));
+              else resolve(blob);
+            }, mime, quality);
+          };
+          img.onerror = function (e) {
+            URL.revokeObjectURL(svgUrl);
+            reject(e);
+          };
+          img.src = svgUrl;
+        });
+      }
+
+      var menu = document.getElementById(&#x27;export-menu&#x27;);
+      var btn = document.getElementById(&#x27;btn-export&#x27;);
+      var items = function () {
+        return Array.prototype.slice.call(menu.querySelectorAll(&#x27;button[role=&quot;menuitem&quot;]&#x27;));
+      };
+
+      // ---- Clipboard support ----------------------------------------------
+      function canCopyImage() {
+        return typeof ClipboardItem !== &#x27;undefined&#x27; &amp;&amp;
+               navigator.clipboard &amp;&amp;
+               typeof navigator.clipboard.write === &#x27;function&#x27;;
+      }
+
+      // ---- Raster format detection ----------------------------------------
+      // canvas.toBlob(&#x27;image/webp&#x27;) silently returns a PNG on browsers without
+      // WebP encoding (older Safari), so detect explicitly.
+      function supports(format) {
+        if (format === &#x27;svg&#x27; || format === &#x27;png&#x27;) return true;
+        var mime = format === &#x27;jpeg&#x27; ? &#x27;image/jpeg&#x27; : &#x27;image/webp&#x27;;
+        try {
+          var c = document.createElement(&#x27;canvas&#x27;);
+          c.width = c.height = 2;
+          return c.toDataURL(mime).indexOf(&#x27;data:&#x27; + mime) === 0;
+        } catch (_) { return false; }
+      }
+
+      // Gray out unsupported items.
+      items().forEach(function (it) {
+        if (it.dataset.format &amp;&amp; !supports(it.dataset.format)) {
+          it.disabled = true;
+          it.title = &#x27;Not supported by this browser&#x27;;
+          it.style.opacity = &#x27;0.5&#x27;;
+        }
+        if (it.dataset.action === &#x27;copy&#x27; &amp;&amp; !canCopyImage()) {
+          it.disabled = true;
+          it.title = &#x27;Clipboard image write not supported by this browser&#x27;;
+          it.style.opacity = &#x27;0.5&#x27;;
+        }
+      });
+
+      // ---- Toast ----------------------------------------------------------
+      // A live region only announces CHANGES to an existing node, so the toast
+      // element is created once up front and updated in place.
+      var toastEl = document.createElement(&#x27;div&#x27;);
+      toastEl.className = &#x27;archify-toast&#x27;;
+      toastEl.setAttribute(&#x27;role&#x27;, &#x27;status&#x27;);
+      document.body.appendChild(toastEl);
+      var toastTimer = null;
+
+      function toast(msg) {
+        toastEl.textContent = &#x27;&#x27;;
+        requestAnimationFrame(function () {
+          toastEl.textContent = msg;
+          toastEl.classList.add(&#x27;show&#x27;);
+        });
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove(&#x27;show&#x27;); }, 1500);
+      }
+
+      function open(focusLast) {
+        menu.classList.add(&#x27;open&#x27;);
+        btn.setAttribute(&#x27;aria-expanded&#x27;, &#x27;true&#x27;);
+        var available = items().filter(function (i) { return !i.disabled; });
+        var target = focusLast ? available[available.length - 1] : available[0];
+        if (target) target.focus();
+      }
+      function close(focusTrigger) {
+        menu.classList.remove(&#x27;open&#x27;);
+        btn.setAttribute(&#x27;aria-expanded&#x27;, &#x27;false&#x27;);
+        if (focusTrigger) btn.focus();
+      }
+      function isOpen() { return menu.classList.contains(&#x27;open&#x27;); }
+
+      btn.addEventListener(&#x27;click&#x27;, function (e) {
+        e.stopPropagation();
+        if (isOpen()) close(false);
+        else open();
+      });
+      // APG menu-button pattern: ArrowDown/ArrowUp on the trigger opens the menu.
+      btn.addEventListener(&#x27;keydown&#x27;, function (e) {
+        if (e.key === &#x27;ArrowDown&#x27; || e.key === &#x27;ArrowUp&#x27;) {
+          e.preventDefault();
+          if (!isOpen()) open(e.key === &#x27;ArrowUp&#x27;);
+        }
+      });
+      document.addEventListener(&#x27;click&#x27;, function (e) {
+        if (!menu.contains(e.target) &amp;&amp; e.target !== btn) close(false);
+      });
+
+      // Keyboard navigation inside the menu.
+      //   Menu items: Up/Down, Home/End.
+      //   Esc closes + returns focus to trigger; Tab closes.
+      menu.addEventListener(&#x27;keydown&#x27;, function (e) {
+        if (e.key === &#x27;Escape&#x27;) { e.preventDefault(); close(true); return; }
+        if (e.key === &#x27;Tab&#x27;)    { close(false); return; }
+
+        var available = items().filter(function (i) { return !i.disabled; });
+        var current = available.indexOf(document.activeElement);
+        switch (e.key) {
+          case &#x27;ArrowDown&#x27;:
+            e.preventDefault();
+            if (available.length) available[(current + 1 + available.length) % available.length].focus();
+            break;
+          case &#x27;ArrowUp&#x27;:
+            e.preventDefault();
+            if (available.length) available[(current - 1 + available.length) % available.length].focus();
+            break;
+          case &#x27;Home&#x27;:
+            e.preventDefault();
+            if (available[0]) available[0].focus();
+            break;
+          case &#x27;End&#x27;:
+            e.preventDefault();
+            if (available.length) available[available.length - 1].focus();
+            break;
+        }
+      });
+
+      function runExport(format) {
+        var base = diagramFilename();
+        close(true);
+        return (format === &#x27;svg&#x27;
+          ? Promise.resolve(serializeSvg(1, { autoTheme: true })).then(function (d) {
+              download(new Blob([d.svgString], { type: &#x27;image/svg+xml;charset=utf-8&#x27; }), base + &#x27;.svg&#x27;);
+            })
+          : rasterize(format).then(function (blob) {
+              download(blob, base + &#x27;.&#x27; + format);
+            })
+        ).catch(function (err) {
+          console.error(err);
+          alert(&#x27;Export failed: &#x27; + (err &amp;&amp; err.message ? err.message : format));
+        });
+      }
+
+      function runCopy() {
+        close(true);
+        if (!canCopyImage()) {
+          alert(&#x27;Clipboard image write not supported in this browser.&#x27;);
+          return;
+        }
+        // WebKit requires ClipboardItem to be constructed synchronously inside
+        // the user gesture — pass the pending Promise&lt;Blob&gt; as the item value.
+        // Browsers that reject promise values throw synchronously; fall back
+        // to awaiting the blob first (works in Chromium/Firefox).
+        var blobPromise = rasterize(&#x27;png&#x27;);
+        var writePromise;
+        try {
+          writePromise = navigator.clipboard.write([new ClipboardItem({ &#x27;image/png&#x27;: blobPromise })]);
+        } catch (_) {
+          writePromise = blobPromise.then(function (blob) {
+            return navigator.clipboard.write([new ClipboardItem({ &#x27;image/png&#x27;: blob })]);
+          });
+        }
+        return writePromise.then(function () {
+          toast(&#x27;Copied PNG to clipboard&#x27;);
+        }).catch(function (err) {
+          console.error(err);
+          alert(&#x27;Copy failed: &#x27; + (err &amp;&amp; err.message ? err.message : &#x27;unknown&#x27;));
+        });
+      }
+
+      menu.addEventListener(&#x27;click&#x27;, function (e) {
+        var copyBtn = e.target.closest(&#x27;button[data-action=&quot;copy&quot;]&#x27;);
+        if (copyBtn &amp;&amp; !copyBtn.disabled) { runCopy(); return; }
+
+        var formatBtn = e.target.closest(&#x27;button[data-format]&#x27;);
+        if (formatBtn &amp;&amp; !formatBtn.disabled) { runExport(formatBtn.dataset.format); }
+      });
+
+      Archify.exportMenu = { open: open, close: close, isOpen: isOpen, run: runExport };
+
+      // Auto-open on page load for demo/screenshot purposes: ?openExport=1
+      // Wait for fonts (so the menu doesn&#x27;t flash before typography lands)
+      // and paint before opening. Fallback timeout for browsers without the
+      // Font Loading API.
+      try {
+        if (new URLSearchParams(window.location.search).get(&#x27;openExport&#x27;) === &#x27;1&#x27;) {
+          var openWhenReady = function () {
+            requestAnimationFrame(function () { requestAnimationFrame(open); });
+          };
+          if (document.fonts &amp;&amp; document.fonts.ready) {
+            document.fonts.ready.then(openWhenReady);
+          } else {
+            setTimeout(openWhenReady, 200);
+          }
+        }
+      } catch (_) {}
+    })();
+
+    /* ============================================================
+       Global keyboard shortcuts
+         T -&gt; toggle theme
+         E -&gt; open export menu
+       Ignored when focus is inside an input/textarea/contenteditable.
+       ============================================================ */
+    document.addEventListener(&#x27;keydown&#x27;, function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target;
+      if (t &amp;&amp; (t.tagName === &#x27;INPUT&#x27; || t.tagName === &#x27;TEXTAREA&#x27; || t.isContentEditable)) return;
+      if (e.key === &#x27;t&#x27; || e.key === &#x27;T&#x27;) {
+        e.preventDefault();
+        Archify.theme.toggle();
+      } else if (e.key === &#x27;e&#x27; || e.key === &#x27;E&#x27;) {
+        e.preventDefault();
+        if (!Archify.exportMenu.isOpen()) Archify.exportMenu.open();
+      }
+    });
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe></details>
+<h2>外部接口：前端说业务，不说 NVIDIA 协议</h2>
+<table><thead><tr><th>接口</th><th>表达什么</th><th>边界</th></tr></thead><tbody>
+<tr><td><code>/api/uploads → /body → /complete</code></td><td>上传文件</td><td>沿用；原图不可覆盖</td></tr>
+<tr><td><code>GET /api/photos?month=&amp;tag=&amp;cursor=</code></td><td>按月 / 标签浏览</td><td>扩展；服务端分页</td></tr>
+<tr><td><code>PUT /api/photos/:id</code><br><code>PUT /api/albums/:id</code></td><td>人工标签、相册成员与顺序</td><td>校验归属和 revision</td></tr>
+<tr><td><code>POST /api/jobs</code></td><td>识图 / 分组 / 风格生成</td><td>新增；202 + jobIds</td></tr>
+<tr><td><code>GET /api/jobs?ids=...</code></td><td>读取进度和结果</td><td>不负责启动执行</td></tr>
+<tr><td><code>POST /api/ai/models/refresh</code></td><td>刷新候选，优先上次成功模型</td><td>新增；候选 ≠ 已实测可用</td></tr>
+<tr><td><code>GET /api/groups</code><br><code>POST /api/creations</code></td><td>临时分组 / 正式保存成果</td><td>新增；不复制原图</td></tr>
+<tr><td><code>GET /api/files/:id</code></td><td>看图与下载</td><td>鉴权后读取；缩略图共用</td></tr>
+</tbody></table>
+<h2>内部接口：围绕能力，不围绕模型名字</h2>
+<pre>ModelCatalog.refresh()        → 候选与能力
+VisionModel.analyze(input)    → 已校验标签 / 描述
+ImageEditor.edit(input)       → 图像结果（接通时再实现）
+PendingResults.check(receipt) → 可查询任务的结果
+TaskRunner.runDue(limit)      → 领取并推进到期任务</pre>
+<p class="muted">前端不传 API key；后台任务固定输入和模型。已有模型的 202 / requestId 是否可恢复，需要验证对应端点，不能套用别的服务的查询地址。</p>
+
+<p>上传流程沿用现有接口。AI 生成任务额外先把图像结果写入 R2，再提交 D1 引用；两种存储之间没有跨库原子事务。</p>
+</section>
+<section id="decisions" role="tabpanel" aria-labelledby="tab-decisions" hidden>
+<h2>从实际变化出发，而不是先画很多层</h2>
+<table><thead><tr><th>会变化的东西</th><th>隔离在哪里</th><th>保持稳定的东西</th></tr></thead><tbody>
+<tr><td>模型上下线、额度、接口格式</td><td>NVIDIA Adapter</td><td>标签 / 图像编辑输入输出</td></tr>
+<tr><td>后台在哪里执行</td><td>TaskRunner.runDue</td><td>任务状态、图库规则</td></tr>
+<tr><td>标签、相册与风格产品需求</td><td>Library + 具体任务 handler</td><td>文件与来源关联</td></tr>
+<tr><td>将来 Go / Docker / 其他云</td><td>HTTP 契约与数据迁移</td><td>前端业务流程；不承诺代码自动移植</td></tr>
+</tbody></table>
+<h3>刷新与选模</h3><p>页面刷新 → 更新一次候选 → 能力匹配 → 优先上次实际成功模型 → 一批任务固定选择。只取目录，不逐个发图探测；429 延后原任务，认证失败明确停止，不随机换模型。</p>
+<h3>少而必要的可靠性</h3><p>D1 存任务事实；条件领取防止并发；执行 token 防止旧进程覆盖结果；标签与成功状态一起提交。超时无法查询时显示结果未知，不把网络重试等同于生成重做。</p>
+<h3>少而必要的数据</h3><p>沿用 photos / files / albums / styles，只新增 jobs。月份不建实体相册；临时分组先用 group 任务结果。查询字段加索引，有限配方与标签保存为有界 JSON。</p>
+<h3>本轮不引入</h3><p>微服务、内部 HTTP、Redis、向量数据库、事件总线、Agent 框架、通用工作流引擎、多供应商兜底链、通用 Repository 基类。</p>
+<h3>实施前的验证顺序</h3><p>① 关闭页面后的真实后台执行　② NVIDIA 自有图片输入、目录与回执　③ 原图保留、人工标签保护、任务与结果一致提交。</p>
+<div class="note"><p><strong>尚未解决：</strong>Sites 的可靠后台触发方式，以及 NVIDIA 目录对当前账户权限的表达。它们是明确的验证任务，不能用假成功或临时浏览器循环掩盖。</p></div>
+<p>取舍参考：<a href="https://martinfowler.com/bliki/MonolithFirst.html">Monolith First</a> · <a href="https://martinfowler.com/bliki/Yagni.html">YAGNI</a> · <a href="https://developers.cloudflare.com/workers/runtime-apis/context/">Cloudflare waitUntil</a> · <a href="https://docs.api.nvidia.com/nim/reference/meta-llama-3_2-11b-vision-instruct-infer">NVIDIA 接口</a></p>
+</section>
+<footer>可点击图右上角 Export 导出。完整接口约束、任务一致性和文件保留规则见同目录 architecture.md。此文件可独立打开；没有部署改动。</footer>
+</main><script>
+const tabs=[...document.querySelectorAll('nav button')];
+function activate(tab){for(const item of tabs){const selected=item===tab;item.setAttribute('aria-selected',String(selected));item.tabIndex=selected?0:-1;document.getElementById(item.getAttribute('aria-controls')).hidden=!selected;}}
+for(const tab of tabs){tab.addEventListener('click',()=>activate(tab));tab.addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();let index=tabs.indexOf(tab);index=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;activate(tabs[index]);tabs[index].focus();}});}
+activate(tabs[0]);
+</script></body></html>

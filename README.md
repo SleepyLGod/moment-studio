@@ -14,6 +14,8 @@ Albums, category changes, Style recipes and saved creations use resource APIs. C
 
 ## Development
 
+[Developer documentation](docs/development/README.md) contains the architecture diagrams, interface contracts, and separate Sites/NVIDIA readiness evidence. New AI jobs are gated on a verified unattended executor; the current app does not enable them.
+
 Use Node.js 24+ and npm. Install with `npm install`; run `npm run build` once to generate local Worker binding configuration. Apply the SQL files in `drizzle/` in order using the local commands in [DEPLOYMENT.md](DEPLOYMENT.md), then run `npm run dev -- --port 4174`.
 
 The portable preview offers mock ChatGPT sign-in only on loopback. Hosted sign-in is managed by Sites; no local mock identity is used in production. Local and hosted databases/files are separate.
