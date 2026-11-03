@@ -1,4 +1,5 @@
 import {UPLOAD_SAMPLES} from '../data.js';
+import {calendarDay} from './organization.js';
 
 export function prepareStyleSave(draft,name,cover,pending){
   if(pending)return pending;
@@ -6,7 +7,7 @@ export function prepareStyleSave(draft,name,cover,pending){
 }
 export function prepareSampleBatch(pending){
   if(pending)return pending;
-  const batch=crypto.randomUUID(),date=new Date().toISOString().slice(0,10);
+  const batch=crypto.randomUUID(),date=calendarDay(Date.now());
   return UPLOAD_SAMPLES.map(([id,name,demoCategory])=>({id:'sample-'+id+'-'+batch,name,src:'/photos/'+id+'.jpg',demoCategory,category:'待分类',date,style:'original',kind:'photo'}));
 }
 export const COLLAGE_MAX={editorial:3,grid:4,nine:9,strip:6};

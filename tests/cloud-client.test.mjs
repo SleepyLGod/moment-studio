@@ -80,3 +80,17 @@ test('cloud analysis controls follow server capability and use persistent job ID
   const repeated=await client.analyze([state.photos[0].id]);assert.equal(repeated[0].id,created[0].id);
   const read=await client.jobs(created.map(j=>j.id));assert.equal(read[0].id,created[0].id);assert.equal(read[0].state,'queued');
 });
+test('cloud month filters keep counts and visibility correct after edits and expose collection reads',async t=>{
+  const {client}=connect(t);await client.load(false);
+  const a=await client.savePhoto({id:'october',name:'October',src:'/photos/1060.jpg',category:'旅行',date:'2026-10-02'});
+  await client.savePhoto({id:'november',name:'November',src:'/photos/1060.jpg',category:'旅行',date:'2026-11-02'});
+  const page=await client.filter('旅行','2026-10');assert.ok(page.every(p=>p.timelineDay.startsWith('2026-10')));assert.equal(client.count(),1);
+  await client.savePhoto({...a,date:'2026-11-03'});assert.equal(client.count(),0);assert.ok(!client.visibleIds().has(a.id));
+  const months=await client.months('旅行');assert.ok(months.months.some(m=>m.month==='2026-11'&&m.count===2));
+  const recent=await client.groups();assert.equal(recent.days,30);assert.ok(Array.isArray(recent.groups));
+});
+test('the cloud client refreshes supported models without transmitting image bytes',async t=>{
+  const {env,client}=connect(t);env.NVIDIA_API_KEY='test-only';await client.load();
+  const catalog=await client.refreshModels();assert.equal(catalog.selectedModelId,'nvidia/nemotron-3.5-super-vl-120b-a12b');
+  assert.equal((await client.models()).checkedAt,catalog.checkedAt);
+});

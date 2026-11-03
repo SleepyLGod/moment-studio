@@ -6,6 +6,7 @@
 - [Sites / NVIDIA 执行能力验证](execution-verification.md)：文档证据、真实调用、失败与未验证项分开记录。
 - [当前已实现的 Sites 云图库](../sites-native-design.md) · [已有云端验收](../cloud-validation.md)
 - [独立执行器云端验收与当前接口图](cloud-executor-validation.md)：实际 Cron、关闭页面后的完成、原图校验和剩余验证范围。
+- [模型刷新、月份与近期分组](models-and-organization.md)：本轮实际规则、接口和验证范围；自动分组不写人工相册。
 
 图的可编辑源文件在 `diagrams/*.json`，由 Archify 2.8 生成 SVG；SVG 和交互 HTML 已随文档保存。修改图时同步更新源文件与输出，不必给应用安装 Archify。参考思想与来源见架构文档末尾。
 
@@ -13,7 +14,7 @@
 
 2026-11-03：NVIDIA 已配置到 Sites 生产环境。同 repo 的 own-account Cloudflare Cron 执行器已上线；关闭全部图库页后，咖啡示例经实际 scheduled 事件完成识图并保存 D1。重新打开可读标签，原图下载 hash 一致。云端重叠调用只领取一次；租约过期/旧执行者保护仅通过本地测试，尚未云端故障注入。
 
-Sites 自身仍没有已确认的低层 Cron/Queue/Workflow 配置入口；外部执行器只负责定时唤醒，D1 仍是唯一任务状态源。每次处理上限为一张，不用浏览器轮询承担执行。模型目录刷新/最近成功偏好、月份视图和自动分组尚未接到网站；见 [执行计划](cloudflare-executor-plan.md)。
+Sites 自身仍没有已确认的低层 Cron/Queue/Workflow 配置入口；外部执行器只负责定时唤醒，D1 仍是唯一任务状态源。每次处理上限为一张，不用浏览器轮询承担执行。本轮已实现模型目录刷新/最近成功偏好、月份视图和派生近期分组，验证范围见[功能文档](models-and-organization.md)。
 
 ## 复现 NVIDIA 验证
 

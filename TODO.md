@@ -15,8 +15,9 @@ The active implementation uses Sites TypeScript/Workers + D1 + R2. These items d
 
 - [x] Close the unattended execution gap using one same-repository own-account Cron Worker. Closed-browser example completion is verified; see [cloud evidence](docs/development/cloud-executor-validation.md).
 - [ ] Safely validate expired-lease recovery under a cloud execution interruption; local tests pass, no production SQL/debug endpoint is added for testing.
-- [ ] Implement website model-directory refresh and last-successful compatible model preference; freeze model per batch. Initial hosted analyzer uses the verified Nemotron profile.
-- [ ] Month view, manual labels/exclusions, and recent automatic grouping without a confirmation inbox or mutation of manual albums.
+- [x] Website model-directory refresh and last-successful compatible model preference; freeze model per job. Initial profile is the verified Nemotron analyzer.
+- [x] Month view and recent derived groups without a confirmation inbox or manual-album writes.
+- [ ] Manual labels/exclusions and EXIF capture-date extraction; uploads currently identify file-modified dates honestly.
 
 - [ ] Real-library onboarding after backup/restore and larger-volume validation.
 - [ ] HEIC previews, original retention, Live Photo pairs and capture metadata.

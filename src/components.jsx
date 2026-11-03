@@ -3,6 +3,7 @@ import {ArrowDown, ArrowUp, Check, Download, ImagePlus, Loader2, FolderPlus, Tag
 import {CATEGORIES, categoryLabel, photoCount, UPLOAD_SAMPLES, photoSrc, styleFor, assetUrl} from './data';
 import {prepareSampleBatch} from './services/operations';
 import {exportAlbum, loadImage} from './imaging';
+import {calendarDay,photoDay} from './services/organization';
 
 export const NoticeContext=createContext('');
 
@@ -71,7 +72,7 @@ export function UploadDialog({cloud=false,onClose,onImport,toast}) {
         const photos=[];
         for(const file of files){
           const src=await readFile(file),image=await loadImage(src);
-          const record={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),src,date:new Date(file.lastModified).toISOString().slice(0,10),category:'待分类',style:'original',kind:'photo'};
+          const record={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),src,date:calendarDay(file.lastModified),dateSource:'file-modified',category:'待分类',style:'original',kind:'photo'};
           if(cloud){const canvas=document.createElement('canvas'),scale=Math.min(1,768/image.naturalWidth,768/image.naturalHeight);canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);record.file=file;record.previewBlob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.8));}
           photos.push(record);
         }
@@ -147,7 +148,16 @@ export function PhotoPreview({photo,onClose}) {
     <img className="detail-photo" src={original?assetUrl(photo.src):photoSrc(photo)} alt={photo.name+(original?' original':'')}/>
     <a className="button" href={assetUrl(photo.src)+(photo.src.startsWith('/api/files/')?'?download=1':'')} download={photo.name}><Download size={17}/>Download original</a>
     {photo.aiTags?.length>0&&<div className="photo-tags" aria-label="AI tags">{photo.aiTags.map(tag=><span key={tag}>{tag}</span>)}</div>}
+    <p className="photo-date" title="Library calendar: Asia/Hong_Kong">{photoDay(photo)} · {{captured:'capture date','file-modified':'file date',imported:'import date','record-date':'saved date'}[photo.dateSource]||'saved date'}</p>
     <div className="preview-caption"><span className="muted">{categoryLabel(photo.category)} · {original||photo.style==='original'?'Original':(photo.style==='generated'?photo.recipeName:(photo.recipeName?photo.recipeName+' · ':'')+styleFor(photo.style).name)}</span>{photo.generationSource&&<span>Sample</span>}{photo.style!=='original'&&<Button onClick={()=>setOriginal(v=>!v)}>{original?'View edit':'View original'}</Button>}</div>
+  </Modal>;
+}
+export function RecentGroupDetail({group,photos,onClose,onPreview,onSelect}){
+  const members=group.photoIds.map(id=>photos.find(photo=>photo.id===id)).filter(Boolean);
+  return <Modal title={group.title} className="recent-detail" onClose={onClose}>
+    <div className="recent-detail-meta"><span>{group.day} · {group.basis==='ai-tags'?'AI tags':'Same day'}</span><span>{photoCount(members.length)}</span></div>
+    <div className="photo-grid">{members.map(photo=><button className="recent-photo" key={photo.id} aria-label={'Preview '+photo.name} onClick={()=>onPreview(photo)}><img src={photoSrc(photo)} alt={photo.name}/></button>)}</div>
+    <footer className="modal-footer"><Button onClick={()=>onSelect(group.photoIds)}>Select photos</Button></footer>
   </Modal>;
 }
 export function AlbumDetail({album,photos,onClose,onUpdate,toast}) {

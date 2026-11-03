@@ -1,6 +1,7 @@
 /** A resource client: no cloud records or image bytes are persisted in browser storage. */
 export function createCloudLibrary(){
-  let cursor=null,category='all',visible=new Set(),total=0,analysisEnabled=false;
+  let cursor=null,category='all',month='all',visible=new Set(),total=0,analysisEnabled=false;
+  const scope=()=>'?category='+encodeURIComponent(category)+'&month='+encodeURIComponent(month);
   async function request(path,options={}){
     const response=await fetch('/api'+path,{...options,credentials:'same-origin',headers:{...(options.body&&typeof options.body==='string'?{'content-type':'application/json'}:{}),...options.headers}});
     const data=await response.json().catch(()=>({error:'The server returned an unreadable response.'}));
@@ -8,15 +9,15 @@ export function createCloudLibrary(){
   }
   async function put(table,item){
     const {_order,...data}=item;
-    const result=await request('/'+table+'/'+encodeURIComponent(item.id)+(table==='photos'?'?category='+encodeURIComponent(category):''),{method:'PUT',body:JSON.stringify(data)});
+    const result=await request('/'+table+'/'+encodeURIComponent(item.id)+(table==='photos'?scope():''),{method:'PUT',body:JSON.stringify(data)});
     if(table==='photos'){
-      if(category==='all'||result.item.category===category)visible.add(item.id);else visible.delete(item.id);
+      if((category==='all'||result.item.category===category)&&(month==='all'||result.item.timelineDay?.startsWith(month)))visible.add(item.id);else visible.delete(item.id);
       total=result.total;
     }
     return result.item;
   }
   async function list(table,next=null){
-    const page=await request('/'+table+'?limit=50'+(table==='photos'&&category!=='all'?'&category='+encodeURIComponent(category):'')+(next?'&cursor='+encodeURIComponent(next):''));
+    const page=await request('/'+table+(table==='photos'?scope()+'&':'?')+'limit=50'+(next?'&cursor='+encodeURIComponent(next):''));
     if(table==='photos'){if(!next)visible=new Set();for(const item of page.items)visible.add(item.id);total=page.total;}
     return page;
   }
@@ -63,13 +64,17 @@ export function createCloudLibrary(){
       cursor=photos.nextCursor;return {photos:[...photos.items,...extras],albums,savedStyles:await all('styles')};
     },
     canAnalyze:()=>analysisEnabled,
+    models:()=>request('/ai/models'),
+    refreshModels:()=>request('/ai/models/refresh',{method:'POST',body:'{}'}),
+    months:(category='all',next=null)=>request('/photos/months?category='+encodeURIComponent(category)+(next?'&cursor='+encodeURIComponent(next):'')),
+    groups:()=>request('/groups'),
     async analyze(photoIds){return (await request('/jobs',{method:'POST',body:JSON.stringify({kind:'analyze',photoIds})})).jobs;},
     async jobs(ids){return (await request('/jobs?ids='+encodeURIComponent(ids.join(',')))).jobs;},
     hasMore:()=>Boolean(cursor),
     visibleIds:()=>visible,
     count:()=>total,
     async more(){if(!cursor)return [];const page=await list('photos',cursor);cursor=page.nextCursor;return page.items;},
-    async filter(next){const previous=category;category=next;try{const page=await list('photos');cursor=page.nextCursor;return page.items;}catch(error){category=previous;throw error;}},
+    async filter(next,nextMonth='all'){const previous=[category,month];category=next;month=nextMonth;try{const page=await list('photos');cursor=page.nextCursor;return page.items;}catch(error){[category,month]=previous;throw error;}},
     async photo(id){return (await request('/photos/'+encodeURIComponent(id))).item;},
     resolve,
     savePhoto,

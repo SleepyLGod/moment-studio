@@ -1,7 +1,7 @@
 'use client';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {CheckCircle2, Loader2} from 'lucide-react';
-import {AlbumDetail, AlbumDialog, Header, InfoDialog, Modal, NoticeContext, OrganizeDialog, PhotoPreview, UploadDialog} from './components';
+import {AlbumDetail, AlbumDialog, Header, InfoDialog, Modal, NoticeContext, OrganizeDialog, PhotoPreview, RecentGroupDetail, UploadDialog} from './components';
 import {CollageView, Library, PhotoPicker} from './views';
 import {categoryLabel, freshState, assetUrl} from './data';
 import {StyleLab} from './StyleLab';
@@ -10,6 +10,7 @@ import {persistState, readSavedState} from './storage';
 import {renderStyle} from './imaging';
 import {mergePhotos} from './services/operations';
 import {createCloudLibrary} from './services/cloud';
+import {calendarDay,photoDay,recentGroups} from './services/organization';
 
 export default function App({mode="demo"}) {
   const cloud=mode==='cloud';
@@ -23,9 +24,13 @@ export default function App({mode="demo"}) {
   const [notice,setNotice]=useState(''),[saveProblem,setSaveProblem]=useState(false),[credits,setCredits]=useState([]);
   const [busy,setBusy]=useState(false),[pickerNext,setPickerNext]=useState(null);
   const [analysisJobs,setAnalysisJobs]=useState([]),[analysisProblem,setAnalysisProblem]=useState('');
+  const [modelCatalog,setModelCatalog]=useState(null),[modelRefreshing,setModelRefreshing]=useState(false),[modelError,setModelError]=useState('');
+  const [month,setMonth]=useState('all'),[monthRows,setMonthRows]=useState([]),[monthCursor,setMonthCursor]=useState(null);
+  const [recent,setRecent]=useState({groups:[],days:30,truncated:false}),[recentGroup,setRecentGroup]=useState(null);
+  const [collectionLoading,setCollectionLoading]=useState(false),[collectionError,setCollectionError]=useState(''),[collectionRefresh,setCollectionRefresh]=useState(0),[libraryRevision,setLibraryRevision]=useState(0);
   const toast=useCallback(message=>setNotice(message),[]);
   function change(update){const next=typeof update==='function'?update(stateRef.current):update;stateRef.current=next;setState(next);}
-  function upsert(key,item){change(s=>({...s,[key]:s[key].some(p=>p.id===item.id)?s[key].map(p=>p.id===item.id?item:p):[item,...s[key]]}));}
+  function upsert(key,item){change(s=>({...s,[key]:s[key].some(p=>p.id===item.id)?s[key].map(p=>p.id===item.id?item:p):[item,...s[key]]}));if(key==='photos')setLibraryRevision(n=>n+1);}
   function execute(work){
     const operation=queue.current.then(async()=>{setBusy(true);try{const result=await work();setSaveProblem(false);return result;}catch(error){setSaveProblem(true);toast(error.message);return null;}finally{setBusy(false);}});
     queue.current=operation;return operation;
@@ -38,7 +43,37 @@ export default function App({mode="demo"}) {
     return ()=>{live=false;};
   },[client,cloud]);
   useEffect(()=>{if(!ready||cloud)return;persistState(state).then(()=>setSaveProblem(false)).catch(()=>setSaveProblem(true));},[state,ready,cloud]);
-  useEffect(()=>{if(modal||preview||albumId)setNotice('');},[modal,preview,albumId]);
+  const refreshModelCatalog=useCallback(async()=>{
+    if(!cloud||!client.canAnalyze())return;
+    setModelRefreshing(true);setModelError('');
+    try{setModelCatalog(await client.models());setModelCatalog(await client.refreshModels());}
+    catch(error){setModelError(error.message);}
+    finally{setModelRefreshing(false);}
+  },[client,cloud]);
+  useEffect(()=>{if(ready)void refreshModelCatalog();},[ready,refreshModelCatalog]);
+  useEffect(()=>{
+    if(!ready||view!=='library'||!['months','recent'].includes(tab))return;
+    let live=true;setCollectionLoading(true);setCollectionError('');
+    async function load(){
+      try{
+        if(tab==='months'){
+          let page;
+          if(cloud)page=await client.months(filter);
+          else{const counts=new Map();for(const photo of stateRef.current.photos){if(filter!=='all'&&photo.category!==filter)continue;const key=photoDay(photo).slice(0,7);if(!counts.has(key))counts.set(key,{month:key,count:0,coverId:photo.id});counts.get(key).count++;}page={months:[...counts.values()].sort((a,b)=>b.month.localeCompare(a.month)),nextCursor:null};}
+          const missing=cloud?await client.resolve(page.months.map(m=>m.coverId).filter(id=>!stateRef.current.photos.some(p=>p.id===id))):[];
+          if(!live)return;change(s=>({...s,photos:mergePhotos(s.photos,missing)}));setMonthRows(page.months);setMonthCursor(page.nextCursor);
+        }else{
+          const page=cloud?await client.groups():{groups:recentGroups(stateRef.current.photos),days:30,truncated:false};
+          const covers=[...new Set(page.groups.flatMap(group=>group.photoIds.slice(0,3)))].filter(id=>!stateRef.current.photos.some(p=>p.id===id));
+          const missing=cloud?await client.resolve(covers):[];
+          if(!live)return;change(s=>({...s,photos:mergePhotos(s.photos,missing)}));setRecent(page);
+        }
+      }catch(error){if(live)setCollectionError(error.message);}
+      finally{if(live)setCollectionLoading(false);}
+    }
+    void load();return ()=>{live=false;};
+  },[ready,view,tab,filter,libraryRevision,collectionRefresh,client,cloud]);
+  useEffect(()=>{if(modal||preview||albumId||recentGroup)setNotice('');},[modal,preview,albumId,recentGroup]);
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4600);return ()=>clearTimeout(timer);},[notice]);
   useEffect(()=>{
     if(!cloud||!analysisJobs.length)return;
@@ -55,7 +90,8 @@ export default function App({mode="demo"}) {
         if(!live)return;
         change(s=>({...s,photos:mergePhotos(s.photos,changed)}));
         const failed=current.filter(job=>job.state!=='succeeded');
-        setAnalysisJobs([]);toast(failed.length?failed.length+' analysis tasks did not complete.':'Tags saved.');
+        try{const catalog=await client.models();if(live)setModelCatalog(catalog);}catch(error){if(live)setModelError(error.message);}
+        if(!live)return;setAnalysisJobs([]);setLibraryRevision(n=>n+1);toast(failed.length?failed.length+' analysis tasks did not complete ('+[...new Set(failed.map(job=>job.errorCode))].join(', ')+').':'Tags saved.');
       }catch(error){if(live){setAnalysisProblem(error.message);timer=setTimeout(refresh,10000);}}
     }
     timer=setTimeout(refresh,1500);
@@ -76,7 +112,7 @@ export default function App({mode="demo"}) {
   async function saveAlbumRecord(album){return cloud?client.saveAlbum(album):album;}
   function importPhotos(items){return execute(async()=>{
     const saved=[];for(const photo of items){const item=await savePhoto(photo);upsert('photos',item);saved.push(item);}
-    setSelected(new Set(saved.map(p=>p.id)));setSelecting(true);if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setTab('photos');setView('library');toast(saved.length+' photos imported');return saved;
+    setSelected(new Set(saved.map(p=>p.id)));setSelecting(true);if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setMonth('all');setTab('photos');setView('library');toast(saved.length+' photos imported');return saved;
   });}
   function assignCategory(category,ids=[...selected]){return execute(async()=>{
     for(const id of ids){const photo=stateRef.current.photos.find(p=>p.id===id);if(photo)upsert('photos',await savePhoto({...photo,category}));}
@@ -104,7 +140,18 @@ export default function App({mode="demo"}) {
     if(cloud){const missing=album.photoIds.filter(id=>!stateRef.current.photos.some(p=>p.id===id));const related=await client.resolve(missing);change(s=>({...s,photos:mergePhotos(s.photos,related)}));}
     setAlbumId(id);return true;
   });}
-  async function chooseCategory(value){if(!cloud){setFilter(value);return;}return execute(async()=>{const items=await client.filter(value);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());setFilter(value);return true;});}
+  async function chooseCategory(value){if(!cloud){setFilter(value);return;}return execute(async()=>{const items=await client.filter(value,month);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());setFilter(value);return true;});}
+  function chooseMonth(value){return execute(async()=>{
+    if(cloud){const items=await client.filter(filter,value);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());}
+    setMonth(value);setTab('photos');clear();setSelecting(false);return true;
+  });}
+  function moreMonths(){return execute(async()=>{
+    if(!monthCursor)return true;const page=await client.months(filter,monthCursor),covers=await client.resolve(page.months.map(m=>m.coverId));change(s=>({...s,photos:mergePhotos(s.photos,covers)}));setMonthRows(rows=>[...rows,...page.months]);setMonthCursor(page.nextCursor);return true;
+  });}
+  function openRecentGroup(group){return execute(async()=>{
+    if(cloud){const items=await client.resolve(group.photoIds);change(s=>({...s,photos:mergePhotos(s.photos,items)}));}
+    setRecentGroup(group);return true;
+  });}
   function loadMore(){return execute(async()=>{const items=await client.more();change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());return true;});}
   function apply(style,ids){return execute(async()=>{
     let count=0;for(const id of ids){const photo=stateRef.current.photos.find(p=>p.id===id);if(photo){upsert('photos',await savePhoto(await renderStyle(photo,style)));count++;}}
@@ -115,13 +162,13 @@ export default function App({mode="demo"}) {
     const signature=recipeSignature(recipe);
     const candidates=items.filter(p=>sampleFor(p,recipe)&&!stateRef.current.photos.some(existing=>existing.parentPhotoId===p.id&&existing.recipeSignature===signature));
     if(!candidates.length){toast('These samples are already in your library.');return 0;}
-    for(const photo of candidates){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(photo.id+'|'+signature));const id='generation-'+Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');const result=makeSampleDerivative(photo,{...recipe,name:recipe.name||'My style'},id,new Date().toISOString().slice(0,10));upsert('photos',await savePhoto(result));}
+    for(const photo of candidates){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(photo.id+'|'+signature));const id='generation-'+Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');const result=makeSampleDerivative(photo,{...recipe,name:recipe.name||'My style'},id,calendarDay(Date.now()));upsert('photos',await savePhoto(result));}
     toast(candidates.length+' images saved. Originals kept.');return candidates.length;
   });}
   function saveCollage(src,title,sourcePhotoIds){return execute(async()=>{
     if(collageSave.current?.src!==src||collageSave.current?.title!==title)collageSave.current={src,title,id:crypto.randomUUID()};
-    const item=await savePhoto({id:collageSave.current.id,name:title.trim()||'My collage',src,style:'original',date:new Date().toISOString().slice(0,10),category:'创作',kind:'collage',sourcePhotoIds});
-    upsert('photos',item);setSelected(new Set([item.id]));setSelecting(true);setTab('photos');if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setView('library');toast('Collage saved to library');return true;
+    const item=await savePhoto({id:collageSave.current.id,name:title.trim()||'My collage',src,style:'original',date:calendarDay(Date.now()),category:'创作',kind:'collage',sourcePhotoIds});
+    upsert('photos',item);setSelected(new Set([item.id]));setSelecting(true);setTab('photos');if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setMonth('all');setView('library');toast('Collage saved to library');return true;
   });}
   if(bootError)return <div className="boot"><p>{bootError.message}</p>{bootError.status===401?<a href="/signin-with-chatgpt?return_to=%2F" target="_top">Sign in</a>:<button onClick={()=>location.reload()}>Try again</button>}</div>;
   if(!ready)return <div className="boot"><Loader2 size={23} className="spinning"/><span>Opening your library…</span></div>;
@@ -130,7 +177,10 @@ export default function App({mode="demo"}) {
     <Header view={view} onView={setView} onUpload={()=>setModal('upload')}/>
     <main aria-busy={busy} id="workspace" className={'workspace view-'+view}>
       {saveProblem&&<p className="save-warning" role="status">Changes were not confirmed. Check your connection, then reload before retrying.</p>}
-      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={setTab} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)}/>}
+      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={setTab} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)||modelRefreshing||!modelCatalog?.selectedModelId}
+        modelCatalog={modelCatalog} modelRefreshing={modelRefreshing} modelError={modelError} onRefreshModels={refreshModelCatalog}
+        month={month} months={monthRows} onMonth={chooseMonth} hasMoreMonths={Boolean(monthCursor)} onMoreMonths={moreMonths}
+        recent={recent} onOpenGroup={openRecentGroup} collectionLoading={collectionLoading} collectionError={collectionError} onRefreshCollections={()=>setCollectionRefresh(n=>n+1)}/>}
       {view==='lab'&&<StyleLab photos={labPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('lab')} savedStyles={state.savedStyles||[]} onSaveStyle={saveStyle} onSaveResults={saveStyleResults} onApply={apply} busy={busy} toast={toast}/>}
       {view==='collage'&&<CollageView photos={workPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('collage')} onSave={saveCollage} toast={toast} busy={busy}/>}
     </main>
@@ -142,6 +192,7 @@ export default function App({mode="demo"}) {
     {modal==='picker'&&<Modal title="Choose photos" className="picker-modal" onClose={()=>setModal(null)}><PhotoPicker photos={photos} initial={selected.size?[...selected]:(pickerNext==='lab'?labPhotos:workPhotos).map(p=>p.id)} onClose={()=>setModal(null)} onConfirm={confirmPicker}/></Modal>}
     {modal==='info'&&<InfoDialog cloud={cloud} credits={credits} onClose={()=>setModal(null)}/>}
     {preview&&<PhotoPreview photo={photos.find(p=>p.id===preview.id)||preview} onClose={()=>setPreview(null)}/>}
+    {recentGroup&&<RecentGroupDetail group={recentGroup} photos={photos} onClose={()=>setRecentGroup(null)} onPreview={photo=>{setRecentGroup(null);setPreview(photo);}} onSelect={ids=>{setSelected(new Set(ids));setSelecting(true);setRecentGroup(null);}}/>}
     {albumId&&state.albums.some(a=>a.id===albumId)&&<AlbumDetail album={state.albums.find(a=>a.id===albumId)} photos={photos} onClose={()=>setAlbumId(null)} onUpdate={updateAlbum} toast={toast}/>}
   </NoticeContext.Provider>;
 }

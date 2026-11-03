@@ -14,7 +14,7 @@ Albums, category changes, Style recipes and saved creations use resource APIs. C
 
 ## Development
 
-[Developer documentation](docs/development/README.md) contains architecture diagrams, interface contracts and separate local/cloud evidence. Owner-only **AI tags** now submits persisted analysis jobs. An own-account Cloudflare Cron Worker advances them while the page is closed; Sites keeps all gallery business logic and D1/R2. Only the documented example photos were used for [cloud acceptance](docs/development/cloud-executor-validation.md). Dynamic model selection, automatic grouping and live image generation remain pending.
+[Developer documentation](docs/development/README.md) contains architecture diagrams, interface contracts and separate local/cloud evidence. Owner-only **AI tags** submits persisted analysis jobs, advanced by an own-account Cloudflare Cron Worker while the page is closed. Models refresh on page load and prefer the last successful compatible profile. **Months** opens indexed monthly photo pages; **Recent** derives small groups from existing AI tags and dates, without changing manual albums. See [rules and acceptance](docs/development/models-and-organization.md). Live image generation remains pending.
 
 Use Node.js 24+ and npm. Install with `npm install`; run `npm run build` once to generate local Worker binding configuration. Apply the SQL files in `drizzle/` in order using the local commands in [DEPLOYMENT.md](DEPLOYMENT.md), then run `npm run dev -- --port 4174`.
 

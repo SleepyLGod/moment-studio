@@ -1,30 +1,54 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Check, ChevronDown, Columns3, Download, Folder, Grid2X2, Grid3X3, Info, Loader2, PanelsTopLeft, Shuffle, SlidersHorizontal} from 'lucide-react';
+import {CalendarDays, Check, ChevronDown, Columns3, Download, Folder, Grid2X2, Grid3X3, Info, Loader2, PanelsTopLeft, RefreshCw, Shuffle, SlidersHorizontal, Sparkles, X} from 'lucide-react';
 import {Button, PhotoCard, SelectionDock} from './components';
 import {CATEGORIES, categoryLabel, photoCount, photoSrc} from './data';
 import {collageInputs} from './services/operations';
 import {downloadFile, renderCollage} from './imaging';
+import {monthTitle,photoDay} from './services/organization';
 
-export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading,visibleIds,photoTotal,onAnalyze,analyzing}) {
-  const visible=photos.filter(p=>(!visibleIds||visibleIds.has(p.id))&&(filter==='all'||p.category===filter));
+export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading,visibleIds,photoTotal,onAnalyze,analyzing,modelCatalog,modelRefreshing,modelError,onRefreshModels,month,months,recent,onMonth,hasMoreMonths,onMoreMonths,onOpenGroup,collectionLoading,collectionError,onRefreshCollections}) {
+  const visible=photos.filter(p=>(!visibleIds||visibleIds.has(p.id))&&(filter==='all'||p.category===filter)&&(month==='all'||photoDay(p).startsWith(month)));
+  const collectionTab=tab==='months'||tab==='recent';
+  const currentModel=modelCatalog?.candidates.find(model=>model.id===modelCatalog.selectedModelId);
+  const collectionMeta=tab==='months'?months.length+' months':tab==='recent'?recent.groups.length+' groups':tab==='albums'?albums.length+' albums':photoCount(photoTotal??visible.length);
   return <>
-    <div className="section-title"><h1>Library</h1><span className="title-meta">{photoCount(photoTotal??photos.length)}</span></div>
+    <div className="section-title"><h1>Library</h1><span className="title-meta">{collectionMeta}</span>
+      {onAnalyze&&<div className={'model-status '+(modelError?'has-error':'')} aria-label="AI model" title={modelError||((modelCatalog?.selectionReason==='last-success'?'Reusing last successful model':'Verified compatible profile')+' · '+(modelCatalog?.selectedModelId||'No compatible model')+' · Catalog: '+(modelCatalog?.checkedAt||'not refreshed'))}>
+        <Sparkles size={14}/><span role="status">{modelRefreshing?'Refreshing…':modelError?'Refresh failed':currentModel?.label||'No model'}</span>
+        <button className="icon-button" aria-label="Refresh AI models" onClick={onRefreshModels} disabled={modelRefreshing}><RefreshCw size={15} className={modelRefreshing?'spinning':''}/></button>
+      </div>}
+    </div>
     <div className="library-controls">
       <div className="text-tabs" role="tablist" aria-label="Library view">
-        <button role="tab" className={tab==='photos'?'active':''} aria-selected={tab==='photos'} onClick={()=>setTab('photos')}>Photos</button>
-        <button role="tab" className={tab==='albums'?'active':''} aria-selected={tab==='albums'} onClick={()=>setTab('albums')}>Albums</button>
+        {[['photos','Photos'],['months','Months'],['recent','Recent'],['albums','Albums']].map(([key,label])=><button key={key} role="tab" className={tab===key?'active':''} aria-selected={tab===key} onClick={()=>setTab(key)}>{label}</button>)}
       </div>
-      {tab==='photos'?<div className="library-actions">
+      {tab==='photos'||tab==='months'?<div className="library-actions">
         <select aria-label="Photo category" value={filter} onChange={e=>setFilter(e.target.value)}>
           <option value="all">All</option>{CATEGORIES.map(c=><option key={c} value={c}>{categoryLabel(c)}</option>)}
         </select>
-        <button className="text-button" onClick={()=>{if(selecting){onClear();setSelecting(false);}else setSelecting(true);}}>{selecting?'Done':'Select'}</button>
-      </div>:<div className="library-actions"><button className="text-button" onClick={onOrganize}>Group</button><button className="text-button" onClick={()=>onAlbum(true)}>New album</button></div>}
+        {tab==='photos'&&<button className="text-button" onClick={()=>{if(selecting){onClear();setSelecting(false);}else setSelecting(true);}}>{selecting?'Done':'Select'}</button>}
+      </div>:tab==='recent'?<div className="library-actions recent-actions"><span>{recent.truncated?'Latest 300':'Last 30 days'}</span><button className="icon-button" aria-label="Refresh recent groups" onClick={onRefreshCollections} disabled={collectionLoading}><RefreshCw size={17} className={collectionLoading?'spinning':''}/></button></div>:<div className="library-actions"><button className="text-button" onClick={onOrganize}>Group</button><button className="text-button" onClick={()=>onAlbum(true)}>New album</button></div>}
     </div>
     {tab==='photos'?<>
+      {month!=='all'&&<button className="month-filter" onClick={()=>onMonth('all')} aria-label="Clear month filter"><CalendarDays size={16}/>{monthTitle(month)}<X size={14}/></button>}
       <div className="photo-grid">{visible.map(p=><PhotoCard key={p.id} photo={p} selected={selected.has(p.id)} selecting={selecting} onToggle={onToggle} onPreview={onPreview}/>)}</div>
       {hasMore&&<div className="pagination"><Button disabled={loading} onClick={onLoadMore}>{loading?'Loading…':'Load more'}</Button></div>}
       {!visible.length&&<div className="empty-state"><Folder size={30}/><h2>No photos here</h2><Button onClick={()=>setFilter('all')}>View all photos</Button></div>}
+    </>:collectionTab?<>
+      {collectionError?<div className="empty-state" role="status"><p>{collectionError}</p><Button onClick={onRefreshCollections}>Try again</Button></div>:collectionLoading?<div className="collection-loading" role="status"><Loader2 size={21} className="spinning"/><span>Loading…</span></div>:tab==='months'?<>
+        <div className="month-grid">{months.map(row=>{const cover=photos.find(photo=>photo.id===row.coverId);return <button className="month-card" key={row.month} onClick={()=>onMonth(row.month)} aria-label={'Open '+monthTitle(row.month)}>
+          <div className="month-cover">{cover?<img src={photoSrc(cover)} alt=""/>:<CalendarDays size={30}/>}<span>{row.month.slice(5)}</span></div>
+          <div className="album-caption"><h2>{monthTitle(row.month)}</h2><span>{row.count}</span></div>
+        </button>;})}</div>
+        {hasMoreMonths&&<div className="pagination"><Button disabled={loading} onClick={onMoreMonths}>More months</Button></div>}
+        {!months.length&&<div className="empty-state"><CalendarDays size={30}/><h2>No photos yet</h2></div>}
+      </>:<>
+        <div className="album-grid recent-grid">{recent.groups.map(group=>{const members=group.photoIds.map(id=>photos.find(photo=>photo.id===id)).filter(Boolean);return <button key={group.id} className="album-card" onClick={()=>onOpenGroup(group)} aria-label={'Open group '+group.title+' '+group.day}>
+          <div className="album-cover">{members.slice(0,3).map((photo,index)=><img key={photo.id} className={'cover-'+index} src={photoSrc(photo)} alt=""/>)}</div>
+          <div className="album-caption"><h2>{group.title}</h2><span>{group.photoIds.length}</span></div><div className="group-meta"><time>{group.day}</time><span>{group.basis==='ai-tags'?'AI tags':'Date'}</span></div>
+        </button>;})}</div>
+        {!recent.groups.length&&<div className="empty-state"><Sparkles size={30}/><h2>No groups yet</h2><p>Photos from the last 30 days appear here.</p></div>}
+      </>}
     </>:<div className="album-grid">{albums.map(a=>{
       const items=a.photoIds.map(id=>photos.find(p=>p.id===id)).filter(Boolean);
       return <button key={a.id} className="album-card" onClick={()=>onOpenAlbum(a.id)}>
