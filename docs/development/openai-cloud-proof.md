@@ -1,5 +1,7 @@
 # Public-sample OpenAI cloud round trip
 
+> Historical first experiment: this document records the explicitly started cloud task. The later [website event-trigger acceptance](openai-event-trigger.md) has now passed the automatic click-to-result chain; retain the measurements and limitations below as the earlier experiment.
+
 ## Scope
 
 Validate Sites → an OpenAI cloud task → native subscription image editing → private Sites D1/R2 storage. No Mac inference runner, paid OpenAI API, new cloud service, personal photo, or manual-album mutation. This is a bounded experiment, separate from the existing Cloudflare editing provider.

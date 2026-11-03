@@ -1,12 +1,12 @@
 # Website-triggered OpenAI subscription image proof
 
-> Recheck on 2026-11-04: the earlier failure is not sufficient to attribute the cause to OpenAI. A separate, definite bug was found in our callback transport: Workers rejects `redirect: error` before sending HTTP. The correction and a real Workers-runtime regression test are implemented; online subscription creation still needs rechecking after publication.
+**Hosted click-to-result acceptance passed on 2026-11-04 (Asia/Hong_Kong).** One actual click on `/cloud-proof` delivered an MCP event, automatically started the connected OpenAI cloud task, generated a fresh image using the native subscription tool and saved it into private Sites D1/R2. No follow-up message or manual task run performed the work. Closing the validation tabs did not stop processing. This is a fixed public-sample proof, not yet the general Style Lab provider.
 
-## Goal and boundary
+## Architecture and boundary
 
-The owner clicks **Generate public sample** on `/cloud-proof`. The Site commits one public-coffee job and sends an MCP event to an already connected OpenAI Work Cloud listener. The listener claims the job, edits the fixed source with the native subscription image tool and saves actual output bytes through the Site MCP tool. No Mac process, paid API, third-party compute, private-photo input or manual-album write is involved.
+The owner clicks **Generate public sample**. Sites commits one public-coffee job and sends a signed MCP event to an already connected OpenAI Work Cloud listener. The listener claims the job, reads the fixed source, edits it using the native image tool and saves actual output bytes through the Site MCP tool. No Mac process, paid API, new cloud service, private-photo input or manual-album write is involved. The existing own-account Cloudflare analyzer/editor executor does not process this job kind.
 
-An initial, one-time OpenAI event-listener setup is required. Publishing an MCP server does not itself create a listener. A missing/expired listener blocks queue creation with a clear error. Cloud execution, event acceptance and final image storage are separate states; `accepted` does not mean the image was generated.
+One-time OpenAI listener setup is required; publishing an MCP server does not create a task. The listener remains enabled. A missing or expired connection blocks new queue creation. Event acceptance and final storage are separate states: accepted delivery alone is never reported as a completed edit.
 
 ```mermaid
 sequenceDiagram
@@ -30,66 +30,83 @@ sequenceDiagram
   W->>S: Read persistent task status
 ```
 
+## Parameters and the actual failure
+
+The original complete task request works after correcting our Site code:
+
+```json
+{
+  "title": "Moment public sample image editor",
+  "schedule": "",
+  "timing_mode": "condition_watch",
+  "triggers": [{
+    "connector_id": "asdk_app_sites_b9b46a1a49788191878618b24fcd671b",
+    "event": "public_sample.queued",
+    "params": {}
+  }]
+}
+```
+
+The task also receives processing instructions. The native create declaration requires both timing fields and explicitly describes the empty schedule for webhook tasks; a later paragraph says to omit them. Omitting them failed argument binding. This documentation inconsistency does not establish that the complete request was wrong or that OpenAI was unavailable. After our fixes, that same complete request created task `6aea0e6875d88191be38d334306d2d88`, enabled, with stored `X-UNSCHEDULED:1` and no next scheduled run. The official task edit dialog independently showed the Moment connector and `public_sample.queued` trigger.
+
+Three issues in our implementation were identified:
+
+1. **Unsupported Workers request option.** `redirect: "error"` throws before HTTP transmission in workerd. Changed to `manual`, retaining explicit rejection of redirects/non-2xx responses. A real Miniflare/workerd regression test fails on the old code and passes after correction, including a controlled HTTP 302 response. This is runtime evidence, separate from the live OpenAI run.
+2. **Missing actual callback origin.** Persistent, owner-readable setup diagnostics revealed an authenticated subscription rejected with `origin_not_allowed` for `https://connectors.api.openai.com`. Added that exact observed first-party host to the allowlist; no wildcard or arbitrary URL support.
+3. **Cleanup hid the primary failure.** Unsubscribe cleanup overwrote the last subscribe diagnostic. Only subscribe setup now updates this bounded diagnostic. It contains phase/reason/origin, never secrets or callback URL tokens.
+
+The previous attribution to an OpenAI service problem was premature. The earlier [failed-state evidence](evidence/2026-11-04-openai-event-trigger.json) is retained as historical evidence; its blocked status and resume instructions are superseded by this acceptance.
+
 ## Interfaces and state
 
-- MCP advertises `events` in discovery and initialization, and implements `events/list`, `events/subscribe`, `events/unsubscribe`.
-- `public_sample.queued` has no user-selectable filters; its payload contains only job ID and the fixed public photo ID `1060`.
-- `public_cloud_connection` returns readiness/expiry, never signing secrets or callback URLs.
-- `public_sample_image` exposes only the checksum-verified bundled JPEG, not arbitrary photo IDs or the private gallery.
-- Existing claim/save tools retain owner checks, one claim, fenced commits, byte verification and idempotent delivery. Provenance accepts native Cloud and Work chat URLs.
-- Listener state is one row per owner in `cloud_event_subscriptions`, via append-only migration `0007_new_the_leader.sql`. Secrets stay server-side. Default and maximum granted lifetime is 24 hours; OpenAI must refresh before expiration. Expiration or unsubscribe disables new delivery.
-- Only fixed first-party OpenAI HTTPS callback hosts are accepted. Credentials in URLs, custom ports, fragments, arbitrary subdomains/IPs and redirects are rejected. The deployment trusts the fixed first-party domains' DNS; it does not implement a general-purpose callback fetcher or user-selectable URL routing.
-- Standard Webhooks HMAC covers event ID, signing timestamp and exact body. Subscription IDs are deterministic. Verification challenges are random, bounded and compared without value-dependent early exit. Successful challenge caching is bounded; key rotation signs with both keys for five minutes.
-- The button request awaits delivery, with at most three attempts for transient errors. The event ID/body remain stable across retries. A persisted delivery lease prevents concurrent sends; accepted events are not resent. Failed delivery can be retried from the same button without creating another job or re-running inference. No `waitUntil`, Mac poller, extra queue service or own-account Worker is used for this path.
-- One new event-proof work key keeps the prior manually started proof and its image intact. This is still a bounded public-sample acceptance test, not arbitrary-photo production integration.
+- MCP advertises `events` and implements `events/list`, `events/subscribe`, `events/unsubscribe`.
+- `public_sample.queued` has no selectable filters; payload contains job ID and fixed photo ID `1060` only.
+- `public_cloud_connection` returns readiness, expiry and last safe setup diagnostic. `public_sample_image` exposes the checksum-verified bundled JPEG, not arbitrary gallery files.
+- Claim/save tools enforce owner identity, one claim, fenced commits, byte verification and idempotent delivery. Task instructions require native image editing once, checksum verification and readback after saving. Unknown inference outcomes must not trigger automatic re-generation.
+- One listener row per owner lives in `cloud_event_subscriptions` (migration `0007_new_the_leader.sql`). Secrets remain server-side. Default/maximum subscription lifetime is 24 hours. OpenAI must refresh before expiry; long-term automatic renewal has not yet been observed.
+- Only fixed first-party HTTPS callback hosts are accepted; credentials, custom ports, fragments, arbitrary subdomains/IPs and redirects are rejected. This is not a general callback fetcher.
+- Standard Webhooks HMAC covers event ID, signing timestamp and exact body. Verification challenges are random, bounded and compared without value-dependent early exit. Key rotation signs with both keys for five minutes.
+- The button request awaits bounded delivery: at most three transient retries with stable event ID/body, persisted delivery lease and no resend after acceptance. Failed delivery retries the same job. No `waitUntil`, Mac poller, own-account executor, new queue or clock schedule is used for this route.
+- The event-proof key is separate from the earlier manually started proof. Each owner gets one fixed public-sample job; repeated clicks return its current result. Real-photo selection, arbitrary prompts and batching are not implemented here.
+- R2 stores one final JPEG used for this proof's preview and download. D1 links the derivative to source `1060`. No additional full-size intermediate or duplicate preview is saved to R2.
 
-## Verification
+## Hosted acceptance
 
-Local protocol tests validate signatures/challenges, origin and redirect rejection, owner authorization, idempotent subscriptions/claims, repeated event delivery and unchanged manual albums. Local SQLite/R2 simulation is not hosted proof.
+Live code: `a5f83dd9942bc70c691991becca74d7435b2407f`, Site version 22, deployment `appgdep_6aea0e0189ec819186fc79e81cc80057` succeeded, owner-private access preserved.
 
-Hosted acceptance remains pending until the actual plugin discovers the event, OpenAI stores a verified listener, a website click delivers the event, an unattended OpenAI task creates and saves a fresh image, the Site reload/download checks match and the original manual-album rows compare exactly. No manual follow-up may perform the claim/generation on behalf of the event run.
+| Check | Observed result |
+| --- | --- |
+| Before click | Native MCP job status null; connection ready with setup `configured` |
+| Actual website click | Clicked Generate exactly once; signed event accepted with HTTP 200 |
+| Automatic execution | Native MCP status became running without another prompt or manual Run now |
+| Closed validation pages | Site and setup-chat verification tabs closed while processing; completion still arrived |
+| Cloud completion | Job `b18be5ea-0286-4290-81fc-bf90b0e70b98` succeeded; automatic cloud run reported native image editing once |
+| Reopened Site | New image loaded at natural dimensions 1422 × 1106, 587,354 bytes |
+| Authenticated download | Downloaded file SHA-256 equals saved result SHA-256 below |
+| Manual albums | All 3 live D1 rows exactly equal before/after; no truncated row/value projection |
+| Original | Bundled source unchanged; result saved as a separate linked derivative |
+
+Result SHA-256: `20a97d40d6fb045de2c9f12bb12eb81ddd825ee2ea1542b456fc08c85897a688`.
+
+[Machine-readable acceptance](evidence/2026-11-04-openai-event-click-acceptance.json) distinguishes independent native readbacks, browser observations and the cloud run's report. [Verification chat](https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87) contains listener creation and its automatic completion. The result uses that listener chat as provenance, not a claimed separate run URL.
+
+Local checks: **82 tests passed**, TypeScript, static demo build and Sites fullstack build passed. These checks are not substitutes for the live acceptance above. No load test, long-term listener renewal, arbitrary-photo processing or automatic recovery from an accepted-but-never-executed event has been claimed. Those remain separate work before production Style Lab integration; one successful event does not establish unlimited quota or guaranteed execution.
+
+## Other official cloud triggers considered
+
+| Route | Fit and evidence |
+| --- | --- |
+| MCP Events from the private Site | Selected and actually verified; [official protocol](https://developers.openai.com/plugins/build/mcp-events) |
+| OpenAI hosted task checking the Site queue | Cloud-only, but adds polling latency/idle usage; [hosted schedules](https://learn.chatgpt.com/docs/automations). No poller was created. |
+| Existing GitHub PR comment mentioning Codex | Official legacy cloud-chat trigger, but uses a PR/comment as job carrier; [integration](https://learn.chatgpt.com/docs/third-party/github). Not tested for image editing; no PR/comment/permission change was made. |
+| Codex GitHub Action | [Prerequisites](https://learn.chatgpt.com/docs/github-action) require an OpenAI API key and runner; excluded by the requested boundary. |
+| Slack / Linear / GitLab triggers | Would add another connected service/workspace; not configured. |
+
+No separate generic raw-webhook creation tool was exposed in the inspected native task declarations. `webhook_name` belongs to predefined connector branches; this custom event uses `connector_id`, `event`, `params`. No alternative is needed for the successful bounded MCP event proof.
 
 ## References
 
 - [Official MCP Events implementation and lifecycle](https://developers.openai.com/plugins/build/mcp-events)
+- [Cloudflare Request redirect options](https://developers.cloudflare.com/workers/runtime-apis/request/)
 - [Native subscription image generation](https://learn.chatgpt.com/docs/image-generation)
 - [Earlier explicitly started cloud round trip](openai-cloud-proof.md)
-
-## Hosted outcome — 2026-11-04 (Hong Kong)
-
-**Not end-to-end accepted.** Site v19 (`5181fb7`) is published owner-private, and the official plugin UI discovers all five tools plus `public_sample.queued`. A normal OpenAI Work Cloud capability check confirmed native image editing and cloud file/checksum tools. However, the official event-task creation interface did not establish a listener.
-
-The Work Cloud verification chat reports these concrete creation outcomes:
-
-1. Two attempts using the exposed declaration's `schedule: ""`, `timing_mode: "condition_watch"` and the exact discovered trigger returned the nested error `The task service returned an unexpected error`. The outer wrapper's `isError: false` was not treated as success.
-2. Fresh event discovery says not to provide a schedule, and part of the create description says to omit both timing fields. One controlled attempt omitting both failed at argument binding: `InvalidActionArgumentsError: Missing required tool arguments: timing_mode`.
-3. Supplying the required `timing_mode` while still omitting `schedule` then returned `Missing required tool arguments: schedule`.
-
-After every failed creation, the verification chat checked the native task list and the Site's connection tool: no Moment task ID, no duplicate Moment task, and `{"ready":false,"expiresAt":null}`. The normal task-management UI also showed no Moment task; its available creation form exposed clock scheduling only. Existing unrelated tasks were untouched. There was no new queued public job, claim, inference or saved result in this automatic-trigger test. The older manually started successful proof remains a separate result.
-
-The observed failures are contradictory timing-field guidance/binding errors and opaque creation errors; their causal source was not established. The subsequent runtime recheck found an error in our own callback transport, so the earlier service attribution must not be treated as proven. No downstream callback reason was returned. Added server diagnostics contain method/phase/origin only; absence of matching log entries is not proof that the downstream subscription was never attempted. Callback verification and event delivery remain unverified online.
-
-The website keeps **Generate public sample** disabled until a real listener is ready. We did not replace this with Mac execution, a timed poller, another cloud service, private endpoint calls, copied subscription credentials, a paid API, or manual generation presented as an event run. All three manual-album rows compare exactly with their pre-change state.
-
-[Evidence record](evidence/2026-11-04-openai-event-trigger.json) and [verification chat](https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87). After the official task interface can create a webhook-only listener, resume at subscription readiness, then perform one actual website click and cloud-output/download readback. Do not repeat the image-generation proof manually as a substitute.
-
-
-## Callback runtime and parameter recheck — 2026-11-04
-
-The complete exposed create declaration accepts the generic Moment trigger `{connector_id, event, params}`; `schedule: ""` and `timing_mode: "condition_watch"` match both its required fields and one explicit paragraph of its description. A later paragraph says to omit them. Thus the omission experiments show a contract mismatch, but do **not** show that the original complete request was malformed or that OpenAI was unavailable. The update declaration is different: timing fields are optional, and it also supports the same generic trigger branch. No separate raw-webhook creation tool was exposed.
-
-A concrete local bug was reproduced in workerd/Miniflare: `redirect: "error"` throws a `TypeError` before the request is sent. Our new callback used it, even though the existing NVIDIA and executor paths already use `manual`. Replaced it with `manual`; verification and delivery already reject non-2xx responses, so redirects remain forbidden. `tests/cloud-events-runtime.test.mjs` exercises the real callback module in the Workers runtime: it failed on the old code and passes on the correction, including 302 rejection. This uses a controlled callback and is separate from live OpenAI acceptance.
-
-`public_cloud_connection` now includes the last authenticated setup phase/reason in a bounded diagnostic field in the existing owner state. It never exposes signing secrets or callback URL tokens. This will distinguish an actual incoming subscription failure from a creation failure that leaves no recorded authenticated setup. A missing diagnostic alone does not rule out earlier authorization or routing failure.
-
-Official alternative routes checked:
-
-| Route | Fit for this experiment | Evidence / limitation |
-| --- | --- | --- |
-| MCP Events from the private Site | Preferred: direct event, native subscription processing | [MCP Events](https://developers.openai.com/plugins/build/mcp-events); needs a verified listener and an actual click-to-result test |
-| OpenAI hosted task checking the Site queue | Cloud-only, but polling adds latency and idle task usage | [Hosted schedules](https://learn.chatgpt.com/docs/automations); not silently substituted for a direct trigger |
-| Existing GitHub PR comment mentioning Codex | Official cloud-chat trigger, but adds a PR/comment as a job carrier | [GitHub integration](https://learn.chatgpt.com/docs/third-party/github); no PR, comment or permission change was made for this research |
-| Codex GitHub Action | Excluded | [Official prerequisites](https://learn.chatgpt.com/docs/github-action) require an OpenAI API key; no credentials were copied and no workflow was added |
-| Slack / Linear / GitLab triggers | Excluded from this scope | Would add another connected service/workspace; not configured |
-
-Online outcome for the correction is pending; no new inference is authorized by the test code itself.
