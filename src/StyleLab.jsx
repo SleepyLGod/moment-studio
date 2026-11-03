@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {Bookmark, Check, ChevronsLeftRight, ImagePlus, Info, Layers, X} from 'lucide-react';
 import {Button, Modal} from './components';
 import {prepareStyleSave} from './services/operations';
-import {STYLES, photoCount, assetUrl} from './data';
+import {STYLES, photoCount, assetUrl,originalDisplaySrc} from './data';
 import {matchingRecipe, recipeSignature, sampleFor, LAB_RECIPES as STYLE_RECIPES} from './recipes';
 
 export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSaveResults,onApply,busy,toast}) {
@@ -55,7 +55,7 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
     <div className="section-title"><h1>Style Lab</h1><button className="demo-info" onClick={()=>setDialog('info')} aria-label="About demo mode">Demo <Info size={14}/></button><button className="text-button title-action" onClick={()=>{toast('');onChoose();}}>Choose photos</button></div>
     {photo?<>
       <div className={'comparison prompt-comparison '+(!result?'no-result':'')}>
-        <img src={assetUrl(photo.src)} alt={photo.name+' original'}/>
+        <img src={assetUrl(originalDisplaySrc(photo))} alt={photo.name+' original'}/>
         {result&&!imageError&&<div className="comparison-overlay" style={{clipPath:'inset(0 0 0 '+split+'%)'}}><img key={result+imageAttempt} src={assetUrl(result)} alt={title+' sample'} onLoad={()=>setImageReady(true)} onError={()=>setImageError(true)}/></div>}
         <span className="comparison-label label-original">Original</span>
         {result&&!imageError?<>
@@ -64,7 +64,7 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
           <input type="range" min="0" max="100" step="1" aria-label="Compare original and sample" value={split} onChange={e=>setSplit(Number(e.target.value))}/>
         </>:<div className="pending-result" role="status"><span>{imageError?'Image unavailable':'Not generated'}</span><p>{imageError?'Try loading the preview again.':'Save this style to try later.'}</p></div>}
       </div>
-      <div className="source-strip"><div className="source-photos" role="group" aria-label="Selected photos">{photos.map(p=><button key={p.id} aria-label={'Use '+p.name} aria-pressed={p.id===photo.id} onClick={()=>setActiveId(p.id)}><img src={assetUrl(p.src)} alt=""/>{p.id===photo.id&&<span><Check size={12}/></span>}</button>)}</div><span className="source-count">{photoCount(photos.length)}</span></div>
+      <div className="source-strip"><div className="source-photos" role="group" aria-label="Selected photos">{photos.map(p=><button key={p.id} aria-label={'Use '+p.name} aria-pressed={p.id===photo.id} onClick={()=>setActiveId(p.id)}><img src={assetUrl(originalDisplaySrc(p))} alt=""/>{p.id===photo.id&&<span><Check size={12}/></span>}</button>)}</div><span className="source-count">{photoCount(photos.length)}</span></div>
       <div className="prompt-editor">
         <label htmlFor="creative-prompt" className="prompt-label sr-only">Describe a new look</label>
         <div className="prompt-main">
@@ -86,6 +86,6 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
     </>:<div className="empty-state"><h2>Choose a photo</h2><Button onClick={onChoose}>Choose photos</Button></div>}
     {dialog==='info'&&<Modal title="Demo mode" onClose={()=>setDialog(null)}><p className="info-copy">These images were generated in advance. Three photos, three styles. Custom prompts and references can be saved, but live generation is not connected.</p></Modal>}
     {dialog==='save'&&<Modal title="Save style" onClose={()=>setDialog(null)} className="save-style-modal"><form onSubmit={saveStyle}><label className="field">Style name<input autoFocus value={styleName} maxLength={40} onChange={e=>{setStyleName(e.target.value);pendingStyle.current=null;}} required/></label><div className="recipe-summary"><p>{draft.prompt}</p><span>{draft.preserve?'Keep composition':'Free composition'}{draft.reference?' · Reference attached':''}</span><small>{result?'Recipe and preview will be saved.':'Recipe only. Image not generated.'}</small></div><footer className="modal-footer"><Button type="button" onClick={()=>setDialog(null)}>Cancel</Button><Button type="submit" variant="primary" disabled={!styleName.trim()||saving}>Save style</Button></footer></form></Modal>}
-    {dialog==='batch'&&<Modal title="Apply style" onClose={()=>setDialog(null)} className="batch-style-modal"><p className="batch-description">{title} · {reusable.length} of {photos.length} samples available.</p><div className="batch-list">{photos.map(p=>{const src=sampleFor(p,draft);return <div key={p.id}><img src={assetUrl(p.src)} alt={p.name}/><span>{p.name}<small>{src?'Sample ready':'No sample'}</small></span>{src?<img src={assetUrl(src)} alt={p.name+' sample'}/>:<span className="batch-unavailable">Draft</span>}</div>;})}</div><p className="muted small">Available for the three demo photos. Originals stay untouched.</p><footer className="modal-footer"><Button onClick={()=>setDialog(null)}>Cancel</Button><Button variant="primary" disabled={!reusable.length||saving||busy} onClick={()=>saveResults(reusable)}>Save {reusable.length} images</Button></footer></Modal>}
+    {dialog==='batch'&&<Modal title="Apply style" onClose={()=>setDialog(null)} className="batch-style-modal"><p className="batch-description">{title} · {reusable.length} of {photos.length} samples available.</p><div className="batch-list">{photos.map(p=>{const src=sampleFor(p,draft);return <div key={p.id}><img src={assetUrl(originalDisplaySrc(p))} alt={p.name}/><span>{p.name}<small>{src?'Sample ready':'No sample'}</small></span>{src?<img src={assetUrl(src)} alt={p.name+' sample'}/>:<span className="batch-unavailable">Draft</span>}</div>;})}</div><p className="muted small">Available for the three demo photos. Originals stay untouched.</p><footer className="modal-footer"><Button onClick={()=>setDialog(null)}>Cancel</Button><Button variant="primary" disabled={!reusable.length||saving||busy} onClick={()=>saveResults(reusable)}>Save {reusable.length} images</Button></footer></Modal>}
   </>;
 }

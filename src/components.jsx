@@ -2,8 +2,9 @@ import React, {createContext, useContext, useEffect, useRef, useState} from 'rea
 import {ArrowDown, ArrowUp, Check, Download, ImagePlus, Loader2, FolderPlus, Tags, Upload, X} from 'lucide-react';
 import {CATEGORIES, categoryLabel, photoCount, UPLOAD_SAMPLES, photoSrc, styleFor, assetUrl} from './data';
 import {prepareSampleBatch} from './services/operations';
-import {exportAlbum, loadImage} from './imaging';
-import {calendarDay,photoDay} from './services/organization';
+import {exportAlbum} from './imaging';
+import {photoDay} from './services/organization';
+import {canChoosePhoto,preparePhoto} from './services/import-photo';
 
 export const NoticeContext=createContext('');
 
@@ -51,17 +52,14 @@ export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab,
     <IconButton icon={X} label="Clear selection" onClick={onClear}/>
   </div>;
 }
-function readFile(file) {
-  return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Could not read '+file.name));reader.readAsDataURL(file);});
-}
 export function UploadDialog({cloud=false,onClose,onImport,toast}) {
   const [files,setFiles]=useState([]),[drag,setDrag]=useState(false),[busy,setBusy]=useState(false);
   const input=useRef(null),prepared=useRef(null),sampleBatch=useRef(null),inflight=useRef(false);
   function choose(list) {
     if(inflight.current)return;
     prepared.current=null;
-    const good=[...list].filter(f=>/^image\/(jpeg|png|webp)$/.test(f.type)&&f.size<=12*1024*1024);
-    if(good.length!==list.length)toast('Use JPG, PNG or WebP files under 12 MB.');
+    const good=[...list].filter(canChoosePhoto);
+    if(good.length!==list.length)toast('Use HEIC, JPG, PNG or WebP files up to 12 MiB.');
     if(good.length>20)toast('Choose up to 20 photos at a time.');
     setFiles(good.slice(0,20));
   }
@@ -71,9 +69,7 @@ export function UploadDialog({cloud=false,onClose,onImport,toast}) {
       if(!prepared.current){
         const photos=[];
         for(const file of files){
-          const src=await readFile(file),image=await loadImage(src);
-          const record={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),src,date:calendarDay(file.lastModified),dateSource:'file-modified',category:'待分类',style:'original',kind:'photo'};
-          if(cloud){const canvas=document.createElement('canvas'),scale=Math.min(1,768/image.naturalWidth,768/image.naturalHeight);canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);record.file=file;record.previewBlob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.8));}
+          const record=await preparePhoto(file,{cloud});
           photos.push(record);
         }
         prepared.current=photos;
@@ -89,9 +85,9 @@ export function UploadDialog({cloud=false,onClose,onImport,toast}) {
   return <Modal title="Upload photos" onClose={onClose} className="upload-modal">
     <div className={'dropzone '+(drag?'dragging':'')} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);choose(e.dataTransfer.files);}}>
       <ImagePlus size={33} strokeWidth={1.3}/><h3>{files.length?files.length+' selected':'Drop your photos here'}</h3>
-      <p>JPG / PNG / WebP · up to 12 MB each</p>
+      <p>HEIC / JPG / PNG / WebP · up to 12 MiB each</p>
       <Button disabled={busy} onClick={()=>input.current.click()}>Browse files</Button>
-      <input disabled={busy} ref={input} type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="Choose files to upload" className="file-input" onChange={e=>choose(e.target.files)}/>
+      <input disabled={busy} ref={input} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple aria-label="Choose files to upload" className="file-input" onChange={e=>choose(e.target.files)}/>
       {!!files.length&&<div className="file-list">{files.map(f=><span key={f.name+f.size}>{f.name}</span>)}</div>}
     </div>
     <p className="muted small local-note">{cloud?'Saved to your private library.':'Stored in this browser.'}</p>
@@ -145,10 +141,10 @@ export function AlbumDialog({albums,onClose,onSave}) {
 export function PhotoPreview({photo,onClose}) {
   const [original,setOriginal]=useState(false);
   return <Modal title={photo.name} onClose={onClose} className="photo-modal">
-    <img className="detail-photo" src={original?assetUrl(photo.src):photoSrc(photo)} alt={photo.name+(original?' original':'')}/>
-    <a className="button" href={assetUrl(photo.src)+(photo.src.startsWith('/api/files/')?'?download=1':'')} download={photo.name}><Download size={17}/>Download original</a>
+    <img className="detail-photo" src={original?photoSrc({...photo,renderedSrc:null}):photoSrc(photo)} alt={photo.name+(original?' original preview':'')}/>
+    <a className="button" href={assetUrl(photo.src)+(photo.src.startsWith('/api/files/')?'?download=1':'')} download={photo.originalMime==='image/heic'?photo.name+'.heic':photo.name}><Download size={17}/>Download original</a>
     {photo.aiTags?.length>0&&<div className="photo-tags" aria-label="AI tags">{photo.aiTags.map(tag=><span key={tag}>{tag}</span>)}</div>}
-    <p className="photo-date" title="Library calendar: Asia/Hong_Kong">{photoDay(photo)} · {{captured:'capture date','file-modified':'file date',imported:'import date','record-date':'saved date'}[photo.dateSource]||'saved date'}</p>
+    <p className="photo-date" title={photo.metadataWarning||(photo.dateSource==='captured-local'?'Photo local time; timezone unknown':'Library calendar: Asia/Hong_Kong')}>{photoDay(photo)} · {{captured:'capture date','captured-local':'capture date · timezone unknown','file-modified':'file date',imported:'import date','record-date':'saved date'}[photo.dateSource]||'saved date'}{photo.metadataWarning?' · Metadata unavailable':''}</p>
     <div className="preview-caption"><span className="muted">{categoryLabel(photo.category)} · {original||photo.style==='original'?'Original':(photo.style==='generated'?photo.recipeName:(photo.recipeName?photo.recipeName+' · ':'')+styleFor(photo.style).name)}</span>{photo.generationSource&&<span>Sample</span>}{photo.style!=='original'&&<Button onClick={()=>setOriginal(v=>!v)}>{original?'View edit':'View original'}</Button>}</div>
   </Modal>;
 }

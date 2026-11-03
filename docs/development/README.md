@@ -1,5 +1,8 @@
 # Development
 
+- [HEIC、拍摄时间、方向与验收](heic-import.md)
+- [自有照片 AI 改图服务：免费优先核实](ai-image-edit-services.md)
+
 - [目标架构与接口约束](architecture.md)：基本确认的模块化单体设计；新增能力不等于已实现。
 - [系统架构图](diagrams/architecture.svg) · [HTTP / 内部接口图](diagrams/interfaces.svg)
 - [交互版架构文档](architecture-review.html)：下载后用浏览器打开；不依赖运行网站。

@@ -21,7 +21,8 @@ The active implementation uses Sites TypeScript/Workers + D1 + R2. These items d
 - [ ] Historical Hong Kong DST boundary: migration 0005 uses fixed UTC+8, while later saves use IANA Asia/Hong_Kong. A legacy `capturedAt=1979-05-31T15:30:00Z` can move from May to June on edit. Current 2026 records are unaffected; reconcile historical backfill before EXIF/legacy-library onboarding.
 
 - [ ] Real-library onboarding after backup/restore and larger-volume validation.
-- [ ] HEIC previews, original retention, Live Photo pairs and capture metadata.
+- [x] Still HEIC previews, immutable original retention, capture-time metadata and upright display; see `docs/development/heic-import.md` for coverage.
+- [ ] Live Photo pairs, HDR-preserving creative input and full-resolution HEIC editing.
 - [ ] iCloud/PikPak import or synchronization after confirming supported interfaces.
 - [ ] Large-file multipart resume, abandoned-upload retention policy and storage usage controls.
 - [ ] Live image editing integration, explicit generation provenance, cost limits and provider retry reconciliation. Text-output photo analysis is already connected; Style Lab still uses pre-generated examples.

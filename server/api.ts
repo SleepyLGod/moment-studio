@@ -4,20 +4,15 @@ import {handleJobs,runInternalJobs} from './jobs.ts';
 import {handleModels} from './ai/catalog.ts';
 import {handleLibraryViews,photoScope,presentPhoto} from './library.ts';
 import {timeline} from '../src/services/organization.js';
+import {photoMime} from '../src/services/photo-format.js';
 export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; ASSETS?: Fetcher; }
 export interface Identity { userId: string; email: string; }
 type RecordData = Record<string, any>;
 type FileRow = {id:string;owner_id:string;name:string;mime:string;size:number;object_key:string;purpose:string;status:string;};
 type DataRow = {id:string;owner_id:string;data:string;revision:number;created_at:number;};
 const MAX_FILE = 12 * 1024 * 1024;
-const MIME = new Set(['image/jpeg','image/png','image/webp']);
+const MIME = new Set(['image/jpeg','image/png','image/webp','image/heic']);
 const TABLES = new Set(['photos','albums','styles']);
-function mimeOf(bytes:Uint8Array){
-  if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)return 'image/jpeg';
-  if([137,80,78,71,13,10,26,10].every((n,i)=>bytes[i]===n))return 'image/png';
-  if(new TextDecoder().decode(bytes.slice(0,4))==='RIFF'&&new TextDecoder().decode(bytes.slice(8,12))==='WEBP')return 'image/webp';
-  return null;
-}
 async function fileRow(env:GalleryEnv,user:string,id:string){return env.DB.prepare('SELECT * FROM files WHERE id=? AND owner_id=?').bind(id,user).first<FileRow>();}
 async function record(env:GalleryEnv,table:string,user:string,id:string){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?`).bind(id,user).first<DataRow>();}
 function item(row:DataRow){return presentPhoto(row);}
@@ -47,6 +42,12 @@ async function validateRecord(env:GalleryEnv,table:string,user:string,data:Recor
     if(!['photo','collage','generation'].includes(data.kind||'photo'))fail(400,'Invalid photo kind.');
     for(const field of ['src','renderedSrc','generationSrc','thumbnailSrc'])if(data[field])await validateSource(env,user,data[field]);
     if(!data.src)fail(400,'An original image is required.');
+    const originalId=/^\/api\/files\/([a-zA-Z0-9_-]{1,100})$/.exec(data.src)?.[1];
+    if(originalId&&(await fileRow(env,user,originalId))?.mime==='image/heic'){
+      const previewId=typeof data.thumbnailSrc==='string'?/^\/api\/files\/([a-zA-Z0-9_-]{1,100})$/.exec(data.thumbnailSrc)?.[1]:null;
+      const preview=previewId?await fileRow(env,user,previewId):null;
+      if(data.originalMime!=='image/heic'||!preview||preview.status!=='ready'||preview.purpose!=='preview'||preview.mime==='image/heic')fail(400,'A HEIC photo requires its web-compatible preview.');
+    }
     if(data.parentPhotoId&&!await record(env,'photos',user,identifier(data.parentPhotoId)))fail(400,'Original photo was not found.');
     if(data.sourcePhotoIds){if(!Array.isArray(data.sourcePhotoIds)||data.sourcePhotoIds.length>20)fail(400,'Invalid collage sources.');for(const id of data.sourcePhotoIds)if(!await record(env,'photos',user,identifier(id)))fail(400,'A collage source was not found.');}
     if(data.recipe?.reference?.src)await validateSource(env,user,data.recipe.reference.src);
@@ -92,7 +93,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
     if(path[0]==='uploads'&&path.length===1&&method==='POST'){
       const data=await body(request),id=identifier(data.id),size=Number(data.size),mime=String(data.mime),purpose=String(data.purpose||'original');
       if(!Number.isSafeInteger(size)||size<=0)fail(400,'Invalid file size.');if(size>MAX_FILE)fail(413,'Use files up to 12 MiB.');
-      if(!MIME.has(mime)||!['original','preview','rendered','reference','generation'].includes(purpose))fail(400,'Use JPG, PNG or WebP images.');
+      if(!MIME.has(mime)||!['original','preview','rendered','reference','generation'].includes(purpose)||(mime==='image/heic'&&purpose!=='original'))fail(400,'Use JPG, PNG, WebP or a HEIC original.');
       if(typeof data.name!=='string'||!data.name.trim()||data.name.length>200)fail(400,'Invalid file name.');
       const existing=await fileRow(env,user.userId,id);
       if(existing){if(existing.size!==size||existing.mime!==mime||existing.purpose!==purpose||existing.name!==data.name)fail(409,'This upload ID already describes another file.');return json({upload:{id,status:existing.status}});}
@@ -104,7 +105,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       if(path[2]==='body'&&method==='PUT'){
         if(row.status==='ready')return json({uploaded:true});
         const bytes=await boundedBytes(request.body,Math.min(row.size,MAX_FILE));
-        if(bytes.byteLength!==row.size||mimeOf(bytes)!==row.mime)fail(400,'File contents do not match the upload.');
+        if(bytes.byteLength!==row.size||photoMime(bytes)!==row.mime)fail(400,'File contents do not match the upload.');
         // R2 create-only write prevents concurrent retries replacing the first accepted original.
         await env.BUCKET.put(row.object_key,bytes,{httpMetadata:{contentType:row.mime},onlyIf:{etagDoesNotMatch:'*'}});
         const stored=await env.BUCKET.head(row.object_key);if(!stored||stored.size!==row.size)fail(503,'Upload could not be verified.');

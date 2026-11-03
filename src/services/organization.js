@@ -4,10 +4,12 @@ export function calendarDay(value){
   return new Intl.DateTimeFormat('en-CA',{timeZone:LIBRARY_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
 }
 export function validDay(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;}
+export function validLocalTime(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(value)&&validDay(value.slice(0,10));}
 export function timeline(photo,createdAt=Date.now()){
   if(typeof photo.capturedAt==='string'&&/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(photo.capturedAt)){
     const day=calendarDay(photo.capturedAt);if(day)return {day,source:'captured'};
   }
+  if(validLocalTime(photo.capturedLocal))return {day:photo.capturedLocal.slice(0,10),source:'captured-local'};
   if(validDay(photo.date))return {day:photo.date,source:photo.dateSource==='file-modified'?'file-modified':'record-date'};
   return {day:calendarDay(createdAt),source:'imported'};
 }

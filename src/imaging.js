@@ -1,9 +1,9 @@
-import {photoSrc,styleFor,assetUrl} from './data';
+import {photoSrc,originalDisplaySrc,styleFor,assetUrl} from './data';
 export function loadImage(src){return new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Image could not load. Please try again.'));image.src=assetUrl(src);});}
 export async function renderStyle(photo,styleId){
  const generationSrc=photo.generationSrc||(photo.kind==='generation'&&photo.style==='generated'?photo.renderedSrc:null);
  if(styleId==='original')return {...photo,...(generationSrc?{generationSrc}:{}),style:generationSrc?'generated':'original',renderedSrc:generationSrc||undefined};
- const image=await loadImage(generationSrc||photo.src);const canvas=document.createElement('canvas');const scale=Math.min(1,1200/image.naturalWidth,1200/image.naturalHeight);canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);
+ const image=await loadImage(generationSrc||originalDisplaySrc(photo));const canvas=document.createElement('canvas');const scale=Math.min(1,1200/image.naturalWidth,1200/image.naturalHeight);canvas.width=Math.round(image.naturalWidth*scale);canvas.height=Math.round(image.naturalHeight*scale);
  const ctx=canvas.getContext('2d');ctx.filter=styleFor(styleId).filter;ctx.drawImage(image,0,0,canvas.width,canvas.height);ctx.filter='none';
  if(styleId==='soft'){const frame=ctx.getImageData(0,0,canvas.width,canvas.height);for(let i=0;i<frame.data.length;i+=4){for(let c=0;c<3;c++)frame.data[i+c]=Math.min(255,Math.round(frame.data[i+c]/24)*24+3);}ctx.putImageData(frame,0,0);}
  return {...photo,...(generationSrc?{generationSrc}:{}),style:styleId,renderedSrc:canvas.toDataURL('image/jpeg',.91)};

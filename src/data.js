@@ -29,5 +29,6 @@ export const STYLES = [
 ];
 export const styleFor = id => STYLES.find(s=>s.id===id)||STYLES[0];
 export const assetUrl = src => typeof src==='string'&&/^\/(photos|styles|fonts)\//.test(src)?(import.meta.env?.BASE_URL||'/')+src.slice(1):src;
-export const photoSrc = photo => assetUrl(photo.renderedSrc || photo.src);
+export const originalDisplaySrc = photo => photo.originalMime==='image/heic'?photo.thumbnailSrc:photo.src;
+export const photoSrc = photo => assetUrl(photo.renderedSrc || originalDisplaySrc(photo));
 export function freshState(){return {photos:SEED_PHOTOS,albums:SEED_ALBUMS,savedStyles:[]};}

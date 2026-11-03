@@ -1,0 +1,44 @@
+[
+  {
+    "file": "exifreader-test.heic",
+    "url": "https://raw.githubusercontent.com/mattiasw/ExifReader/1698fca17d32d1be7f282bf22361cca897dc7998/test/fixtures/images/test.heic",
+    "bytes": 1147043,
+    "sha256": "4ea589f9728e7e3c08060473ffde0189719a1810550571de693d743e1bf86292",
+    "purpose": "metadata fixture, not yet proven full-image decoding"
+  },
+  {
+    "file": "portrait-orientation-6.jpg",
+    "url": "https://raw.githubusercontent.com/recurser/exif-orientation-examples/219294e144531b0c01247913cb58b6f5531b5081/Portrait_6.jpg",
+    "bytes": 251800,
+    "sha256": "eb1f8c59199fc7d27361cb1bb9b82cb91f77cc0bd2934be516bcebb2e2eb9d33",
+    "purpose": "JPEG EXIF rotation fixture"
+  },
+  {
+    "file": "ExifReader-LICENSE",
+    "url": "https://raw.githubusercontent.com/mattiasw/ExifReader/1698fca17d32d1be7f282bf22361cca897dc7998/LICENSE",
+    "bytes": 16726,
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+    "purpose": "upstream license"
+  },
+  {
+    "file": "orientation-LICENSE",
+    "url": "https://raw.githubusercontent.com/recurser/exif-orientation-examples/219294e144531b0c01247913cb58b6f5531b5081/LICENSE",
+    "bytes": 1085,
+    "sha256": "eda2673fc728b46a07d2f56f9165a6cd5190bf0bd008475992227f97cad463c8",
+    "purpose": "upstream license"
+  },
+  {
+    "file": "iphone-exifr.heic",
+    "url": "https://raw.githubusercontent.com/MikeKovarik/exifr/6cbf6e921688faf7723e1f2e0b9e672d1f0aa21c/test/fixtures/heic-iphone.heic",
+    "bytes": 2600220,
+    "sha256": "4a77750547ae1d54bd009ac037b48307b20322cff5ed1fde55ac289469350a0b",
+    "purpose": "local HEIC compatibility testing only; do not publish as demo asset"
+  },
+  {
+    "file": "exifr-LICENSE",
+    "url": "https://raw.githubusercontent.com/MikeKovarik/exifr/6cbf6e921688faf7723e1f2e0b9e672d1f0aa21c/LICENSE",
+    "bytes": 1081,
+    "sha256": "e32a745bc4816c774d8e26bb9f04acde451b54669079e8b728d22fe9805c1225",
+    "purpose": "local HEIC compatibility testing only; do not publish as demo asset"
+  }
+]

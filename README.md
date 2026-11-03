@@ -8,7 +8,7 @@ A private photo workbench: collect photos, compose albums and collages, and save
 
 Sites hosts the TypeScript API and UI using its official Vinext starter. D1 stores owner-scoped metadata; R2 stores uploads, previews, references and rendered results. The existing Site identity and owner-private audience are preserved.
 
-The first release accepts JPG, PNG and WebP, up to 12 MiB per file and 20 files per batch. Uploaded originals are immutable. Files are readable only through authenticated owner-scoped routes. Existing browser data is not automatically imported.
+Uploads accept still HEIC, JPG, PNG and WebP, up to 12 MiB per file and 20 files per batch. Uploaded originals are immutable. The browser creates one upright JPEG preview (maximum 768 pixels), without persisting an extra full-size JPEG. HEIC display, tones and collages use that preview; original downloads retain the uploaded bytes. Files are readable only through authenticated owner-scoped routes. Existing browser data is not automatically imported.
 
 Albums, category changes, Style recipes and saved creations use resource APIs. Collages and tones still render in the browser. Nine AI style samples were generated in advance: live generation and iCloud synchronization are not connected.
 
@@ -34,6 +34,6 @@ For the static demo, run `npm run dev:demo` (port 4173) or `npm run build:demo` 
 
 ## Boundaries
 
-HEIC, Live Photos, videos, multi-user sharing, real-library migration and arbitrary-prompt AI generation are not implemented. Private records use the authenticated owner identity; sharing this Site with additional viewers requires an explicit membership design. User-authored names, notes and prompts retain their language; controls remain English with Sleet Mono and Chinese fallbacks.
+EXIF capture dates drive monthly organization. Unknown camera timezones stay explicitly unknown; missing capture dates use file modification dates. See [import behavior and validation](docs/development/heic-import.md). Live Photos, HEIC sequences, videos, multi-user sharing, real-library migration and arbitrary-prompt AI generation are not implemented. Private records use the authenticated owner identity; sharing this Site with additional viewers requires an explicit membership design. User-authored names, notes and prompts retain their language; controls remain English with Sleet Mono and Chinese fallbacks.
 
 [Asset notes](docs/ASSETS.md) document the bundled example photos, generated samples and font license. The screenshots above are illustrative, not evidence of a hosted persistence test.
