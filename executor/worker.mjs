@@ -4,7 +4,7 @@ function configured(env){return typeof env.MOMENT_EXECUTOR_KEY==='string'&&env.M
 async function wake(env){
   if(!configured(env))throw new Error('Executor is not configured.');
   // This platform token must only be sent to its originating Site.
-  const response=await fetch(SITE_ORIGIN+'/api/internal/jobs/run',{method:'POST',headers:{'content-type':'application/json','OAI-Sites-Authorization':'Bearer '+env.MOMENT_SITE_ACCESS_TOKEN,'x-moment-executor-key':env.MOMENT_EXECUTOR_KEY},body:'{}',signal:AbortSignal.timeout(40000),redirect:'error'});
+  const response=await fetch(SITE_ORIGIN+'/api/internal/jobs/run',{method:'POST',headers:{'content-type':'application/json','OAI-Sites-Authorization':'Bearer '+env.MOMENT_SITE_ACCESS_TOKEN,'x-moment-executor-key':env.MOMENT_EXECUTOR_KEY},body:'{}',signal:AbortSignal.timeout(40000),redirect:'manual'});
   if(!response.ok)throw new Error('Site task runner returned HTTP '+response.status);
   const result=await response.json();
   if(!Number.isSafeInteger(result.processed)||result.processed<0||result.processed>1)throw new Error('Site returned an invalid task result.');

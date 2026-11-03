@@ -3,7 +3,7 @@
   "name": "moment-photo-executor",
   "main": "worker.mjs",
   "compatibility_date": "2026-05-15",
-  "workers_dev": true,
+  "workers_dev": false,
   "triggers": {"crons": ["* * * * *"]},
   "observability": {"enabled": true}
 }

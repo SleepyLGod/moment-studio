@@ -20,3 +20,9 @@ test('missing deployment secrets fail closed without contacting any upstream',as
   await assert.rejects(worker.scheduled({scheduledTime:123,cron:'* * * * *'},{}),/not configured/);
   assert.equal((await worker.fetch(new Request('https://executor.test/run',{method:'POST',headers:{authorization:'Bearer undefined'}}),{})).status,503);
 });
+test('Workers-compatible manual redirects are rejected without following a new origin',async t=>{
+  let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{calls++;assert.equal(options.redirect,'manual');return new Response(null,{status:302,headers:{location:'https://untrusted.invalid/'}});});
+  await assert.rejects(worker.scheduled({scheduledTime:125,cron:'* * * * *'},env),/302/);
+  assert.equal(calls,1);
+});

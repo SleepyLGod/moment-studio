@@ -97,7 +97,7 @@ test('an interrupted analysis with an expired lease can be claimed and completed
 
 test('NVIDIA requests forbid redirects so credentials and image bytes stay on the fixed provider origin',async t=>{
   const env=environment();await uploadedJob(env);
-  t.mock.method(globalThis,'fetch',async(url,options)=>{assert.equal(options.redirect,'error');return modelReply();});
+  t.mock.method(globalThis,'fetch',async(url,options)=>{assert.equal(options.redirect,'manual');return modelReply();});
   assert.equal((await (await run(env)).json()).processed,1);
   assert.equal(env.sql.prepare('SELECT state FROM jobs').get().state,'succeeded');
 });
@@ -107,4 +107,11 @@ test('a transport failure after HTTP 200 headers defers analysis instead of perm
   await run(env);
   const row=env.sql.prepare('SELECT * FROM jobs WHERE id=?').get(job.id);
   assert.equal(row.state,'queued');assert.equal(row.error_code,'PROVIDER_UNREACHABLE');assert.ok(row.next_run_at>Date.now());
+});
+test('a provider redirect is rejected without forwarding photos or credentials',async t=>{
+  const env=environment();await uploadedJob(env);let calls=0;
+  t.mock.method(globalThis,'fetch',async(url,options)=>{calls++;assert.equal(options.redirect,'manual');return new Response(null,{status:302,headers:{location:'https://untrusted.invalid/'}});});
+  await run(env);
+  const row=env.sql.prepare('SELECT state,error_code FROM jobs').get();
+  assert.equal(row.state,'failed');assert.equal(row.error_code,'PROVIDER_REJECTED');assert.equal(calls,1);
 });
