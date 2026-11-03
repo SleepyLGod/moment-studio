@@ -13,7 +13,7 @@ export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):P
   const url=new URL(request.url);
   if(url.pathname!=='/api/jobs')return null;
   if(request.method==='GET'){
-    if(url.searchParams.get('kind')==='edit'&&!url.searchParams.get('ids')){const rows=await env.DB.prepare("SELECT * FROM jobs WHERE owner_id=? AND kind='edit' ORDER BY created_at DESC,id DESC LIMIT 20").bind(user.userId).all<JobRow>();return json({jobs:rows.results.map(present)});}
+    if(url.searchParams.get('kind')==='edit'&&!url.searchParams.get('ids')){const rows=await env.DB.prepare("SELECT * FROM jobs WHERE owner_id=? AND kind='edit' AND (state IN ('queued','running','unknown') OR id IN (SELECT id FROM jobs WHERE owner_id=? AND kind='edit' ORDER BY created_at DESC,id DESC LIMIT 20)) ORDER BY created_at DESC,id DESC").bind(user.userId,user.userId).all<JobRow>();return json({jobs:rows.results.map(present)});}
     const ids=(url.searchParams.get('ids')||'').split(',').filter(Boolean).map(identifier);
     if(!ids.length||ids.length>20)fail(400,'Read up to 20 task IDs.');
     const rows=await env.DB.prepare(`SELECT * FROM jobs WHERE owner_id=? AND id IN (${ids.map(()=>'?').join(',')})`).bind(user.userId,...ids).all<JobRow>();

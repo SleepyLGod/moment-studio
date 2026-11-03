@@ -69,3 +69,16 @@ test('a lease that expires during object storage cannot publish a completed edit
  const put=env.BUCKET.put;env.BUCKET.put=async(...args)=>{const value=await put(...args);Date.now=()=>start+2000;return value;};
  try{assert.equal((await api(env,'/internal/jobs/'+job.id+'/result','POST',jpeg,null,{...runner,'x-job-lease':task.leaseToken})).status,409);assert.equal(env.sql.prepare('SELECT count(*) AS n FROM photos').get().n,1);}finally{Date.now=realNow;}
 });
+test('overlapping single and batch requests cannot duplicate an unresolved source/recipe',async()=>{
+ const env=await setup();await api(env,'/photos/second','PUT',{id:'second',name:'Second',src:'/photos/1067.jpg',kind:'photo',category:'日常'});
+ const first=await api(env,'/jobs','POST',command);assert.equal(first.status,202);
+ assert.equal((await api(env,'/jobs','POST',{...command,photoIds:['coffee','second'],requestId:'batch-overlap'})).status,409);
+ assert.equal(env.sql.prepare('SELECT count(*) AS n FROM jobs').get().n,1,'conflicting batches do not partially enqueue');
+ for(const state of ['running','unknown']){env.sql.prepare('UPDATE jobs SET state=?').run(state);assert.equal((await api(env,'/jobs','POST',{...command,requestId:'after-reload'})).status,409);}
+ assert.equal((await api(env,'/jobs','POST',command)).status,202,'the original request remains idempotent');
+});
+test('recent history limits never hide older unresolved edits after reload',async()=>{
+ const env=await setup();const unresolved=[];
+ for(let n=0;n<24;n++){const response=await api(env,'/jobs','POST',{...command,requestId:'history-'+n,recipe:{...recipe,prompt:'Variation '+n}});const job=(await response.json()).jobs[0];if(n<3){unresolved.push(job.id);env.sql.prepare('UPDATE jobs SET state=?,created_at=? WHERE id=?').run(['queued','running','unknown'][n],n,job.id);}else env.sql.prepare("UPDATE jobs SET state='succeeded',result='{}',created_at=? WHERE id=?").run(n,job.id);}
+ const jobs=(await (await api(env,'/jobs?kind=edit')).json()).jobs;for(const id of unresolved)assert.ok(jobs.some(job=>job.id===id),'unresolved edit '+id+' must survive the recent-history window');
+});

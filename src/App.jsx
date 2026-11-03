@@ -117,7 +117,7 @@ export default function App({mode="demo"}) {
   function generateStyle(recipe,ids){return execute(async()=>{
     const key=JSON.stringify([ids,recipeSignature(recipe)]);if(!generationRequests.current.has(key))generationRequests.current.set(key,crypto.randomUUID());
     const jobs=await client.generate(ids,recipe,generationRequests.current.get(key));
-    setEditJobs(current=>[...jobs,...current.filter(job=>!jobs.some(item=>item.id===job.id))].slice(0,20));setEditProblem('');toast(jobs.length+' edits queued');return jobs;
+    setEditJobs(current=>[...jobs,...current.filter(job=>!jobs.some(item=>item.id===job.id))]);setEditProblem('');toast(jobs.length+' edits queued');return jobs;
   });}
   function openEditJob(job){return execute(async()=>{const items=await client.resolve([job.photoId]);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setSelected(new Set([job.photoId]));setSelecting(true);setView('lab');return true;});}
   const photos=state.photos;

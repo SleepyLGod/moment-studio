@@ -43,8 +43,13 @@ export async function createEditJobs(env:GalleryEnv,user:Identity,data:Record<st
     if(previous&&previous.input!==JSON.stringify(input))fail(409,'This request ID already describes another edit.');
     values.push({id,workKey,input,previous});
   }
-  const inserts=values.filter(v=>!v.previous).map(v=>env.DB.prepare("INSERT OR IGNORE INTO jobs(id,owner_id,work_key,kind,photo_id,input,model_id,state,next_run_at,created_at,updated_at) VALUES (?,?,?,'edit',?,?,?,'queued',?,?,?)").bind(crypto.randomUUID(),user.userId,v.workKey,v.id,JSON.stringify(v.input),EDIT_MODEL,now,now,now));if(inserts.length)await env.DB.batch(inserts);
+  // Every insert in the D1 transaction checks the whole batch. Excluding this
+  // request's own keys preserves retries without admitting overlapping requests.
+  const keys=values.map(v=>v.workKey),sourcePairs=values.map(v=>[v.id,v.input.originalSrc]).flat();
+  const conflict=`SELECT 1 FROM jobs WHERE owner_id=? AND kind='edit' AND state IN ('queued','running','unknown') AND json_extract(input,'$.recipeSignature')=? AND work_key NOT IN (${keys.map(()=>'?').join(',')}) AND (${values.map(()=>"(photo_id=? AND json_extract(input,'$.originalSrc')=?)").join(' OR ')})`;
+  const inserts=values.filter(v=>!v.previous).map(v=>env.DB.prepare(`INSERT OR IGNORE INTO jobs(id,owner_id,work_key,kind,photo_id,input,model_id,state,next_run_at,created_at,updated_at) SELECT ?,?,?,'edit',?,?,?,'queued',?,?,? WHERE NOT EXISTS (${conflict})`).bind(crypto.randomUUID(),user.userId,v.workKey,v.id,JSON.stringify(v.input),EDIT_MODEL,now,now,now,user.userId,recipeSignature(recipe),...keys,...sourcePairs));if(inserts.length)await env.DB.batch(inserts);
   const rows=(await env.DB.prepare(`SELECT * FROM jobs WHERE owner_id=? AND work_key IN (${values.map(()=>'?').join(',')})`).bind(user.userId,...values.map(v=>v.workKey)).all<EditRow>()).results;
+  if(rows.length!==values.length)fail(409,'An edit with this style is already pending for one of these photos.');
   if(rows.some(row=>row.input!==JSON.stringify(values.find(v=>v.id===row.photo_id)!.input)))fail(409,'This request ID already describes another edit.');
   return json({jobs:rows.map(presentEdit)},202);
 }

@@ -29,3 +29,12 @@ User spec (2026-11-03): verify the owner's Cloudflare Free account with public i
 - Lease-expiry-during-R2 test observed RED (200 instead of 409), fixed using a fresh commit-time fence, then GREEN.
 - Ruling: use an explicit ASSETS binding for bundled examples, preserving the same owner check; production metadata includes the binding. Local dev asset fetching still under verification.
 - All image-job state remains in existing D1; no migration or new persistent intermediate.
+
+## Final review
+
+Fresh reviewer examined bd81aea..c500a0e. No Critical findings; two Important findings fixed in one pass.
+- Fixed overlapping single/batch generation — regression expected409 but observed202 (RED), now returns409 without partial batch (GREEN).
+- Fixed latest20 hiding unresolved edits — 24-task regression lost old queued/running/unknown tasks (RED), now all remain visible (GREEN).
+- Full suite61/61, TypeScript and demo/Sites builds pass. No deferred minors.
+- Final: Ruling: high-resolution quality and long-term throughput stay out of this bounded512px release — both were explicit exclusions, no such guarantees are made — larger workloads still need later measurement.
+- Final: Ruling: account entitlement was checked live and real model calls succeeded, but hosted UI acceptance is independently pending browser reconnection — no substitution of mocked or trial-worker evidence — user-facing workflow could still need a follow-up fix if unavailable to exercise now.

@@ -1,0 +1,110 @@
+{
+  "checkedAtUtc": "2026-11-03T12:34:46.397Z",
+  "accountPlan": "Workers Free, dashboard Current plan observed",
+  "paidEnabled": false,
+  "model": "@cf/black-forest-labs/flux-2-klein-4b",
+  "publicPhoto": "public/photos/1060.jpg",
+  "trials": [
+    {
+      "checkedAt": "2026-11-03T12:01:37.032Z",
+      "status": 200,
+      "totalMs": 4388,
+      "elapsedMs": 2537,
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "planVerifiedInDashboard": "Free",
+      "calls": 1,
+      "input": {
+        "source": "moment-studio/public/photos/1060.jpg",
+        "sha256": "627ac2746e7a99ae5f3dcdeb05e161b104d4b21a3cba95652028d8f4a51286d0",
+        "width": 480,
+        "height": 373
+      },
+      "prompt": "Edit the reference photograph into a handmade layered paper-cut illustration. Preserve the coffee cup, table, viewpoint and arrangement. Moss green and cream paper, visible cut paper edges, gentle depth, soft daylight. No new objects, no lettering.",
+      "resultKeys": [
+        "image"
+      ],
+      "usage": null,
+      "error": null,
+      "output": {
+        "path": "coffee-paper.png",
+        "bytes": 188685,
+        "sha256": "06f584a639c1ae5aa9835d66eca55a93b86fffb1a5327fd8cd3e69d3c8dbc6a5",
+        "format": "jpeg",
+        "mediaType": "image/jpeg",
+        "size": 188685,
+        "width": 512,
+        "height": 512,
+        "space": "srgb",
+        "channels": 3,
+        "depth": "uchar",
+        "density": 72,
+        "chromaSubsampling": "4:2:0",
+        "isProgressive": false,
+        "isPalette": false,
+        "hasProfile": false,
+        "hasAlpha": false,
+        "autoOrient": {
+          "width": 512,
+          "height": 512
+        }
+      }
+    },
+    {
+      "checkedAt": "2026-11-03T12:09:16.680Z",
+      "status": 200,
+      "totalMs": 4873,
+      "elapsedMs": 3266,
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "planVerifiedInDashboard": "Free",
+      "calls": 1,
+      "input": {
+        "source": "moment-studio/public/photos/1060.jpg",
+        "sha256": "af19a141a8bdcfccdf702d6ac232561abe54a8e9f9ca528b3118d97901324110",
+        "width": 768,
+        "height": 597
+      },
+      "prompt": "Edit the reference photograph into a handmade layered paper-cut illustration. Preserve the coffee cup, table, viewpoint and arrangement. Moss green and cream paper, visible cut paper edges, gentle depth, soft daylight. No new objects, no lettering.",
+      "resultKeys": [
+        "image"
+      ],
+      "usage": null,
+      "error": null,
+      "output": {
+        "path": "coffee-paper-768.jpg",
+        "bytes": 185873,
+        "sha256": "d0b62e67d1ecd97308429c2176b0fbc337d5274d2071bd0a85e72986199f0c63",
+        "format": "jpeg",
+        "mediaType": "image/jpeg",
+        "size": 185873,
+        "width": 512,
+        "height": 512,
+        "space": "srgb",
+        "channels": 3,
+        "depth": "uchar",
+        "density": 72,
+        "chromaSubsampling": "4:2:0",
+        "isProgressive": false,
+        "isPalette": false,
+        "hasProfile": false,
+        "hasAlpha": false,
+        "autoOrient": {
+          "width": 512,
+          "height": 512
+        }
+      }
+    }
+  ],
+  "dashboardObservedCumulativeNeurons": [
+    107.87,
+    217.43
+  ],
+  "responseUsageField": false,
+  "executorVersion": "06c04631-af2d-4733-81db-c5e1333a7373",
+  "localBuiltWorker": {
+    "assetsBinding": true,
+    "simulatedCompletion": true,
+    "resultSha256": "d0b62e67d1ecd97308429c2176b0fbc337d5274d2071bd0a85e72986199f0c63",
+    "realModelCalled": false
+  },
+  "hostedProductAcceptance": "pending browser connection recovery"
+}

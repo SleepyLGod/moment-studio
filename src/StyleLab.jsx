@@ -22,6 +22,7 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
   const eligible=sampleFor(photo,draft);
   const recipe=matchingRecipe(draft);
   const reusable=photos.filter(p=>live?(p.kind||'photo')==='photo':sampleFor(p,draft));
+  const batchPending=live&&reusable.some(photo=>editJobs.some(item=>item.photoId===photo.id&&item.recipeSignature===recipeSignature(draft)&&['queued','running','unknown'].includes(item.state)));
   const title=draft.name||recipe?.name||'Custom style';
   useEffect(()=>{setImageError(false);setImageReady(false);},[result,imageAttempt]);
   useEffect(()=>{if(dialog)toast('');if(dialog!=='save')pendingStyle.current=null;},[dialog,toast]);
@@ -80,7 +81,7 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
       </div>
       <p id="prompt-status" className="prompt-status sr-only" role="status">{imageError?'Image unavailable. Please try again.':live?(result?'Image saved.':pending?'Generation in progress.':'Ready to generate.'):result?'Sample ready.':eligible?'Preview available.':'No sample for this input.'}</p>
       <section className="styles-library" aria-labelledby="my-styles-title">
-        <div className="styles-heading"><h2 id="my-styles-title">Styles</h2><button className="text-button" disabled={!reusable.length||reusable.length>20||!draft.prompt.trim()||(live&&(busy||pending))} onClick={()=>live?generate(reusable.map(p=>p.id)):setDialog('batch')}><Layers size={16}/>Apply to {photos.length}</button></div>
+        <div className="styles-heading"><h2 id="my-styles-title">Styles</h2><button className="text-button" disabled={!reusable.length||reusable.length>20||!draft.prompt.trim()||(live&&(busy||batchPending))} onClick={()=>live?generate(reusable.map(p=>p.id)):setDialog('batch')}><Layers size={16}/>Apply to {photos.length}</button></div>
         <div className="recipe-grid">{[...STYLE_RECIPES,...savedStyles].map(item=>{
           const builtin=STYLE_RECIPES.some(s=>s.id===item.id);
           const cover=builtin?'/styles/'+item.id+'-fjord.png':item.cover;

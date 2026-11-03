@@ -39,7 +39,7 @@ sequenceDiagram
 ```
 
 - `POST /api/jobs`: `kind=edit`, 1–20 owner-original IDs, a nonempty prompt ≤1,500 chars, preserve flag, optional owned reference, stable request ID. Same request returns the existing task; changed payload returns 409.
-- `GET /api/jobs?kind=edit`: latest 20 owner edits; recipes and terminal state survive reload.
+- `GET /api/jobs?kind=edit`: all unresolved owner edits plus the latest 20 records; history cards remain limited in the UI. Overlapping pending edits for the same original/recipe are rejected transactionally.
 - Internal runner and result routes require both the private Site boundary and the existing dedicated executor key. Result upload additionally requires its current lease. No browser model secret, public R2 URL, provider URL fetch or second task database is introduced.
 - `MOMENT_IMAGE_EDIT_ENABLED=true` and the existing background flag/key enable this profile. Production executor uses an AI binding; no additional OAuth scope is required for the tested deployment path. It retains `workers_dev=false` and no routes.
 
@@ -55,7 +55,9 @@ Style Lab enables Generate, original comparison, reusable saved recipes, batch a
 
 - Actual Cloudflare AI-bound inference: the two trials above passed. Temporary validation endpoint was disabled afterward.
 - Local SQLite/mocked R2: owner isolation, stable request IDs, source/album preservation, wrong/expired leases, truncated JPEG, one result file, duplicate completion, quota/unknown state and result delivery retry are covered.
-- Local runtime and hosted Style Lab acceptance: in progress; do not treat the trial Worker as proof of the full product flow.
+- Local production-built Worker with real local D1/R2: bundled asset read, idempotent queue and simulated completion using the actual probe JPEG passed. This did not invoke the model. Vite development asset fetch did not pass; the built Worker binding did.
+- Fresh final code review found two duplicate-generation paths; both reproduced RED then passed GREEN after transaction-level overlap checks and restoring all unresolved tasks. Full suite: 61/61, TypeScript and both builds passed.
+- Hosted Style Lab UI acceptance is pending browser connection recovery; do not treat the trial Worker as proof of the full product flow.
 - Large-scale queue throughput, high-resolution quality, cloud fault injection and account-wide automatic metering are not claimed.
 
 ## Official references
