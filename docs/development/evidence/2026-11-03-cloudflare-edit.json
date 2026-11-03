@@ -96,7 +96,8 @@
   ],
   "dashboardObservedCumulativeNeurons": [
     107.87,
-    217.43
+    217.43,
+    326.98
   ],
   "responseUsageField": false,
   "executorVersion": "06c04631-af2d-4733-81db-c5e1333a7373",
@@ -106,5 +107,35 @@
     "resultSha256": "d0b62e67d1ecd97308429c2176b0fbc337d5274d2071bd0a85e72986199f0c63",
     "realModelCalled": false
   },
-  "hostedProductAcceptance": "pending browser connection recovery"
+  "hostedProductAcceptance": {
+    "passed": true,
+    "sourcePhotoId": "1060",
+    "jobId": "13d37c12-cdaa-4369-9678-afebfab6c6a6",
+    "attempts": 1,
+    "state": "succeeded",
+    "outputWidth": 512,
+    "outputHeight": 512,
+    "outputBytes": 187977,
+    "outputSha256": "c558ade7be00917cab7ed18b49505dd7effd9587912b8e92fd16ae8876ec9c7f",
+    "originalDownloadHashMatchesSource": true,
+    "privateFilesWithoutVisitorIdentity": 401,
+    "internalResultWithoutExecutorKey": 401,
+    "reloadedQueuedTaskAndSavedResult": true,
+    "savedRecipeReloadedAndSelected": true,
+    "manualAlbumRevisionsUnchanged": true,
+    "cloudBatchAndReferenceTested": false,
+    "browserClosedEntireInferenceTested": false,
+    "realProviderFaultInjection": false
+  },
+  "applicationCommit": "f92494f7242b66072a807b7f7e58706e4952ed15",
+  "deploymentId": "appgdep_6ae9d5d26be88191a449ee7be07e40c1",
+  "versionId": "appgprj_6ae83417d6b88191a4873a4bffafe1d4~appgver_39689cb7a4d08191a0288e2468eb3445",
+  "environmentRevision": 3,
+  "checks": {
+    "tests": 61,
+    "typecheck": true,
+    "sitesBuild": true,
+    "demoBuild": true,
+    "githubCI": 41637330482
+  }
 }

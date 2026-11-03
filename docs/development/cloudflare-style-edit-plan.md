@@ -38,3 +38,9 @@ Fresh reviewer examined bd81aea..c500a0e. No Critical findings; two Important fi
 - Full suite61/61, TypeScript and demo/Sites builds pass. No deferred minors.
 - Final: Ruling: high-resolution quality and long-term throughput stay out of this bounded512px release — both were explicit exclusions, no such guarantees are made — larger workloads still need later measurement.
 - Final: Ruling: account entitlement was checked live and real model calls succeeded, but hosted UI acceptance is independently pending browser reconnection — no substitution of mocked or trial-worker evidence — user-facing workflow could still need a follow-up fix if unavailable to exercise now.
+
+## Hosted acceptance complete
+
+Browser connection recovered. Deployed UI real generation succeeded (one attempt), queue/result survived reload, saved Style reselected after reload, original download matches public source hash and result download matches the job hash. Actual total326.98/10k neurons after three calls. Missing service key/private-file identity returns401. No new paid plan. Latest acceptance details supersede the earlier pending-UI ruling: that uncertainty is resolved.
+
+Ruling costs retained: ASSETS binding was necessary for bundled examples; its local built-worker and live product reads now pass. High resolution/large-volume throughput remain unmeasured; this release makes no such guarantee. No deferred review minors.

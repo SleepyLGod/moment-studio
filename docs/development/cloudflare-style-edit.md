@@ -8,12 +8,14 @@ Image + text input can produce text tags or edited image bytes. The NVIDIA analy
 
 ## Actual trials
 
-Both calls edited the bundled public coffee photograph (`public/photos/1060.jpg`) into layered paper. No private user photo was sent. Fixed output: 512×512 JPEG; prompt + input image, seed 42.
+The first two calls edited the bundled public coffee photograph (`public/photos/1060.jpg`) into layered paper. No private user photo was sent. Fixed output: 512×512 JPEG; prompt + input image, seed 42.
 
 | Input | Actual provider time | Output bytes | Dashboard cumulative neurons |
 | --- | --- | --- | --- |
 | 480×373 | 2,537 ms | 188,685 | 107.87 |
 | 768×597 | 3,266 ms | 185,873 | 217.43 |
+
+A third call through the deployed Style Lab succeeded on the unmodified 900×700 bundled coffee photo; dashboard cumulative **326.98 neurons** afterward (observed increase109.55). It created job `13d37c12-cdaa-4369-9678-afebfab6c6a6`, one512px JPEG and a D1 derivative. Original download hash matches the repository source.
 
 Metering is the dashboard observation after each trial, not a usage field from the response (none was returned). The second observed increase is 109.56 neurons; it is not a promise of fixed per-image cost. Existing 768px previews were accepted, so no additional persistent AI-input image is needed. The effect resembles cut paper, but composition fidelity is approximate.
 
@@ -57,7 +59,8 @@ Style Lab enables Generate, original comparison, reusable saved recipes, batch a
 - Local SQLite/mocked R2: owner isolation, stable request IDs, source/album preservation, wrong/expired leases, truncated JPEG, one result file, duplicate completion, quota/unknown state and result delivery retry are covered.
 - Local production-built Worker with real local D1/R2: bundled asset read, idempotent queue and simulated completion using the actual probe JPEG passed. This did not invoke the model. Vite development asset fetch did not pass; the built Worker binding did.
 - Fresh final code review found two duplicate-generation paths; both reproduced RED then passed GREEN after transaction-level overlap checks and restoring all unresolved tasks. Full suite: 61/61, TypeScript and both builds passed.
-- Hosted Style Lab UI acceptance is pending browser connection recovery; do not treat the trial Worker as proof of the full product flow.
+- Hosted Style Lab: Generate → Cron inference → private R2/D1 result → original comparison → download SHA check → Save Style → reload and reselect saved recipe passed. Queue state also survived a reload. Three manual albums retained their previous revisions/timestamps. Service-only requests without visitor identity could not read files (401), and missing executor keys returned401.
+- Hosted batch/reference-image generation, an entirely closed-browser image inference and cloud fault injection were not exercised. Backend/executor tests cover overlap, state restoration and result delivery separately.
 - Large-scale queue throughput, high-resolution quality, cloud fault injection and account-wide automatic metering are not claimed.
 
 ## Official references
@@ -66,3 +69,7 @@ Style Lab enables Generate, original comparison, reusable saved recipes, batch a
 - [Multipart reference-image API](https://developers.cloudflare.com/changelog/post/2026-01-28-flux-2-klein-9b-workers-ai/)
 - [Workers AI pricing and Free cap](https://developers.cloudflare.com/workers-ai/platform/pricing/)
 - [NVIDIA FLUX.2 preset-image contract](https://docs.api.nvidia.com/nim/reference/black-forest-labs-flux_2-klein-4b-infer)
+
+![Actual deployed Style Lab](../screenshots/style-lab-live.jpg)
+
+[Machine-readable evidence](evidence/2026-11-03-cloudflare-edit.json). Account usage is a snapshot shared by all Workers AI calls; future costs depend on dimensions and shared usage.
