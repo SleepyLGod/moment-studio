@@ -2,6 +2,8 @@ import {freshState,CATEGORIES} from '../src/data.js';
 import {ApiError,fail,json,identifier,body,boundedBytes,privateHeaders as headers} from './http.ts';
 import {handleJobs,runInternalJobs} from './jobs.ts';
 import {handleModels} from './ai/catalog.ts';
+import {handleLibraryViews,photoScope,presentPhoto} from './library.ts';
+import {timeline} from '../src/services/organization.js';
 export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; ASSETS?: Fetcher; }
 export interface Identity { userId: string; email: string; }
 type RecordData = Record<string, any>;
@@ -18,7 +20,7 @@ function mimeOf(bytes:Uint8Array){
 }
 async function fileRow(env:GalleryEnv,user:string,id:string){return env.DB.prepare('SELECT * FROM files WHERE id=? AND owner_id=?').bind(id,user).first<FileRow>();}
 async function record(env:GalleryEnv,table:string,user:string,id:string){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?`).bind(id,user).first<DataRow>();}
-function item(row:DataRow){return {...JSON.parse(row.data),revision:row.revision,_order:row.created_at};}
+function item(row:DataRow){return presentPhoto(row);}
 async function authorize(env:GalleryEnv,user:Identity|null){
   if(!user?.userId||!user.email)fail(401,'Sign in to open your library.');
   if(!env.DB||!env.BUCKET)fail(503,'Cloud storage is not configured.');
@@ -68,6 +70,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       const origin=request.headers.get('origin');if(origin&&origin!==url.origin)fail(403,'Cross-origin writes are not allowed.');
     }
     const modelResponse=await handleModels(request,env,user.userId);if(modelResponse)return modelResponse;
+    const collectionResponse=await handleLibraryViews(request,env,user.userId);if(collectionResponse)return collectionResponse;
     const jobResponse=await handleJobs(request,env,user);if(jobResponse)return jobResponse;
     if(path[0]==='me'&&method==='GET'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();
@@ -77,7 +80,10 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();
       if(!row?.initialized){
         const initial=freshState(),now=Date.now(),statements:D1PreparedStatement[]=[];
-        for(const [table,values] of [['photos',initial.photos],['albums',initial.albums]] as const)for(const value of values)statements.push(env.DB.prepare(`INSERT OR IGNORE INTO ${table} (id,owner_id,data,revision,created_at,updated_at) VALUES (?,?,?,1,?,?)`).bind(value.id,user.userId,JSON.stringify(value),now,now));
+        for(const [table,values] of [['photos',initial.photos],['albums',initial.albums]] as const)for(const value of values){
+          const date=timeline(value,now);
+          statements.push(env.DB.prepare(`INSERT OR IGNORE INTO ${table} (id,owner_id,data,revision,created_at,updated_at${table==='photos'?',timeline_day,date_source':''}) VALUES (?,?,?,1,?,?${table==='photos'?',?,?':''})`).bind(value.id,user.userId,JSON.stringify(value),now,now,...(table==='photos'?[date.day,date.source]:[])));
+        }
         statements.push(env.DB.prepare('UPDATE library_owner SET initialized=1 WHERE id=1 AND user_id=?').bind(user.userId));
         await env.DB.batch(statements);
       }
@@ -126,12 +132,10 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       const n=Number(url.searchParams.get('limit')||50);if(!Number.isSafeInteger(n)||n<1||n>100)fail(400,'Invalid page size.');
       let cursor:[number,string]|null=null;const raw=url.searchParams.get('cursor');
       if(raw){try{cursor=JSON.parse(raw);}catch{fail(400,'Invalid cursor.');}if(!Array.isArray(cursor)||cursor.length!==2||!Number.isSafeInteger(cursor[0])||typeof cursor[1]!=='string')fail(400,'Invalid cursor.');}
-      const conditions=['owner_id=?'],args:(string|number)[]=[user.userId];
+      let conditions=['owner_id=?'],args:(string|number)[]=[user.userId];
       const category=url.searchParams.get('category');
-      if(category&&category!=='all'){
-        if(table!=='photos'||!CATEGORIES.includes(category))fail(400,'Invalid photo category.');
-        conditions.push("json_extract(data,'$.category')=?");args.push(category);
-      }
+      if(table==='photos')({conditions,args}=photoScope(user.userId,category,url.searchParams.get('month')));
+      else if(category&&category!=='all')fail(400,'Invalid photo category.');
       const total=(await env.DB.prepare(`SELECT count(*) AS total FROM ${table} WHERE ${conditions.join(' AND ')}`).bind(...args).first<{total:number}>())?.total||0;
       if(cursor){conditions.push('(created_at<? OR (created_at=? AND id<?))');args.push(cursor[0],cursor[0],cursor[1]);}
       args.push(n+1);
@@ -143,18 +147,18 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       const id=identifier(path[1]),existing=await record(env,table,user.userId,id);
       if(method==='GET'){if(!existing)fail(404,'Record not found.');return json({item:item(existing)});}
       if(method==='PUT'){
-        const scope=url.searchParams.get('category')||'all';if(table==='photos'&&scope!=='all'&&!CATEGORIES.includes(scope))fail(400,'Invalid photo category.');
+        const scope=table==='photos'?photoScope(user.userId,url.searchParams.get('category'),url.searchParams.get('month')):null;
         const data=await body(request);if(data.id!==id)fail(400,'Record ID does not match.');await validateRecord(env,table,user.userId,data);
         if(existing&&table==='photos'&&data.src!==JSON.parse(existing.data).src)fail(409,'The original image cannot be replaced.');
-        const {revision:ignored,_order:ignoredOrder,...values}=data;const now=Date.now(),raw=JSON.stringify(values);
+        const {revision:ignored,_order:ignoredOrder,timelineDay:ignoredDay,dateSource:ignoredSource,...values}=data;const now=Date.now(),raw=JSON.stringify(values),date=timeline(data,existing?.created_at||now);
         if(existing&&existing.data!==raw&&data.revision!==existing.revision)fail(409,'This item changed in another session. Reload before saving.');
         if(existing){
-          if(existing.data!==raw){const changed=await env.DB.prepare(`UPDATE ${table} SET data=?,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?`).bind(raw,now,id,user.userId,existing.revision).run();if(!changed.meta.changes)fail(409,'This item changed. Reload before saving.');}
+          if(existing.data!==raw){const changed=await env.DB.prepare(`UPDATE ${table} SET data=?,revision=revision+1,updated_at=?${table==='photos'?',timeline_day=?,date_source=?':''} WHERE id=? AND owner_id=? AND revision=?`).bind(raw,now,...(table==='photos'?[date.day,date.source]:[]),id,user.userId,existing.revision).run();if(!changed.meta.changes)fail(409,'This item changed. Reload before saving.');}
         }else{
-          await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (id,owner_id,data,revision,created_at,updated_at) VALUES (?,?,?,1,?,?)`).bind(id,user.userId,raw,now,now).run();
+          await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (id,owner_id,data,revision,created_at,updated_at${table==='photos'?',timeline_day,date_source':''}) VALUES (?,?,?,1,?,?${table==='photos'?',?,?':''})`).bind(id,user.userId,raw,now,now,...(table==='photos'?[date.day,date.source]:[])).run();
           const stored=await record(env,table,user.userId,id);if(!stored||stored.data!==raw)fail(409,'This identifier already belongs to another record.');
         }
-        const total=table==='photos'?(await (scope==='all'?env.DB.prepare('SELECT count(*) AS total FROM photos WHERE owner_id=?').bind(user.userId):env.DB.prepare("SELECT count(*) AS total FROM photos WHERE owner_id=? AND json_extract(data,'$.category')=?").bind(user.userId,scope)).first<{total:number}>())?.total:undefined;
+        const total=scope?(await env.DB.prepare(`SELECT count(*) AS total FROM photos WHERE ${scope.conditions.join(' AND ')}`).bind(...scope.args).first<{total:number}>())?.total:undefined;
         return json({item:item((await record(env,table,user.userId,id))!),...(total===undefined?{}:{total})});
       }
     }

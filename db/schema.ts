@@ -11,14 +11,17 @@ export const files = sqliteTable('files', {
   objectKey: text('object_key').notNull(), purpose: text('purpose').notNull(),
   status: text('status').notNull(), createdAt: integer('created_at').notNull(),
 }, table=>[index('files_owner').on(table.ownerId)]);
-function records(name: string) {
-  return sqliteTable(name, {
+function recordColumns() {
+  return {
     id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),
     data: text('data').notNull(), revision: integer('revision').notNull().default(1),
     createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(),
-  }, table=>[index(name+'_owner_order').on(table.ownerId,table.createdAt,table.id),...(name==='photos'?[index('photos_owner_category_order').on(table.ownerId,sql`json_extract(${table.data}, '$.category')`,table.createdAt,table.id)]:[])]);
+  };
 }
-export const photos = records('photos');
+function records(name:string){return sqliteTable(name,recordColumns(),table=>[index(name+'_owner_order').on(table.ownerId,table.createdAt,table.id)]);}
+export const photos = sqliteTable('photos',{
+  ...recordColumns(),timelineDay:text('timeline_day').notNull().default(''),dateSource:text('date_source').notNull().default('imported'),
+},table=>[index('photos_owner_order').on(table.ownerId,table.createdAt,table.id),index('photos_owner_category_order').on(table.ownerId,sql`json_extract(${table.data}, '$.category')`,table.createdAt,table.id),index('photos_owner_timeline').on(table.ownerId,table.timelineDay,table.createdAt,table.id)]);
 export const albums = records('albums');
 export const styles = records('styles');
 
