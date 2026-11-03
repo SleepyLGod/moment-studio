@@ -1,0 +1,114 @@
+{
+  "environment": "production Sites D1/R2, existing own-account Cron",
+  "verifiedOn": "2026-11-03",
+  "timeZoneForLogTimes": "UTC",
+  "siteVersion": 9,
+  "sourceCommit": "595fd4e14ce6dd17f54235091e9f3880d50afdcd",
+  "deploymentId": "appgdep_6ae99f365c9c81918a19b108b282b99f",
+  "privateAudiencePreserved": true,
+  "local": {
+    "testsPassed": 44,
+    "typecheck": true,
+    "sitesBuild": true,
+    "staticBuild": true,
+    "workersSmoke": true,
+    "mobileViewport": {
+      "width": 390,
+      "clientWidth": 379,
+      "scrollWidth": 379
+    }
+  },
+  "directory": {
+    "before": {
+      "lastSuccessfulModelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "lastSuccessAt": "2026-11-03T08:01:03.533Z",
+      "catalogIds": [
+        "nvidia/nemotron-3.5-super-vl-120b-a12b"
+      ],
+      "checkedAt": "2026-11-03T08:47:39.696Z"
+    },
+    "after": {
+      "lastSuccessfulModelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "lastSuccessAt": "2026-11-03T08:50:18.459Z",
+      "catalogIds": [
+        "nvidia/nemotron-3.5-super-vl-120b-a12b"
+      ],
+      "checkedAt": "2026-11-03T08:53:12.475Z"
+    },
+    "compatibleProfiles": 1,
+    "uiSelectionReason": "Reusing last successful model",
+    "refreshUsesPhotoBytes": false
+  },
+  "inference": {
+    "sample": "public/photos/1067.jpg",
+    "sampleRecordName": "moment-model-preference-example",
+    "photoId": "bc7948af-3e93-4dcb-a1ae-4487aaf9b85e",
+    "jobId": "5db1ad66-ace6-4e9e-a7d1-3eaa311fe768",
+    "modelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",
+    "state": "succeeded",
+    "attempts": 1,
+    "result": {
+      "tags": [
+        "摩天大楼",
+        "城市天际线",
+        "日落"
+      ],
+      "caption": "城市高楼林立，夕阳西下。"
+    },
+    "savedAt": "2026-11-03T08:50:18.459Z",
+    "lastSuccessMatchesSavedAt": true,
+    "downloadSha256": "477c3915d130a726c98dfae661e80a95a91d1affef24bfd6293e8aa68696a039",
+    "uploadedAndDownloadedBytesEqual": true
+  },
+  "views": {
+    "monthsBeforeNewExample": [
+      {
+        "month": "2026-11",
+        "count": 4
+      },
+      {
+        "month": "2026-10",
+        "count": 12
+      },
+      {
+        "month": "2025-09",
+        "count": 1
+      }
+    ],
+    "recentUIGroupCount": 4,
+    "verifiedAIGroup": {
+      "day": "2026-11-03",
+      "title": "城市天际线",
+      "basis": "ai-tags",
+      "photoIds": [
+        "955e69fd-bf75-475d-a7e8-6b17138c9c3e",
+        "bc7948af-3e93-4dcb-a1ae-4487aaf9b85e"
+      ]
+    },
+    "confirmationStep": false
+  },
+  "preservation": {
+    "manualAlbums": 3,
+    "manualAlbumsByteAndRevisionEqual": true,
+    "existingPhotos": 17,
+    "existingPhotoJSONAndRevisionEqual": true,
+    "addedExamplePhotos": 1,
+    "intermediateImageFilesCreated": 0
+  },
+  "serviceOnlyAccess": {
+    "models": 401,
+    "refresh": 401,
+    "months": 401,
+    "groups": 401
+  },
+  "review": {
+    "critical": 0,
+    "importantFixed": "queued category/month scope race, delayed response regression",
+    "minorDeferred": "pre-1980 Hong Kong daylight-saving backfill boundary"
+  },
+  "notVerified": [
+    "second inference profile availability",
+    "cloud interruption fault injection"
+  ],
+  "ci": "https://github.com/SleepyLGod/moment-studio/actions/runs/41605511136"
+}

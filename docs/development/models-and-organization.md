@@ -1,6 +1,6 @@
 # Models, months and recent groups
 
-2026-11-03 · Implementation and local verification; hosted acceptance recorded below when performed.
+2026-11-03 · Local and hosted example acceptance passed; exact scope below.
 
 ## Current behavior
 
@@ -49,7 +49,17 @@ flowchart LR
 - RED→GREEN: calendar month boundary and invalid dates, month/category counts and cursors, recent window/bounds/determinism, manual-album equality, legacy migration preservation, client visibility after a date moves out of its month.
 - 44/44 tests, TypeScript, nine sample provenance checks, Sites and static-demo builds passed locally. Existing local Workers upload/download/auth/re-login smoke test passed after applying migrations 0003–0005. The independent review's important slow-filter race was fixed with a delayed-response regression for both category/month action orders.
 - Browser: month cards → filtered photos → Recent cards → readonly detail; 390px viewport `scrollWidth=clientWidth=379`, all four tabs visible. Temporary viewport reset.
-- Production model refresh, source preference readback and hosted grouping are not replaced by these local checks; append actual hosted results here after private publication.
+- Production evidence is separate from the local checks: see the actual hosted observations below.
+
+### Hosted acceptance (UTC)
+
+- Private Sites v9, source `595fd4e14ce6dd17f54235091e9f3880d50afdcd`, deployment `appgdep_6ae99f365c9c81918a19b108b282b99f`. Environment revision 2, existing Cron unchanged; migrations 0004/0005 applied successfully. Feature-branch CI `41605511136` passed.
+- Initial page load refreshed the real NVIDIA directory at 08:46:58; manual refresh updated it at 08:47:39. Both selected the previously successful Nemotron profile. After reload, the check time advanced to 08:53:12 while last success remained persisted. No inference call is used to refresh the directory.
+- Uploaded one public `1067.jpg` example named `moment-model-preference-example`. Job `5db1ad66-ace6-4e9e-a7d1-3eaa311fe768` froze the selected Nemotron model, then the existing scheduled runner saved a valid result at 08:50:18 with attempts=1. Owner `lastSuccessAt` matched that saved time. Tags: 摩天大楼、城市天际线、日落. No personal photo was submitted to the model.
+- Months before the new example: November 2026=4, October 2026=12, September 2025=1. Browser displayed those cards. Recent directly displayed a 2-photo AI-tag group 城市天际线 plus same-day groups; opening it showed both photos without a confirmation step.
+- New photo preview identified `2026-11-03 · file date`. Downloaded original SHA-256 matched bundled/uploaded bytes: `477c3915d130a726c98dfae661e80a95a91d1affef24bfd6293e8aa68696a039`.
+- D1 comparison before/after migration, refresh, inference and collection reads: all 3 manual-album rows, revisions and order were exactly unchanged; all 17 pre-existing photo JSON/revision/timestamps were unchanged. Only the named acceptance photo was added. No empty indexed dates remained.
+- Platform service access without user identity returned 401 for model read/refresh, months and groups. Owner-private publishing preserved audience. [Sanitized observation record](evidence/2026-11-03-models-organization.json) contains no credentials or private album contents.
 
 ## Remaining boundaries
 
