@@ -94,3 +94,17 @@ test('an interrupted analysis with an expired lease can be claimed and completed
   const row=env.sql.prepare('SELECT * FROM jobs WHERE id=?').get(job.id);
   assert.equal(row.state,'succeeded');assert.equal(row.attempts,2);assert.equal(row.lease_token,null);
 });
+
+test('NVIDIA requests forbid redirects so credentials and image bytes stay on the fixed provider origin',async t=>{
+  const env=environment();await uploadedJob(env);
+  t.mock.method(globalThis,'fetch',async(url,options)=>{assert.equal(options.redirect,'error');return modelReply();});
+  assert.equal((await (await run(env)).json()).processed,1);
+  assert.equal(env.sql.prepare('SELECT state FROM jobs').get().state,'succeeded');
+});
+test('a transport failure after HTTP 200 headers defers analysis instead of permanently rejecting valid work',async t=>{
+  const env=environment(),job=await uploadedJob(env);
+  t.mock.method(globalThis,'fetch',async()=>new Response(new ReadableStream({start(controller){controller.error(new TypeError('connection closed'));}}),{status:200}));
+  await run(env);
+  const row=env.sql.prepare('SELECT * FROM jobs WHERE id=?').get(job.id);
+  assert.equal(row.state,'queued');assert.equal(row.error_code,'PROVIDER_UNREACHABLE');assert.ok(row.next_run_at>Date.now());
+});

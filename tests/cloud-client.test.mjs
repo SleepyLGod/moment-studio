@@ -71,3 +71,11 @@ test('collage provenance contains only the ordered photos used by the chosen lay
   const saved=await client.savePhoto({id:crypto.randomUUID(),name:'A collage',src:jpegData,kind:'collage',sourcePhotoIds:used.map(p=>p.id)});
   assert.deepEqual((await client.photo(saved.id)).sourcePhotoIds,used.map(p=>p.id));
 });
+
+test('cloud analysis controls follow server capability and use persistent job IDs',async t=>{
+  const {env,client}=connect(t);env.NVIDIA_API_KEY='test-only';env.MOMENT_EXECUTOR_KEY='test-executor-key';env.MOMENT_BACKGROUND_ENABLED='true';
+  const state=await client.load();assert.equal(client.canAnalyze(),true);
+  const created=await client.analyze([state.photos[0].id]);assert.equal(created.length,1);assert.equal(created[0].state,'queued');
+  const repeated=await client.analyze([state.photos[0].id]);assert.equal(repeated[0].id,created[0].id);
+  const read=await client.jobs(created.map(j=>j.id));assert.equal(read[0].id,created[0].id);assert.equal(read[0].state,'queued');
+});

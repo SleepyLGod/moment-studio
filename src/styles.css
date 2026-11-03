@@ -507,3 +507,5 @@ button:disabled {opacity:.65}
 
 .pagination {display:flex;justify-content:center;padding:28px 0}
 button:disabled {cursor:wait;opacity:.6}
+
+.analysis-progress{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--paper,#f7f4ed);border:1px solid #d8ddd7;border-radius:12px;box-shadow:0 8px 30px #12291a14;z-index:80;font-size:12px}.photo-tags{display:flex;flex-wrap:wrap;gap:7px;margin:16px 0}.photo-tags span{padding:4px 9px;border:1px solid #d8ddd7;border-radius:100px;font-size:12px}

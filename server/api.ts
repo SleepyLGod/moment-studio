@@ -69,7 +69,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
     const jobResponse=await handleJobs(request,env,user);if(jobResponse)return jobResponse;
     if(path[0]==='me'&&method==='GET'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();
-      return json({user:{id:user.userId,email:user.email},storage:'cloud',initialized:Boolean(row?.initialized)});
+      return json({user:{id:user.userId,email:user.email},storage:'cloud',initialized:Boolean(row?.initialized),features:{analysis:Boolean(env.NVIDIA_API_KEY&&env.MOMENT_EXECUTOR_KEY&&env.MOMENT_BACKGROUND_ENABLED==='true')}});
     }
     if(path[0]==='bootstrap'&&path.length===1&&method==='POST'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();

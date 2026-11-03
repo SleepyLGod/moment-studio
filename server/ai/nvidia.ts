@@ -1,4 +1,4 @@
-import {boundedBytes} from '../http.ts';
+import {ApiError,boundedBytes} from '../http.ts';
 export const ANALYSIS_MODEL='nvidia/nemotron-3.5-super-vl-120b-a12b';
 export const RULE_VERSION='photo-tags-v1';
 export type Analysis={tags:string[];caption:string};
@@ -13,7 +13,7 @@ export async function analyze(image:Uint8Array,mime:string,key:string,model=ANAL
   if(model!==ANALYSIS_MODEL)throw new AnalysisError('MODEL_UNAVAILABLE');
   let response:Response;
   try{
-    response=await fetch('https://integrate.api.nvidia.com/v1/chat/completions',{method:'POST',headers:{authorization:'Bearer '+key,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+base64(image)}},{type:'text',text:'Describe only clearly visible objects. Return JSON only with up to 3 short Chinese tags and a Chinese caption under 30 characters: {"tags":[],"caption":""}. Do not infer location or identity.'}]}],max_tokens:512,temperature:0,stream:false,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(25000)});
+    response=await fetch('https://integrate.api.nvidia.com/v1/chat/completions',{method:'POST',redirect:'error',headers:{authorization:'Bearer '+key,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:[{type:'image_url',image_url:{url:'data:'+mime+';base64,'+base64(image)}},{type:'text',text:'Describe only clearly visible objects. Return JSON only with up to 3 short Chinese tags and a Chinese caption under 30 characters: {"tags":[],"caption":""}. Do not infer location or identity.'}]}],max_tokens:512,temperature:0,stream:false,chat_template_kwargs:{enable_thinking:false}}),signal:AbortSignal.timeout(25000)});
   }catch{throw new AnalysisError('PROVIDER_UNREACHABLE',60000);}
   if(response.status===429){const seconds=Number(response.headers.get('retry-after'));throw new AnalysisError('RATE_LIMITED',Number.isFinite(seconds)&&seconds>0?Math.min(seconds*1000,3600000):60000);}
   if(response.status>=500)throw new AnalysisError('PROVIDER_UNAVAILABLE',60000);
@@ -21,9 +21,12 @@ export async function analyze(image:Uint8Array,mime:string,key:string,model=ANAL
   if(response.status===404)throw new AnalysisError('MODEL_UNAVAILABLE');
   if(response.status===202)throw new AnalysisError('RESULT_UNKNOWN');
   if(response.status!==200)throw new AnalysisError('PROVIDER_REJECTED');
+  let bytes:Uint8Array;
+  try{bytes=await boundedBytes(response.body,64*1024);}
+  catch(error){throw new AnalysisError(error instanceof ApiError?'INVALID_OUTPUT':'PROVIDER_UNREACHABLE',error instanceof ApiError?0:60000);}
   let result:Analysis;
   try{
-    const data=JSON.parse(new TextDecoder().decode(await boundedBytes(response.body,64*1024))) as {choices?:{message?:{content?:string}}[]};
+    const data=JSON.parse(new TextDecoder().decode(bytes)) as {choices?:{message?:{content?:string}}[]};
     const content=data.choices?.[0]?.message?.content;
     if(typeof content!=='string'||content.length>4096)throw new Error('Invalid output');
     const parsed=JSON.parse(content);

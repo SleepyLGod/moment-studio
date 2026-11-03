@@ -5,7 +5,7 @@ import {CATEGORIES, categoryLabel, photoCount, photoSrc} from './data';
 import {collageInputs} from './services/operations';
 import {downloadFile, renderCollage} from './imaging';
 
-export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading,visibleIds,photoTotal}) {
+export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading,visibleIds,photoTotal,onAnalyze,analyzing}) {
   const visible=photos.filter(p=>(!visibleIds||visibleIds.has(p.id))&&(filter==='all'||p.category===filter));
   return <>
     <div className="section-title"><h1>Library</h1><span className="title-meta">{photoCount(photoTotal??photos.length)}</span></div>
@@ -33,7 +33,7 @@ export function Library({photos,albums,tab,setTab,selected,selecting,setSelectin
       </button>;
     })}</div>}
     <footer className="workspace-footer"><button onClick={onInfo}>Demo <Info size={16}/></button></footer>
-    <SelectionDock count={selected.size} onClear={onClear} onOrganize={onOrganize} onAlbum={()=>onAlbum(false)} onCollage={onCollage} onLab={onLab}/>
+    <SelectionDock count={selected.size} onClear={onClear} onOrganize={onOrganize} onAlbum={()=>onAlbum(false)} onCollage={onCollage} onLab={onLab} onAnalyze={onAnalyze} analyzing={analyzing}/>
   </>;
 }
 

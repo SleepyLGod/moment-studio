@@ -40,12 +40,13 @@ export function PhotoCard({photo,selected,selecting,onToggle,onPreview}) {
     </button>
   </article>;
 }
-export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab}) {
+export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab,onAnalyze,analyzing}) {
   if(!count)return null;
   return <div className="selection-dock" aria-label="Selection actions">
     <span>{count} selected</span><div className="dock-divider"/>
     <button onClick={onOrganize}><Tags size={16}/>Organize</button><button onClick={onAlbum}><FolderPlus size={16}/>Album</button>
     <button onClick={onCollage}>Collage</button><button onClick={onLab}>Style Lab</button>
+    {onAnalyze&&<button onClick={onAnalyze} disabled={analyzing||count>20}>{analyzing?'Analyzing…':'AI tags'}</button>}
     <IconButton icon={X} label="Clear selection" onClick={onClear}/>
   </div>;
 }
@@ -145,6 +146,7 @@ export function PhotoPreview({photo,onClose}) {
   return <Modal title={photo.name} onClose={onClose} className="photo-modal">
     <img className="detail-photo" src={original?assetUrl(photo.src):photoSrc(photo)} alt={photo.name+(original?' original':'')}/>
     <a className="button" href={assetUrl(photo.src)+(photo.src.startsWith('/api/files/')?'?download=1':'')} download={photo.name}><Download size={17}/>Download original</a>
+    {photo.aiTags?.length>0&&<div className="photo-tags" aria-label="AI tags">{photo.aiTags.map(tag=><span key={tag}>{tag}</span>)}</div>}
     <div className="preview-caption"><span className="muted">{categoryLabel(photo.category)} · {original||photo.style==='original'?'Original':(photo.style==='generated'?photo.recipeName:(photo.recipeName?photo.recipeName+' · ':'')+styleFor(photo.style).name)}</span>{photo.generationSource&&<span>Sample</span>}{photo.style!=='original'&&<Button onClick={()=>setOriginal(v=>!v)}>{original?'View edit':'View original'}</Button>}</div>
   </Modal>;
 }

@@ -22,6 +22,7 @@ export default function App({mode="demo"}) {
   const [modal,setModal]=useState(null),[preview,setPreview]=useState(null),[albumId,setAlbumId]=useState(null);
   const [notice,setNotice]=useState(''),[saveProblem,setSaveProblem]=useState(false),[credits,setCredits]=useState([]);
   const [busy,setBusy]=useState(false),[pickerNext,setPickerNext]=useState(null);
+  const [analysisJobs,setAnalysisJobs]=useState([]),[analysisProblem,setAnalysisProblem]=useState('');
   const toast=useCallback(message=>setNotice(message),[]);
   function change(update){const next=typeof update==='function'?update(stateRef.current):update;stateRef.current=next;setState(next);}
   function upsert(key,item){change(s=>({...s,[key]:s[key].some(p=>p.id===item.id)?s[key].map(p=>p.id===item.id?item:p):[item,...s[key]]}));}
@@ -39,6 +40,31 @@ export default function App({mode="demo"}) {
   useEffect(()=>{if(!ready||cloud)return;persistState(state).then(()=>setSaveProblem(false)).catch(()=>setSaveProblem(true));},[state,ready,cloud]);
   useEffect(()=>{if(modal||preview||albumId)setNotice('');},[modal,preview,albumId]);
   useEffect(()=>{if(!notice)return;const timer=setTimeout(()=>setNotice(''),4600);return ()=>clearTimeout(timer);},[notice]);
+  useEffect(()=>{
+    if(!cloud||!analysisJobs.length)return;
+    let live=true,timer;
+    async function refresh(){
+      try{
+        const current=await client.jobs(analysisJobs.map(job=>job.id));
+        if(!live)return;
+        if(current.length!==analysisJobs.length)throw new Error('Some analysis tasks could not be read.');
+        const active=current.some(job=>['queued','running'].includes(job.state));
+        setAnalysisProblem('');
+        if(active){timer=setTimeout(refresh,2500);return;}
+        const changed=await client.resolve(current.filter(job=>job.state==='succeeded').map(job=>job.photoId));
+        if(!live)return;
+        change(s=>({...s,photos:mergePhotos(s.photos,changed)}));
+        const failed=current.filter(job=>job.state!=='succeeded');
+        setAnalysisJobs([]);toast(failed.length?failed.length+' analysis tasks did not complete.':'Tags saved.');
+      }catch(error){if(live){setAnalysisProblem(error.message);timer=setTimeout(refresh,10000);}}
+    }
+    timer=setTimeout(refresh,1500);
+    return ()=>{live=false;clearTimeout(timer);};
+  },[analysisJobs,client,cloud,toast]);
+  function analyzeSelected(){return execute(async()=>{
+    const ids=[...selected];if(!ids.length||ids.length>20)throw new Error('Select 1 to 20 original photos.');
+    const jobs=await client.analyze(ids);setAnalysisJobs(jobs);setAnalysisProblem('');return true;
+  });}
   const photos=state.photos;
   const chosen=useMemo(()=>photos.filter(p=>selected.has(p.id)),[photos,selected]);
   const examples=useMemo(()=>{const found=['1015','1043','1011'].map(id=>photos.find(p=>p.id===id)).filter(Boolean);return found.length?found:photos.slice(0,3);},[photos]);
@@ -104,10 +130,11 @@ export default function App({mode="demo"}) {
     <Header view={view} onView={setView} onUpload={()=>setModal('upload')}/>
     <main aria-busy={busy} id="workspace" className={'workspace view-'+view}>
       {saveProblem&&<p className="save-warning" role="status">Changes were not confirmed. Check your connection, then reload before retrying.</p>}
-      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={setTab} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')}/>}
+      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={setTab} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)}/>}
       {view==='lab'&&<StyleLab photos={labPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('lab')} savedStyles={state.savedStyles||[]} onSaveStyle={saveStyle} onSaveResults={saveStyleResults} onApply={apply} busy={busy} toast={toast}/>}
       {view==='collage'&&<CollageView photos={workPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('collage')} onSave={saveCollage} toast={toast} busy={busy}/>}
     </main>
+    {analysisJobs.length>0&&<div className="analysis-progress" role="status"><Loader2 size={15} className="spinning"/>{analysisProblem?'Could not refresh status. Retrying…':'Analyzing '+analysisJobs.length+' photos…'}{analysisProblem&&<button className="text-button" onClick={()=>location.reload()}>Reload</button>}</div>}
     {notice&&!modal&&!preview&&!albumId&&<div className="toast" role="status"><CheckCircle2 size={18}/><span>{notice}</span></div>}
     {modal==='upload'&&<UploadDialog cloud={cloud} onClose={()=>setModal(null)} onImport={importPhotos} toast={toast}/>}
     {modal==='organize'&&<OrganizeDialog photos={chosen.length?chosen:photos} onClose={()=>setModal(null)} onSave={saveOrganize} onAssign={assignCategory}/>}
