@@ -61,7 +61,7 @@
 
 **修正：外部授权入口的限制不能推成“订阅不能用于本项目”。** [订阅接入预览限制](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)只约束该外部接口；已安装的原生Codex CLI具有另外的内建图像生成工具。后续在这台Mac使用已有ChatGPT登录，清除API key环境变量，用官方非交互`codex exec`模式，已实际从公开咖啡照片生成1422×1106 PNG。未使用单独付费OpenAI API。[官方图像生成说明](https://learn.chatgpt.com/docs/image-generation?surface=cli)、[官方非交互模式](https://learn.chatgpt.com/docs/non-interactive-mode)。
 
-网站内点Generate、后台运行Codex、图片回存图库在架构上可行，但**网站尚未连接Codex执行端**。Sites/免费Worker不能运行这个原生程序；需要一台运行Codex的Mac或服务器。无需用户另开ChatGPT对话，也不需要把订阅凭据交给网站。原生Codex使用其订阅额度；不能承诺与普通ChatGPT聊天/生图是同一个额度池或无限使用。未读取登录cookie、转移Codex凭据或安装后台常驻程序。详见[实测与边界](trash-output-and-subscription.md)。
+后续已在 **OpenAI 云端环境**完成公开样本改图，并通过 Sites MCP 将真实结果写回图库，**不需要 Mac 执行器或另一家云主机**。这次验证任务由我们显式启动；网页按钮自动创建/唤起云任务仍未接通。原生 Codex 使用其订阅能力，不能承诺与普通 ChatGPT 聊天/生图是同一个额度池或无限使用；未测精确消耗。未读取登录 cookie、转移订阅凭据或安装本机常驻程序。详见[云端完整数据往返验收](openai-cloud-proof.md)。
 
 ## 后续Settings：三个分区就够
 
