@@ -20,8 +20,8 @@
 
 Files: `executor/worker.mjs`, `executor/wrangler.jsonc`; dedicated runner authorization and API handling; append-only jobs migration; `tests/executor.test.mjs`, `tests/jobs.test.mjs`.
 
-- [ ] RED: reject wrong/missing runner secret, no service bootstrap of owner, concurrent claims, expired fencing tokens, stored job/read status and invalid responses.
-- [ ] GREEN: bounded job lifecycle, narrow task advancement endpoint, scheduled Worker with no public unauthenticated execution route.
+- [x] RED: reject wrong/missing runner secret, no service bootstrap of owner, concurrent claims, expired fencing tokens, stored job/read status and invalid responses.
+- [x] GREEN: bounded job lifecycle, narrow task advancement endpoint, scheduled Worker with no public unauthenticated execution route.
 - [ ] Local SQLite + Workers verification; deploy only after Cloudflare user login and account selection.
 - [ ] Cloud: create one bundled-example analysis task, close browser, observe actual Cron progress and persisted output. Repeat/overlap trigger and expired-lease recovery checks.
 - [ ] Gate: only after this slice passes do the broader UI and organization work below proceed.
@@ -66,3 +66,5 @@ Files: existing React cloud client/dialogs/views; focused Library rules, migrati
 - Cloudflare login attempt expired before the user completed authorization. Authentication remains pending; restart the official login flow when the user is ready. Do not reuse expired OAuth callback state or handle credentials manually.
 - Ruling: the initial real cloud slice uses a bundled example already uploaded into private R2. Direct analysis of bundled static assets is enabled only if an actual ASSETS binding is available; otherwise it fails explicitly. Existing seed images do not prove that binding exists. Expand this only after platform verification.
 - Ruling: the initial supported analyzer is the concretely live-verified Nemotron profile; dynamic catalog/preference handling is Task 2. It must not imply the unverified Llama/Gemma candidates work.
+
+- Current checkpoint: 25/25 local tests, TypeScript, Sites build, static demo build and executor dry-run passed. Code is committed on feat/cloudflare-photo-jobs, not merged or published; cloud gate and independent final review are still pending.
