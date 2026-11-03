@@ -38,6 +38,6 @@ Closed-browser completion, actual scheduled logs, D1 readback, original hash and
 
 ## Free-only image edits
 
-The `AI` binding invokes only `@cf/black-forest-labs/flux-2-klein-4b`, with existing previews and optional style reference, fixed 512×512 output. Enable `MOMENT_IMAGE_EDIT_ENABLED=true` on the Site only after verifying the owner account is Workers Free. No paid plan is activated by this configuration; the provider’s daily free limit is the cap. Upgrading the account later would change that billing behavior and requires a separate decision.
+The `AI` binding invokes only `@cf/black-forest-labs/flux-2-klein-4b`, with existing previews and optional style reference, explicit validated output dimensions from the task (256–2048 per side, multiples of16 in the current adapter). Enable `MOMENT_IMAGE_EDIT_ENABLED=true` on the Site only after verifying the owner account is Workers Free. No paid plan is activated by this configuration; the provider’s daily free limit is the cap. Upgrading the account later would change that billing behavior and requires a separate decision.
 
 The existing secrets also authorize `POST /api/internal/jobs/:id/result`, fenced by `x-job-lease`. The executor retries delivery of the same result at most twice; it never repeats an uncertain model call. An expired image lease becomes `unknown`, while NVIDIA analysis retains its existing safe retry rules. See [image editing contract and evidence](../docs/development/cloudflare-style-edit.md).

@@ -4,11 +4,12 @@ import {readFileSync} from 'node:fs';
 import {environment} from './support.mjs';
 import {handleApi} from '../server/api.ts';
 const owner={userId:'owner-a',email:'owner@test'};
-const jpeg=new Uint8Array(readFileSync(new URL('../public/photos/1060.jpg',import.meta.url)));
+const sourceJpeg=new Uint8Array(readFileSync(new URL('../public/photos/1060.jpg',import.meta.url)));
+const jpeg=new Uint8Array(readFileSync(new URL('./fixtures/style-edit/result-512.jpg',import.meta.url)));
 function api(env,path,method='GET',data,user=owner,headers={}){return handleApi(new Request('https://moment.test/api'+path,{method,headers:{...(data instanceof Uint8Array?{'content-type':'image/jpeg'}:data?{'content-type':'application/json'}:{}),...headers},...(data===undefined?{}:{body:data instanceof Uint8Array?data:JSON.stringify(data)})}),env,user);}
-async function setup(){const env=environment();env.MOMENT_EXECUTOR_KEY='test-key';env.MOMENT_BACKGROUND_ENABLED='true';env.MOMENT_IMAGE_EDIT_ENABLED='true';await api(env,'/photos/coffee','PUT',{id:'coffee',name:'Coffee',src:'/photos/1060.jpg',kind:'photo',category:'日常'});env.ASSETS={fetch:async()=>new Response(jpeg,{headers:{'content-type':'image/jpeg'}})};return env;}
+async function setup(){const env=environment();env.MOMENT_EXECUTOR_KEY='test-key';env.MOMENT_BACKGROUND_ENABLED='true';env.MOMENT_IMAGE_EDIT_ENABLED='true';await api(env,'/photos/coffee','PUT',{id:'coffee',name:'Coffee',src:'/photos/1060.jpg',kind:'photo',category:'日常'});env.ASSETS={fetch:async()=>new Response(sourceJpeg,{headers:{'content-type':'image/jpeg'}})};return env;}
 const recipe={name:'Paper',prompt:'Make layered paper',preserve:true,reference:null};
-const command={kind:'edit',photoIds:['coffee'],recipe,requestId:'same-request'};
+const command={kind:'edit',photoIds:['coffee'],recipe,output:{mode:'custom',width:512,height:512},requestId:'same-request'};
 const runner={'x-moment-executor-key':'test-key'};
 
 test('image edits are owner-only, idempotent per request and preserve originals/manual albums',async()=>{
@@ -81,4 +82,15 @@ test('recent history limits never hide older unresolved edits after reload',asyn
  const env=await setup();const unresolved=[];
  for(let n=0;n<24;n++){const response=await api(env,'/jobs','POST',{...command,requestId:'history-'+n,recipe:{...recipe,prompt:'Variation '+n}});const job=(await response.json()).jobs[0];if(n<3){unresolved.push(job.id);env.sql.prepare('UPDATE jobs SET state=?,created_at=? WHERE id=?').run(['queued','running','unknown'][n],n,job.id);}else env.sql.prepare("UPDATE jobs SET state='succeeded',result='{}',created_at=? WHERE id=?").run(n,job.id);}
  const jobs=(await (await api(env,'/jobs?kind=edit')).json()).jobs;for(const id of unresolved)assert.ok(jobs.some(job=>job.id===id),'unresolved edit '+id+' must survive the recent-history window');
+});
+
+test('requested dimensions reach the executor and mismatched model output never appears as success',async()=>{
+ const env=await setup();const create=await api(env,'/jobs','POST',{...command,output:{mode:'custom',width:1440,height:1120}});const job=(await create.json()).jobs[0];
+ const task=(await (await api(env,'/internal/jobs/run','POST',{},null,runner)).json()).editTask;assert.equal(task.width,1440);assert.equal(task.height,1120);
+ const complete=await api(env,'/internal/jobs/'+job.id+'/result','POST',jpeg,null,{...runner,'x-job-lease':task.leaseToken});assert.equal((await complete.json()).failed,1);assert.equal(env.sql.prepare('SELECT state FROM jobs').get().state,'failed');assert.equal(env.sql.prepare('SELECT count(*) AS n FROM files').get().n,0);
+});
+test('original resolution is preserved as requested or rejected, never automatically reduced',async()=>{
+ const env=await setup();await api(env,'/photos/large','PUT',{id:'large',name:'Large',src:'/photos/1060.jpg',kind:'photo',width:4032,height:3024});
+ assert.equal((await api(env,'/jobs','POST',{...command,photoIds:['large'],output:{mode:'original'}})).status,400);
+ assert.equal(env.sql.prepare('SELECT count(*) AS n FROM jobs').get().n,0);
 });

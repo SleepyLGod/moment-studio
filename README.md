@@ -10,7 +10,7 @@ Sites hosts the TypeScript API and UI using its official Vinext starter. D1 stor
 
 Uploads accept still HEIC, JPG, PNG and WebP, up to 12 MiB per file and 20 files per batch. Uploaded originals are immutable. The browser creates one upright JPEG preview (maximum 768 pixels), without persisting an extra full-size JPEG. HEIC display, tones and collages use that preview; original downloads retain the uploaded bytes. Files are readable only through authenticated owner-scoped routes. Existing browser data is not automatically imported.
 
-Albums, category changes, Style recipes and saved creations use resource APIs. Collages and tones still render in the browser. Cloud Style Lab uses FLUX.2 Klein 4B on the owner’s Cloudflare Workers AI account for prompt-based image editing. It saves a new 512px result while preserving the original. The static demo retains nine pre-generated examples. iCloud synchronization is not connected.
+Albums, category changes, Style recipes and saved creations use resource APIs. Collages and tones still render in the browser. Cloud Style Lab uses FLUX.2 Klein 4B on the owner’s Cloudflare Workers AI account for prompt-based image editing. Output is explicitly Original or Custom; unsupported sizes show an error rather than silently resizing or cropping. Each result is a separate file, preserving the original. Photos can be moved to recoverable Trash; this hides them without reclaiming file bytes. The static demo retains nine pre-generated examples. iCloud synchronization is not connected.
 
 ## Development
 

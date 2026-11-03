@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
-import {ArrowDown, ArrowUp, Check, Download, ImagePlus, Loader2, FolderPlus, Tags, Upload, X} from 'lucide-react';
+import {ArrowDown, ArrowUp, Check, Download, ImagePlus, Loader2, FolderPlus, Tags, Trash2, Undo2, Upload, X} from 'lucide-react';
 import {CATEGORIES, categoryLabel, photoCount, UPLOAD_SAMPLES, photoSrc, styleFor, assetUrl} from './data';
 import {prepareSampleBatch} from './services/operations';
 import {exportAlbum} from './imaging';
@@ -42,13 +42,13 @@ export function PhotoCard({photo,selected,selecting,onToggle,onPreview}) {
     </button>
   </article>;
 }
-export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab,onAnalyze,analyzing}) {
+export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab,onAnalyze,analyzing,onTrash,onRestore,trashed=false}) {
   if(!count)return null;
   return <div className="selection-dock" aria-label="Selection actions">
     <span>{count} selected</span><div className="dock-divider"/>
-    <button onClick={onOrganize}><Tags size={16}/>Organize</button><button onClick={onAlbum}><FolderPlus size={16}/>Album</button>
+    {trashed?<button onClick={onRestore}><Undo2 size={16}/>Restore</button>:<><button onClick={onOrganize}><Tags size={16}/>Organize</button><button onClick={onAlbum}><FolderPlus size={16}/>Album</button>
     <button onClick={onCollage}>Collage</button><button onClick={onLab}>Style Lab</button>
-    {onAnalyze&&<button onClick={onAnalyze} disabled={analyzing||count>20}>{analyzing?'Analyzing…':'AI tags'}</button>}
+    {onAnalyze&&<button onClick={onAnalyze} disabled={analyzing||count>20}>{analyzing?'Analyzing…':'AI tags'}</button>}{onTrash&&<button onClick={onTrash}><Trash2 size={16}/>Trash</button>}</>}
     <IconButton icon={X} label="Clear selection" onClick={onClear}/>
   </div>;
 }
@@ -138,13 +138,14 @@ export function AlbumDialog({albums,onClose,onSave}) {
     <footer className="modal-footer"><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={saving||(target==='new'&&!title.trim())} onClick={async()=>{setSaving(true);try{if(await onSave({id:saveId.current,target,title:title.trim(),note}))onClose();}finally{setSaving(false);}}}>Save album</Button></footer>
   </Modal>;
 }
-export function PhotoPreview({photo,onClose}) {
+export function PhotoPreview({photo,onClose,onTrash,onRestore}) {
   const [original,setOriginal]=useState(false);
   return <Modal title={photo.name} onClose={onClose} className="photo-modal">
     <img className="detail-photo" src={original?photoSrc({...photo,renderedSrc:null}):photoSrc(photo)} alt={photo.name+(original?' original preview':'')}/>
     <a className="button" href={assetUrl(photo.src)+(photo.src.startsWith('/api/files/')?'?download=1':'')} download={photo.originalMime==='image/heic'?photo.name+'.heic':photo.name}><Download size={17}/>Download original</a>
     {photo.aiTags?.length>0&&<div className="photo-tags" aria-label="AI tags">{photo.aiTags.map(tag=><span key={tag}>{tag}</span>)}</div>}
     <p className="photo-date" title={photo.metadataWarning||(photo.dateSource==='captured-local'?'Photo local time; timezone unknown':'Library calendar: Asia/Hong_Kong')}>{photoDay(photo)} · {{captured:'capture date','captured-local':'capture date · timezone unknown','file-modified':'file date',imported:'import date','record-date':'saved date'}[photo.dateSource]||'saved date'}{photo.metadataWarning?' · Metadata unavailable':''}</p>
+    {(photo.trashedAt?onRestore:onTrash)&&<Button icon={photo.trashedAt?Undo2:Trash2} onClick={()=>photo.trashedAt?onRestore([photo.id]):onTrash([photo.id])}>{photo.trashedAt?'Restore':'Move to Trash'}</Button>}
     <div className="preview-caption"><span className="muted">{categoryLabel(photo.category)} · {original||photo.style==='original'?'Original':(photo.style==='generated'?photo.recipeName:(photo.recipeName?photo.recipeName+' · ':'')+styleFor(photo.style).name)}</span>{photo.generationSource==='pregenerated-demo'&&<span>Sample</span>}{photo.generationSource==='cloudflare-ai'&&<a className="button" href={assetUrl(photo.generationSrc)+'?download=1'} download>Download result</a>}{photo.style!=='original'&&<Button onClick={()=>setOriginal(v=>!v)}>{original?'View edit':'View original'}</Button>}</div>
   </Modal>;
 }

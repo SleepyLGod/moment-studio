@@ -20,7 +20,7 @@ function recordColumns() {
 }
 function records(name:string){return sqliteTable(name,recordColumns(),table=>[index(name+'_owner_order').on(table.ownerId,table.createdAt,table.id)]);}
 export const photos = sqliteTable('photos',{
-  ...recordColumns(),timelineDay:text('timeline_day').notNull().default(''),dateSource:text('date_source').notNull().default('imported'),
+  ...recordColumns(),deletedAt:integer('deleted_at'),timelineDay:text('timeline_day').notNull().default(''),dateSource:text('date_source').notNull().default('imported'),
 },table=>[index('photos_owner_order').on(table.ownerId,table.createdAt,table.id),index('photos_owner_category_order').on(table.ownerId,sql`json_extract(${table.data}, '$.category')`,table.createdAt,table.id),index('photos_owner_timeline').on(table.ownerId,table.timelineDay,table.createdAt,table.id)]);
 export const albums = records('albums');
 export const styles = records('styles');

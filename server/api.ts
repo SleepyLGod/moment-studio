@@ -5,6 +5,7 @@ import {handleModels} from './ai/catalog.ts';
 import {handleLibraryViews,photoScope,presentPhoto} from './library.ts';
 import {timeline} from '../src/services/organization.js';
 import {photoMime} from '../src/services/photo-format.js';
+import {handleTrash} from './trash.ts';
 import {finishEditJob} from './edit-jobs.ts';
 export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; MOMENT_IMAGE_EDIT_ENABLED?:string; ASSETS?: Fetcher; }
 export interface Identity { userId: string; email: string; }
@@ -15,7 +16,7 @@ const MAX_FILE = 12 * 1024 * 1024;
 const MIME = new Set(['image/jpeg','image/png','image/webp','image/heic']);
 const TABLES = new Set(['photos','albums','styles']);
 async function fileRow(env:GalleryEnv,user:string,id:string){return env.DB.prepare('SELECT * FROM files WHERE id=? AND owner_id=?').bind(id,user).first<FileRow>();}
-async function record(env:GalleryEnv,table:string,user:string,id:string){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?`).bind(id,user).first<DataRow>();}
+async function record(env:GalleryEnv,table:string,user:string,id:string){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?${table==='photos'?' AND deleted_at IS NULL':''}`).bind(id,user).first<DataRow>();}
 function item(row:DataRow){return presentPhoto(row);}
 async function authorize(env:GalleryEnv,user:Identity|null){
   if(!user?.userId||!user.email)fail(401,'Sign in to open your library.');
@@ -124,11 +125,12 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       const object=await env.BUCKET.get(row.object_key);if(!object)fail(404,'File not found.');
       return new Response(method==='HEAD'?null:object.body,{headers:{...headers,'content-type':row.mime,'content-length':String(row.size),'content-disposition':`${url.searchParams.has('download')?'attachment':'inline'}; filename*=UTF-8''${encodeURIComponent(row.name)}`}});
     }
+    const trashed=await handleTrash(request,env,user);if(trashed)return trashed;
     const table=path[0];
     if(table==='photos'&&path[1]==='resolve'&&path.length===2&&method==='POST'){
       const data=await body(request);if(!Array.isArray(data.ids)||data.ids.length>50)fail(400,'Resolve up to 50 photos at a time.');
       const ids=data.ids.map(identifier);if(!ids.length)return json({items:[]});
-      const rows=await env.DB.prepare(`SELECT * FROM photos WHERE owner_id=? AND id IN (${ids.map(()=>'?').join(',')})`).bind(user.userId,...ids).all<DataRow>();
+      const rows=await env.DB.prepare(`SELECT * FROM photos WHERE owner_id=? AND deleted_at IS NULL AND id IN (${ids.map(()=>'?').join(',')})`).bind(user.userId,...ids).all<DataRow>();
       return json({items:rows.results.map(item)});
     }
     if(TABLES.has(table)&&path.length===1&&method==='GET'){
@@ -137,7 +139,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       if(raw){try{cursor=JSON.parse(raw);}catch{fail(400,'Invalid cursor.');}if(!Array.isArray(cursor)||cursor.length!==2||!Number.isSafeInteger(cursor[0])||typeof cursor[1]!=='string')fail(400,'Invalid cursor.');}
       let conditions=['owner_id=?'],args:(string|number)[]=[user.userId];
       const category=url.searchParams.get('category');
-      if(table==='photos')({conditions,args}=photoScope(user.userId,category,url.searchParams.get('month')));
+      if(table==='photos')({conditions,args}=photoScope(user.userId,category,url.searchParams.get('month'),url.searchParams.get('trash')==='true'));
       else if(category&&category!=='all')fail(400,'Invalid photo category.');
       const total=(await env.DB.prepare(`SELECT count(*) AS total FROM ${table} WHERE ${conditions.join(' AND ')}`).bind(...args).first<{total:number}>())?.total||0;
       if(cursor){conditions.push('(created_at<? OR (created_at=? AND id<?))');args.push(cursor[0],cursor[0],cursor[1]);}
@@ -153,7 +155,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
         const scope=table==='photos'?photoScope(user.userId,url.searchParams.get('category'),url.searchParams.get('month')):null;
         const data=await body(request);if(data.id!==id)fail(400,'Record ID does not match.');await validateRecord(env,table,user.userId,data);
         if(existing&&table==='photos'&&data.src!==JSON.parse(existing.data).src)fail(409,'The original image cannot be replaced.');
-        const {revision:ignored,_order:ignoredOrder,timelineDay:ignoredDay,dateSource:ignoredSource,...values}=data;const now=Date.now(),raw=JSON.stringify(values),date=timeline(data,existing?.created_at||now);
+        const {trashedAt:ignoredTrash,revision:ignored,_order:ignoredOrder,timelineDay:ignoredDay,dateSource:ignoredSource,...values}=data;const now=Date.now(),raw=JSON.stringify(values),date=timeline(data,existing?.created_at||now);
         if(existing&&existing.data!==raw&&data.revision!==existing.revision)fail(409,'This item changed in another session. Reload before saving.');
         if(existing){
           if(existing.data!==raw){const changed=await env.DB.prepare(`UPDATE ${table} SET data=?,revision=revision+1,updated_at=?${table==='photos'?',timeline_day=?,date_source=?':''} WHERE id=? AND owner_id=? AND revision=?`).bind(raw,now,...(table==='photos'?[date.day,date.source]:[]),id,user.userId,existing.revision).run();if(!changed.meta.changes)fail(409,'This item changed. Reload before saving.');}

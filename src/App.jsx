@@ -10,6 +10,7 @@ import {persistState, readSavedState} from './storage';
 import {renderStyle} from './imaging';
 import {changePhotoScope,mergePhotos} from './services/operations';
 import {createCloudLibrary} from './services/cloud';
+import {editSignature} from './services/output-size';
 import {calendarDay,photoDay,recentGroups} from './services/organization';
 
 export default function App({mode="demo"}) {
@@ -24,6 +25,7 @@ export default function App({mode="demo"}) {
   const [notice,setNotice]=useState(''),[saveProblem,setSaveProblem]=useState(false),[credits,setCredits]=useState([]);
   const [busy,setBusy]=useState(false),[pickerNext,setPickerNext]=useState(null);
   const [analysisJobs,setAnalysisJobs]=useState([]),[analysisProblem,setAnalysisProblem]=useState('');
+  const [trashPhotos,setTrashPhotos]=useState([]),[trashCursor,setTrashCursor]=useState(null),[trashError,setTrashError]=useState('');
   const [editJobs,setEditJobs]=useState([]),[editProblem,setEditProblem]=useState('');const generationRequests=useRef(new Map());
   const [modelCatalog,setModelCatalog]=useState(null),[modelRefreshing,setModelRefreshing]=useState(false),[modelError,setModelError]=useState('');
   const [month,setMonth]=useState('all'),[monthRows,setMonthRows]=useState([]),[monthCursor,setMonthCursor]=useState(null);
@@ -114,17 +116,32 @@ export default function App({mode="demo"}) {
     const ids=[...selected];if(!ids.length||ids.length>20)throw new Error('Select 1 to 20 original photos.');
     const jobs=await client.analyze(ids);setAnalysisJobs(jobs);setAnalysisProblem('');return true;
   });}
-  function generateStyle(recipe,ids){return execute(async()=>{
-    const key=JSON.stringify([ids,recipeSignature(recipe)]);if(!generationRequests.current.has(key))generationRequests.current.set(key,crypto.randomUUID());
-    const jobs=await client.generate(ids,recipe,generationRequests.current.get(key));
+  function generateStyle(recipe,ids,output){return execute(async()=>{
+    const key=JSON.stringify([ids,editSignature(recipe,output)]);if(!generationRequests.current.has(key))generationRequests.current.set(key,crypto.randomUUID());
+    const jobs=await client.generate(ids,recipe,generationRequests.current.get(key),output);
     setEditJobs(current=>[...jobs,...current.filter(job=>!jobs.some(item=>item.id===job.id))]);setEditProblem('');toast(jobs.length+' edits queued');return jobs;
   });}
-  function openEditJob(job){return execute(async()=>{const items=await client.resolve([job.photoId]);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setSelected(new Set([job.photoId]));setSelecting(true);setView('lab');return true;});}
-  const photos=state.photos;
+  function openEditJob(job){return execute(async()=>{const items=await client.resolve([job.photoId]);if(!items.length)throw new Error('The source photo is in Trash. Restore it first.');change(s=>({...s,photos:mergePhotos(s.photos,items)}));setSelected(new Set([job.photoId]));setSelecting(true);setView('lab');return true;});}
+  const photos=state.photos.filter(photo=>!photo.trashedAt);
   const chosen=useMemo(()=>photos.filter(p=>selected.has(p.id)),[photos,selected]);
   const examples=useMemo(()=>{const found=['1015','1043','1011'].map(id=>photos.find(p=>p.id===id)).filter(Boolean);return found.length?found:photos.slice(0,3);},[photos]);
   const workPhotos=chosen.length?chosen:examples;
   const labPhotos=chosen.length?chosen:['1015','1067','1060'].map(id=>photos.find(p=>p.id===id)).filter(Boolean);
+  useEffect(()=>{if(tab!=='trash')return;let live=true;setSelected(new Set());setSelecting(false);setTrashError('');
+    (cloud?client.trashPage():Promise.resolve({items:stateRef.current.photos.filter(p=>p.trashedAt),nextCursor:null})).then(page=>{if(live){setTrashPhotos(page.items);setTrashCursor(page.nextCursor);}}).catch(error=>{if(live)setTrashError(error.message);});return ()=>{live=false;};},[tab,client,cloud]);
+  function moreTrash(){return execute(async()=>{const page=await client.trashPage(trashCursor);setTrashPhotos(current=>mergePhotos(current,page.items));setTrashCursor(page.nextCursor);return true;});}
+  function moveTrash(ids=[...selected]){return execute(async()=>{
+    if(!ids.length||ids.length>100)throw new Error('Select 1 to 100 photos.');
+    if(cloud)await client.trash(ids);const now=Date.now();change(s=>({...s,photos:s.photos.map(p=>ids.includes(p.id)?{...p,trashedAt:now}:p)}));
+    if(cloud){const scope=filterScope.current,page=await client.filter(scope.category,scope.month);change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}
+    clear();setSelecting(false);setPreview(null);setLibraryRevision(n=>n+1);toast('Moved to Trash');return true;
+  });}
+  function restorePhotos(ids=[...selected]){return execute(async()=>{
+    if(!ids.length||ids.length>100)throw new Error('Select 1 to 100 photos.');
+    if(cloud){await client.restore(ids);const items=await client.resolve(ids);change(s=>({...s,photos:mergePhotos(s.photos,items)}));const scope=filterScope.current;await client.filter(scope.category,scope.month);setHasMore(client.hasMore());}
+    else change(s=>({...s,photos:s.photos.map(p=>ids.includes(p.id)?{...p,trashedAt:null}:p)}));
+    setTrashPhotos(current=>current.filter(p=>!ids.includes(p.id)));clear();setSelecting(false);setPreview(null);setLibraryRevision(n=>n+1);toast('Photos restored');return true;
+  });}
   function clear(){setSelected(new Set());}
   function toggle(id){setSelecting(true);setSelected(current=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next;});}
   async function savePhoto(photo){return cloud?client.savePhoto(photo):photo;}
@@ -194,10 +211,11 @@ export default function App({mode="demo"}) {
     <Header view={view} onView={setView} onUpload={()=>setModal('upload')}/>
     <main aria-busy={busy} id="workspace" className={'workspace view-'+view}>
       {saveProblem&&<p className="save-warning" role="status">Changes were not confirmed. Check your connection, then reload before retrying.</p>}
-      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={setTab} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)||modelRefreshing||!modelCatalog?.selectedModelId}
+      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={value=>{clear();setSelecting(false);setTab(value);}} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)||modelRefreshing||!modelCatalog?.selectedModelId}
         modelCatalog={modelCatalog} modelRefreshing={modelRefreshing} modelError={modelError} onRefreshModels={refreshModelCatalog}
         month={month} months={monthRows} onMonth={chooseMonth} hasMoreMonths={Boolean(monthCursor)} onMoreMonths={moreMonths}
-        recent={recent} onOpenGroup={openRecentGroup} collectionLoading={collectionLoading} collectionError={collectionError} onRefreshCollections={()=>setCollectionRefresh(n=>n+1)}/>}
+        recent={recent} onOpenGroup={openRecentGroup} collectionLoading={collectionLoading} collectionError={collectionError} onRefreshCollections={()=>setCollectionRefresh(n=>n+1)} trashPhotos={trashPhotos} trashMore={Boolean(trashCursor)} onMoreTrash={moreTrash} onTrash={moveTrash} onRestore={restorePhotos}/>}
+      {view==='library'&&tab==='trash'&&trashError&&<p role="alert">{trashError}</p>}
       {view==='lab'&&<StyleLab photos={labPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('lab')} savedStyles={state.savedStyles||[]} onSaveStyle={saveStyle} onSaveResults={saveStyleResults} onApply={apply} onGenerate={client?.canGenerate()?generateStyle:undefined} onOpenEdit={openEditJob} editJobs={editJobs} editProblem={editProblem} busy={busy} toast={toast}/>}
       {view==='collage'&&<CollageView photos={workPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('collage')} onSave={saveCollage} toast={toast} busy={busy}/>}
     </main>
@@ -208,7 +226,7 @@ export default function App({mode="demo"}) {
     {modal==='album'&&<AlbumDialog albums={state.albums} count={chosen.length} onClose={()=>setModal(null)} onSave={saveAlbum}/>}
     {modal==='picker'&&<Modal title="Choose photos" className="picker-modal" onClose={()=>setModal(null)}><PhotoPicker photos={photos} initial={selected.size?[...selected]:(pickerNext==='lab'?labPhotos:workPhotos).map(p=>p.id)} onClose={()=>setModal(null)} onConfirm={confirmPicker}/></Modal>}
     {modal==='info'&&<InfoDialog cloud={cloud} credits={credits} onClose={()=>setModal(null)}/>}
-    {preview&&<PhotoPreview photo={photos.find(p=>p.id===preview.id)||preview} onClose={()=>setPreview(null)}/>}
+    {preview&&<PhotoPreview photo={photos.find(p=>p.id===preview.id)||preview} onClose={()=>setPreview(null)} onTrash={moveTrash} onRestore={restorePhotos}/>}
     {recentGroup&&<RecentGroupDetail group={recentGroup} photos={photos} onClose={()=>setRecentGroup(null)} onPreview={photo=>{setRecentGroup(null);setPreview(photo);}} onSelect={ids=>{setSelected(new Set(ids));setSelecting(true);setRecentGroup(null);}}/>}
     {albumId&&state.albums.some(a=>a.id===albumId)&&<AlbumDetail album={state.albums.find(a=>a.id===albumId)} photos={photos} onClose={()=>setAlbumId(null)} onUpdate={updateAlbum} toast={toast}/>}
   </NoticeContext.Provider>;

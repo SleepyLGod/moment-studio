@@ -118,3 +118,10 @@ test('a provider redirect is rejected without forwarding photos or credentials',
   const row=env.sql.prepare('SELECT state,error_code FROM jobs').get();
   assert.equal(row.state,'failed');assert.equal(row.error_code,'PROVIDER_REJECTED');assert.equal(calls,1);
 });
+test('an explicitly requested analysis can run again after trash and restore',async()=>{
+ const env=environment();env.NVIDIA_API_KEY='test-only';env.MOMENT_EXECUTOR_KEY='test-key';env.MOMENT_BACKGROUND_ENABLED='true';await handleApi(new Request('https://moment.test/api/me'),env,owner);seedCatalog(env);
+ const photo={id:'restored',name:'Coffee',src:'/photos/1060.jpg',kind:'photo'};await handleApi(new Request('https://moment.test/api/photos/restored',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(photo)}),env,owner);
+ const first=(await (await api(env,'/jobs',{kind:'analyze',photoIds:['restored']})).json()).jobs[0];
+ await api(env,'/photos/trash',{ids:['restored']});await api(env,'/photos/restore',{ids:['restored']});
+ const next=(await (await api(env,'/jobs',{kind:'analyze',photoIds:['restored']})).json()).jobs[0];assert.equal(next.state,'queued');assert.equal(next.id,first.id);
+});

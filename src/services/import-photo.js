@@ -28,7 +28,7 @@ export async function preparePhoto(file,{cloud=false}={}){
     canvas=document.createElement('canvas');const scale=Math.min(1,768/bitmap.width,768/bitmap.height);canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
     const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
     const preview=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not create a photo preview.')),'image/jpeg',.8));
-    const record={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),...metadata,originalMime:mime,previewWidth:canvas.width,previewHeight:canvas.height,category:'待分类',style:'original',kind:'photo'};
+    const record={id:crypto.randomUUID(),name:file.name.replace(/\.[^.]+$/,''),...metadata,uprightWidth:bitmap.width,uprightHeight:bitmap.height,originalMime:mime,previewWidth:canvas.width,previewHeight:canvas.height,category:'待分类',style:'original',kind:'photo'};
     if(cloud)return {...record,src:'',file:original,previewBlob:preview};
     return {...record,src:await dataUrl(original),thumbnailSrc:await dataUrl(preview)};
   }finally{bitmap?.close();if(canvas){canvas.width=1;canvas.height=1;}}

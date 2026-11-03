@@ -59,9 +59,9 @@
 
 [官方Sign in with ChatGPT](https://developers.openai.com/siwc/quickstart)确实支持符合条件的用户授权应用使用订阅额度，所以不能沿用“订阅永远不能供外部程序使用”的旧说法。
 
-但[当前订阅接入预览限制](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)明确列出：图像输入可供支持的模型理解，**Image generation工具不支持**；Codex app-server也适用同一限制。因此这条官方授权目前可以研究用于标签/文字任务，不能据此承诺Style Lab可用订阅自动生图/改图。使用ChatGPT/Codex自身界面里的生图是另一种产品使用方式，不能等同于网站已拿到调用权限。
+**修正：外部授权入口的限制不能推成“订阅不能用于本项目”。** [订阅接入预览限制](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)只约束该外部接口；已安装的原生Codex CLI具有另外的内建图像生成工具。后续在这台Mac使用已有ChatGPT登录，清除API key环境变量，用官方非交互`codex exec`模式，已实际从公开咖啡照片生成1422×1106 PNG。未使用单独付费OpenAI API。[官方图像生成说明](https://learn.chatgpt.com/docs/image-generation?surface=cli)、[官方非交互模式](https://learn.chatgpt.com/docs/non-interactive-mode)。
 
-[官方范围](https://developers.openai.com/siwc/token-sharing-open-source)说明开源/本地工具的路径；远程托管应用需走对应接入流程，[合作应用client ID](https://developers.openai.com/siwc/request-client-id)目前有准入。现有Sites“登录身份”也不自动授予“使用订阅额度”的权限。本轮没有发起OAuth、读取登录cookie、转移Codex凭据、注册合作应用或执行OpenAI模型调用。
+网站内点Generate、后台运行Codex、图片回存图库在架构上可行，但**网站尚未连接Codex执行端**。Sites/免费Worker不能运行这个原生程序；需要一台运行Codex的Mac或服务器。无需用户另开ChatGPT对话，也不需要把订阅凭据交给网站。原生Codex使用其订阅额度；不能承诺与普通ChatGPT聊天/生图是同一个额度池或无限使用。未读取登录cookie、转移Codex凭据或安装后台常驻程序。详见[实测与边界](trash-output-and-subscription.md)。
 
 ## 后续Settings：三个分区就够
 

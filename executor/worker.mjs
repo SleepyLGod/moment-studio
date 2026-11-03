@@ -7,7 +7,8 @@ async function edit(task,env){
   let output,errorCode;
   try{
     if(!env.AI)throw new Error('Workers AI is not bound.');
-    const form=new FormData();form.set('prompt',task.prompt);form.set('width','512');form.set('height','512');form.set('seed','42');
+    if(![task.width,task.height].every(n=>Number.isInteger(n)&&n>=256&&n<=2048&&n%16===0))throw new Error('Invalid output dimensions.');
+    const form=new FormData();form.set('prompt',task.prompt);form.set('width',String(task.width));form.set('height',String(task.height));form.set('seed','42');
     task.images.forEach((image,index)=>{if(!['image/jpeg','image/png','image/webp'].includes(image.mime))throw new Error('Invalid input MIME.');form.set('input_image_'+index,new Blob([imageBytes(image.base64)],{type:image.mime}),'input-'+index);});
     const serialized=new Response(form),result=await env.AI.run(IMAGE_MODEL,{multipart:{body:serialized.body,contentType:serialized.headers.get('content-type')}});
     output=imageBytes(result.image);if(output.length<8)throw new Error('Empty image output.');

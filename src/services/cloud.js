@@ -1,3 +1,4 @@
+import {readPhotoSize} from './output-size.js';
 /** A resource client: no cloud records or image bytes are persisted in browser storage. */
 export function createCloudLibrary(){
   let cursor=null,category='all',month='all',visible=new Set(),total=0,analysisEnabled=false,imageEditEnabled=false;
@@ -63,10 +64,13 @@ export function createCloudLibrary(){
       const extras=await resolve(related);
       cursor=photos.nextCursor;return {photos:[...photos.items,...extras],albums,savedStyles:await all('styles')};
     },
+    trash:ids=>request('/photos/trash',{method:'POST',body:JSON.stringify({ids})}),
+    restore:ids=>request('/photos/restore',{method:'POST',body:JSON.stringify({ids})}),
+    trashPage:next=>request('/photos?trash=true&limit=50'+(next?'&cursor='+encodeURIComponent(next):'')),
     canAnalyze:()=>analysisEnabled,
     canGenerate:()=>imageEditEnabled,
     editJobs:()=>request('/jobs?kind=edit').then(data=>data.jobs),
-    async generate(photoIds,recipe,requestId){const draft={...recipe};if(recipe.reference?.src)draft.reference={...recipe.reference,src:await materialize(recipe.reference.src,recipe.reference.name||'reference.jpg','reference')};return (await request('/jobs',{method:'POST',body:JSON.stringify({kind:'edit',photoIds,recipe:draft,requestId})})).jobs;},
+    async generate(photoIds,recipe,requestId,output){const draft={...recipe};if(recipe.reference?.src)draft.reference={...recipe.reference,src:await materialize(recipe.reference.src,recipe.reference.name||'reference.jpg','reference')};const sourceSizes={};if(output.mode==='original')for(const id of photoIds){const photo=(await request('/photos/'+encodeURIComponent(id))).item;sourceSizes[id]=await readPhotoSize(photo);}return (await request('/jobs',{method:'POST',body:JSON.stringify({kind:'edit',photoIds,recipe:draft,requestId,output,sourceSizes})})).jobs;},
     models:()=>request('/ai/models'),
     refreshModels:()=>request('/ai/models/refresh',{method:'POST',body:'{}'}),
     months:(category='all',next=null)=>request('/photos/months?category='+encodeURIComponent(category)+(next?'&cursor='+encodeURIComponent(next):'')),

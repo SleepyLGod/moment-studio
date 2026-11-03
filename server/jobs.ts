@@ -27,7 +27,7 @@ export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):P
   if(!Array.isArray(data.photoIds)||!data.photoIds.length||data.photoIds.length>20)fail(400,'Select 1 to 20 photos.');
   const ids=[...new Set(data.photoIds.map(identifier))],rows=[];
   for(const id of ids){
-    const photo=await env.DB.prepare('SELECT data FROM photos WHERE id=? AND owner_id=?').bind(id,user.userId).first<{data:string}>();
+    const photo=await env.DB.prepare('SELECT data FROM photos WHERE id=? AND owner_id=? AND deleted_at IS NULL').bind(id,user.userId).first<{data:string}>();
     if(!photo)fail(404,'Photo not found.');
     const input=JSON.parse(photo.data);
     if((input.kind||'photo')!=='photo')fail(400,'Select original photos for analysis.');
@@ -35,10 +35,11 @@ export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):P
   }
   const keys=rows.map(p=>[p.id,p.input.originalSrc,RULE_VERSION].join('|'));
   const previous=(await env.DB.prepare(`SELECT * FROM jobs WHERE owner_id=? AND work_key IN (${keys.map(()=>'?').join(',')})`).bind(user.userId,...keys).all<JobRow>()).results;
-  if(previous.length===rows.length)return json({jobs:previous.map(present)},202);
+  if(previous.length===rows.length&&previous.every(job=>job.state!=='cancelled'))return json({jobs:previous.map(present)},202);
   let catalog=await models(env,user.userId);if(!catalog.checkedAt)catalog=await refreshModels(env,user.userId);
   const modelId=catalog.selectedModelId;if(!modelId)fail(503,'No compatible NVIDIA model is available. Refresh models before retrying.');
   const now=Date.now(),statements=[];
+  for(const photo of rows)statements.push(env.DB.prepare("UPDATE jobs SET input=?,model_id=?,state='queued',attempts=0,next_run_at=?,lease_token=NULL,lease_until=NULL,result=NULL,error_code=NULL,updated_at=? WHERE owner_id=? AND work_key=? AND kind='analyze' AND state='cancelled'").bind(JSON.stringify(photo.input),modelId,now,now,user.userId,[photo.id,photo.input.originalSrc,RULE_VERSION].join('|')));
   for(const photo of rows)statements.push(env.DB.prepare("INSERT OR IGNORE INTO jobs (id,owner_id,work_key,kind,photo_id,input,model_id,state,next_run_at,created_at,updated_at) VALUES (?,?,?,'analyze',?,?,?,'queued',?,?,?)").bind(crypto.randomUUID(),user.userId,[photo.id,photo.input.originalSrc,RULE_VERSION].join('|'),photo.id,JSON.stringify(photo.input),modelId,now,now,now));
   await env.DB.batch(statements);
   const selected=await env.DB.prepare(`SELECT * FROM jobs WHERE owner_id=? AND work_key IN (${rows.map(()=>'?').join(',')})`).bind(user.userId,...rows.map(p=>[p.id,p.input.originalSrc,RULE_VERSION].join('|'))).all<JobRow>();
@@ -85,8 +86,8 @@ async function runDue(env:GalleryEnv,ownerId:string){
     const analysis={jobId:job.id,modelId:job.model_id,ruleVersion:RULE_VERSION,caption:result.caption,analyzedAt:new Date(finished).toISOString()};
     // Both updates use the same fencing conditions in one transaction. json_set
     // changes only AI-owned fields, preserving concurrent manual metadata edits.
-    const photo=env.DB.prepare("UPDATE photos SET data=json_set(data,'$.aiTags',json(?),'$.analysis',json(?)),revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND json_extract(data,'$.src')=? AND EXISTS(SELECT 1 FROM jobs WHERE id=? AND state='running' AND lease_token=? AND lease_until>=?)").bind(JSON.stringify(result.tags),JSON.stringify(analysis),finished,job.photo_id,ownerId,snapshot.originalSrc,job.id,token,finished);
-    const done=env.DB.prepare("UPDATE jobs SET state='succeeded',result=?,error_code=NULL,lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>=? AND EXISTS(SELECT 1 FROM photos WHERE id=? AND owner_id=? AND json_extract(data,'$.src')=?)").bind(JSON.stringify(result),finished,job.id,token,finished,job.photo_id,ownerId,snapshot.originalSrc);
+    const photo=env.DB.prepare("UPDATE photos SET data=json_set(data,'$.aiTags',json(?),'$.analysis',json(?)),revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND deleted_at IS NULL AND json_extract(data,'$.src')=? AND EXISTS(SELECT 1 FROM jobs WHERE id=? AND state='running' AND lease_token=? AND lease_until>=?)").bind(JSON.stringify(result.tags),JSON.stringify(analysis),finished,job.photo_id,ownerId,snapshot.originalSrc,job.id,token,finished);
+    const done=env.DB.prepare("UPDATE jobs SET state='succeeded',result=?,error_code=NULL,lease_token=NULL,lease_until=NULL,updated_at=? WHERE id=? AND state='running' AND lease_token=? AND lease_until>=? AND EXISTS(SELECT 1 FROM photos WHERE id=? AND owner_id=? AND deleted_at IS NULL AND json_extract(data,'$.src')=?)").bind(JSON.stringify(result),finished,job.id,token,finished,job.photo_id,ownerId,snapshot.originalSrc);
     const preference=env.DB.prepare("UPDATE library_owner SET ai_state=json_set(ai_state,'$.lastSuccessfulModelId',?,'$.lastSuccessAt',?) WHERE id=1 AND user_id=? AND EXISTS(SELECT 1 FROM jobs WHERE id=? AND state='succeeded' AND updated_at=?)").bind(job.model_id,new Date(finished).toISOString(),ownerId,job.id,finished);
     const committed=await env.DB.batch([photo,done,preference]);
     return {processed:committed[1].meta.changes===1?1:0};

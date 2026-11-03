@@ -1,0 +1,6 @@
+{
+  "file": "result-512.jpg",
+  "source": "Cloudflare FLUX.2 Klein4B generated from bundled public/photos/1060.jpg",
+  "purpose": "actual JPEG output fixture; tests do not invoke a model",
+  "sha256": "d0b62e67d1ecd97308429c2176b0fbc337d5274d2071bd0a85e72986199f0c63"
+}

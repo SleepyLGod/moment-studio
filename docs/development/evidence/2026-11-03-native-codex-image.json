@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-03",
+  "route": "native Codex CLI image_generation via noninteractive codex exec",
+  "auth": "Logged in using ChatGPT",
+  "apiKeyEnvironmentRemoved": [
+    "OPENAI_API_KEY",
+    "CODEX_API_KEY",
+    "OPENAI_BASE_URL"
+  ],
+  "input": "public/photos/1060.jpg",
+  "status": "completed",
+  "exitCode": 0,
+  "output": {
+    "format": "PNG",
+    "width": 1422,
+    "height": 1106,
+    "bytes": 2592439,
+    "sha256": "c0a68091532768051e9012bff67d8bb061c3758c98aa63741a24366918a0b0e1"
+  },
+  "notVerified": [
+    "website-to-Codex execution",
+    "remaining subscription allowance",
+    "ordinary ChatGPT chat quota access",
+    "exact output-size controls"
+  ],
+  "persistentExecutorInstalled": false
+}
