@@ -22,6 +22,16 @@ After a build, apply each migration in filename order, substituting its exact pa
 
 Run `npm run dev -- --port 4174`. Mock sign-in is only for loopback development and is excluded from hosted production. `.wrangler/state` contains local simulated records and files; it is ignored and must not be treated as hosted storage or uploaded as source.
 
+## Own-account scheduled executor
+
+The Worker in `executor/` is deployed separately in the owner's Cloudflare account, from this same repository. It has no D1/R2 bindings and no enabled public URL. Its one-minute Cron awaits the private Sites runner; Sites owns the business logic, job records and images. See [executor setup](executor/README.md) and [cloud evidence](docs/development/cloud-executor-validation.md).
+
+Set `MOMENT_EXECUTOR_KEY` and `MOMENT_SITE_ACCESS_TOKEN` as encrypted Worker secrets through Wrangler secret input. Set the same executor key and `NVIDIA_API_KEY` as Sites secrets. Never use shell arguments, source files or browser storage for secret values. After changing Sites environment values, redeploy a saved version to apply the new revision. Enable `MOMENT_BACKGROUND_ENABLED` only after the executor is configured.
+
+For a new Cloudflare account, opening Workers & Pages initializes an account subdomain required even for Cron. This does not enable a public executor URL: `workers_dev` stays false. OAuth uses account/user read, Workers write, script write, tail read and background access; no DNS, storage or paid-plan provisioning is needed.
+
+`wrangler deploy --config executor/wrangler.jsonc` publishes this executor; it does not publish the Sites application. Cron configuration can take up to 15 minutes to propagate. Check actual scheduled logs and D1 result readback, rather than treating successful upload as background acceptance.
+
 ## Static demo / GitHub Pages
 
 `npm run build:demo` builds the same UI from `demo/index.html` into `dist-demo/`. Only this mode uses IndexedDB records. Set `DEMO_BASE=/moment-studio/` for the Pages project path. No production credentials are bundled.
