@@ -1,4 +1,4 @@
-import {sqliteTable, text, integer, index} from 'drizzle-orm/sqlite-core';
+import {sqliteTable, text, integer, index, uniqueIndex} from 'drizzle-orm/sqlite-core';
 import {sql} from 'drizzle-orm';
 
 export const owner = sqliteTable('library_owner', {
@@ -20,3 +20,11 @@ function records(name: string) {
 export const photos = records('photos');
 export const albums = records('albums');
 export const styles = records('styles');
+
+export const jobs = sqliteTable('jobs', {
+  id: text('id').primaryKey(), ownerId: text('owner_id').notNull(), workKey: text('work_key').notNull(),
+  kind: text('kind').notNull(), photoId: text('photo_id').notNull(), input: text('input').notNull(),
+  modelId: text('model_id').notNull(), state: text('state').notNull(), attempts: integer('attempts').notNull().default(0),
+  nextRunAt: integer('next_run_at').notNull(), leaseToken: text('lease_token'), leaseUntil: integer('lease_until'),
+  result: text('result'), errorCode: text('error_code'), createdAt: integer('created_at').notNull(), updatedAt: integer('updated_at').notNull(),
+}, table=>[uniqueIndex('jobs_owner_work').on(table.ownerId,table.workKey),index('jobs_due').on(table.state,table.nextRunAt),index('jobs_owner_created').on(table.ownerId,table.createdAt)]);

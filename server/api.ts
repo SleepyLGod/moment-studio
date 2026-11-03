@@ -1,5 +1,7 @@
 import {freshState,CATEGORIES} from '../src/data.js';
-export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; }
+import {ApiError,fail,json,identifier,body,boundedBytes,privateHeaders as headers} from './http.ts';
+import {handleJobs,runInternalJobs} from './jobs.ts';
+export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; ASSETS?: Fetcher; }
 export interface Identity { userId: string; email: string; }
 type RecordData = Record<string, any>;
 type FileRow = {id:string;owner_id:string;name:string;mime:string;size:number;object_key:string;purpose:string;status:string;};
@@ -7,24 +9,6 @@ type DataRow = {id:string;owner_id:string;data:string;revision:number;created_at
 const MAX_FILE = 12 * 1024 * 1024;
 const MIME = new Set(['image/jpeg','image/png','image/webp']);
 const TABLES = new Set(['photos','albums','styles']);
-const ID = /^[a-zA-Z0-9_-]{1,100}$/;
-const headers = {'cache-control':'private, no-store','x-content-type-options':'nosniff'};
-class ApiError extends Error { status:number; constructor(status:number,message:string){super(message);this.status=status;} }
-function fail(status:number,message:string):never {throw new ApiError(status,message);}
-function json(value:unknown,status=200){return Response.json(value,{status,headers});}
-function identifier(value:unknown):string {if(typeof value!=='string'||!ID.test(value))fail(400,'Invalid identifier.');return value as string;}
-async function body(request:Request):Promise<RecordData>{
-  if(!(request.headers.get('content-type')||'').startsWith('application/json'))fail(400,'Expected JSON.');
-  // Bound metadata before parsing, including requests with no Content-Length.
-  const data = await boundedBytes(request.body,64*1024);
-  let value;try{value=JSON.parse(new TextDecoder().decode(data));}catch{fail(400,'Invalid JSON.');}
-  if(!value||typeof value!=='object'||Array.isArray(value))fail(400,'Expected an object.');return value;
-}
-async function boundedBytes(stream:ReadableStream<Uint8Array>|null,max:number){
-  if(!stream)fail(400,'Missing body.');const reader=stream.getReader(),parts:Uint8Array[]=[];let length=0;
-  try{for(;;){const {value,done}=await reader.read();if(done)break;length+=value.length;if(length>max){await reader.cancel();fail(413,'File or metadata is too large.');}parts.push(value);}}finally{reader.releaseLock();}
-  const bytes=new Uint8Array(length);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length;}return bytes;
-}
 function mimeOf(bytes:Uint8Array){
   if(bytes[0]===255&&bytes[1]===216&&bytes[2]===255)return 'image/jpeg';
   if([137,80,78,71,13,10,26,10].every((n,i)=>bytes[i]===n))return 'image/png';
@@ -77,10 +61,12 @@ async function validateRecord(env:GalleryEnv,table:string,user:string,data:Recor
 /** Handle authenticated gallery requests. Identity is supplied only by Sites' server helper. */
 export async function handleApi(request:Request,env:GalleryEnv,identity:Identity|null):Promise<Response>{
   try{
+    if(new URL(request.url).pathname==='/api/internal/jobs/run')return await runInternalJobs(request,env);
     const user=await authorize(env,identity),url=new URL(request.url),path=url.pathname.replace(/^\/api\/?/,'').split('/').filter(Boolean),method=request.method;
     if(!['GET','HEAD'].includes(method)){
       const origin=request.headers.get('origin');if(origin&&origin!==url.origin)fail(403,'Cross-origin writes are not allowed.');
     }
+    const jobResponse=await handleJobs(request,env,user);if(jobResponse)return jobResponse;
     if(path[0]==='me'&&method==='GET'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();
       return json({user:{id:user.userId,email:user.email},storage:'cloud',initialized:Boolean(row?.initialized)});

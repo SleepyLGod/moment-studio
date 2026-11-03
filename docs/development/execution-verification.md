@@ -17,7 +17,7 @@
 | NVIDIA 202 回执查询 | 仅有官方文档，当前成功调用均同步 200 | 未验证 pending/查询协议，不自动套用其他端点的 status URL |
 | NVIDIA Style Lab 图像编辑 | 没有成功的自有图片编辑验证 | 不能把视觉模型的文字输出当成已接通生图 |
 
-**总体门槛未通过：后台执行方式尚未落实。**因此本轮只落地开发文档和可复现探针，不启动 Jobs/Runner、自动分类或生产密钥配置，不向用户展示会永久排队的功能。
+**总体门槛未通过：后台执行方式尚未落实。**因此不在生产启用 Jobs/Runner、自动分类或新增生产密钥配置，不向用户展示会永久排队的功能。用户接受独立执行器后，已开始 Task 1 本地代码与离线测试；它们不是已通过的云端验收。
 
 ## Sites：核对了什么
 
@@ -39,7 +39,7 @@ Cloudflare 文档确认 HTTP Worker 的 waitUntil 在响应结束或断连后最
 
 建议若要继续完整的无人值守 AI：同 repo 增加用户自己 Cloudflare 账户下的一个小型托管执行器，先验证可靠定时/投递、服务端认证和关闭网页后的执行；Sites 继续提供页面与 D1/R2，执行器只经受限任务接口访问数据，不复制整份图库。
 
-这是待决定的部署扩展，不是本轮已经部署的服务。需要用户账户配置，并核对实际额度与成本；不能假设 Sites 管理的存储能直接跨账户绑定。Cloudflare Queues 文档提供可靠投递相关能力与免费/付费配额，但它们是独立账户产品，不等于当前 Site 的已配置资源。[Queues 产品计费与边界](https://developers.cloudflare.com/queues/platform/pricing/)
+用户于本轮明确接受这一部署扩展；实际账户登录、部署与无人值守验收仍未完成，见 [实施计划](cloudflare-executor-plan.md)。需要用户账户配置，并核对实际额度与成本；不能假设 Sites 管理的存储能直接跨账户绑定。Cloudflare Queues 文档提供可靠投递相关能力与免费/付费配额，但它们是独立账户产品，不等于当前 Site 的已配置资源。[Queues 产品计费与边界](https://developers.cloudflare.com/queues/platform/pricing/)
 
 另一选择是暂时保持 Sites-only、继续人工图库，明确不启用无人值守 AI。两条路线不同时实现，也不引入云端 Agent 加循环请求作为隐蔽备用通道。
 
@@ -92,7 +92,7 @@ Cloudflare 文档确认 HTTP Worker 的 waitUntil 在响应结束或断连后最
 
 ## 对架构的修正
 
-保留 HTTP / Library / Jobs / Adapter 边界，先不更改图库业务代码。补充以下明确约束：
+保留 HTTP / Library / Jobs / Adapter 边界；后续 Task 1 本地骨架增加任务接口，但当前线上图库业务仍未改变。补充以下明确约束：
 
 - 模型目录与实际成功分开；刷新只更新后续任务的候选，不改在途任务。
 - 空内容或结构无效必须失败，不能因 HTTP 200 标成 succeeded。
