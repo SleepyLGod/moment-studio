@@ -11,7 +11,7 @@ async function rpc(env,method,parameters={},user=owner){return (await handleMcp(
 async function api(env,method='POST'){return handleApi(new Request('https://moment.test/api/cloud-proof',{method}),env,owner);}
 async function setup(){const env=environment();await handleApi(new Request('https://moment.test/api/bootstrap',{method:'POST'}),env,owner);return env;}
 async function withFetch(handler,run){const original=globalThis.fetch;globalThis.fetch=handler;try{await run();}finally{globalThis.fetch=original;}}
-function verifySignature(options){const h=options.headers;const signed=createHmac('sha256',Buffer.from(secret.slice(6),'base64')).update(h['webhook-id']+'.'+h['webhook-timestamp']+'.'+options.body).digest('base64');assert.ok(h['webhook-signature'].split(' ').includes('v1,'+signed));assert.equal(options.redirect,'error');}
+function verifySignature(options){const h=options.headers;const signed=createHmac('sha256',Buffer.from(secret.slice(6),'base64')).update(h['webhook-id']+'.'+h['webhook-timestamp']+'.'+options.body).digest('base64');assert.ok(h['webhook-signature'].split(' ').includes('v1,'+signed));assert.equal(options.redirect,'manual');}
 test('MCP events are discovered; owner-only subscriptions verify signed challenges and renew idempotently',async()=>{
  const env=await setup();let calls=0;
  await withFetch(async(url,options)=>{calls++;verifySignature(options);assert.equal(url,params.delivery.url);const body=JSON.parse(options.body);assert.equal(body.type,'verification');return Response.json({challenge:body.challenge});},async()=>{
@@ -30,6 +30,7 @@ test('callback origins, redirects, malformed secrets and incorrect challenges fa
   assert.equal(calls,0);
   assert.ok((await rpc(env,'events/subscribe',{...params,delivery:{...params.delivery,secret:'whsec_bad'}})).error);assert.equal(calls,0);
   assert.equal((await rpc(env,'events/subscribe',params)).error.data.reason,'challenge_failed');assert.equal(env.sql.prepare('SELECT count(*) n FROM cloud_event_subscriptions').get().n,0);
+  const setup=JSON.parse(env.sql.prepare('SELECT ai_state FROM library_owner').get().ai_state).eventSetup;assert.equal(setup.phase,'failed');assert.equal(setup.reason,'challenge_failed');assert.ok(!JSON.stringify(setup).includes(secret));assert.ok(!JSON.stringify(setup).includes(params.delivery.url));
  });
  await withFetch(async()=>new Response(null,{status:302,headers:{location:'http://127.0.0.1/'}}),async()=>{assert.equal((await rpc(env,'events/subscribe',params)).error.data.reason,'http_302');});
 });

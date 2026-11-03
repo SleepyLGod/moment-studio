@@ -1,7 +1,7 @@
 import {authorize,type GalleryEnv,type Identity} from './api.ts';
 import {ApiError,boundedBytes,json} from './http.ts';
 import {claimPublicProof,proofStatus,savePublicProof,publicSampleImage} from './cloud-proof.ts';
-import {CallbackError,eventConnection,handleEventMethod,publicEventDefinition} from './cloud-events.ts';
+import {CallbackError,eventConnection,handleEventMethod,publicEventDefinition,recordEventSetup} from './cloud-events.ts';
 
 const empty={type:'object',properties:{},additionalProperties:false};
 const tools=[
@@ -28,7 +28,10 @@ export async function handleMcp(request:Request,env:GalleryEnv,identity:Identity
     else if(rpc.method==='tools/list')result={tools};
     else if(rpc.method==='events/list')result={events:[publicEventDefinition]};
     else if(['events/subscribe','events/unsubscribe'].includes(rpc.method)){
-      const user=await authorize(env,identity);result=await handleEventMethod(env,user.userId,rpc.method,rpc.params||{});
+      const user=await authorize(env,identity);await recordEventSetup(env,user.userId,method,'received');
+      try{result=await handleEventMethod(env,user.userId,rpc.method,rpc.params||{});}
+      catch(error){await recordEventSetup(env,user.userId,method,'failed',error);throw error;}
+      await recordEventSetup(env,user.userId,method,'configured');
       console.info(JSON.stringify({component:'moment-events',method,phase:'configured'}));
     }
     else if(rpc.method==='ping')result={};

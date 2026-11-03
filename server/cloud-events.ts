@@ -1,5 +1,5 @@
 import type {GalleryEnv} from './api.ts';
-import {boundedBytes,fail} from './http.ts';
+import {ApiError,boundedBytes,fail} from './http.ts';
 import {digest} from './image-integrity.ts';
 
 export const PUBLIC_EVENT='public_sample.queued';
@@ -28,10 +28,20 @@ async function signature(secret:string,id:string,timestamp:string,body:string){
 async function signedPost(sub:Subscription,id:string,body:string){
   const timestamp=String(Math.floor(Date.now()/1000)),signatures=[await signature(sub.secret,id,timestamp,body)];
   if(sub.previous_secret&&sub.rotate_until&&sub.rotate_until>Date.now())signatures.push(await signature(sub.previous_secret,id,timestamp,body));
-  return fetch(callbackUrl(sub.callback_url),{method:'POST',redirect:'error',signal:AbortSignal.timeout(7000),headers:{'content-type':'application/json','webhook-id':id,'webhook-timestamp':timestamp,'webhook-signature':signatures.join(' '),'X-MCP-Subscription-Id':sub.id},body});
+  // Workers rejects redirect:error before sending a request. Return 3xx to the
+  // caller so verification/delivery can reject it without forwarding headers.
+  return fetch(callbackUrl(sub.callback_url),{method:'POST',redirect:'manual',signal:AbortSignal.timeout(7000),headers:{'content-type':'application/json','webhook-id':id,'webhook-timestamp':timestamp,'webhook-signature':signatures.join(' '),'X-MCP-Subscription-Id':sub.id},body});
 }
 async function subscription(env:GalleryEnv,owner:string){return env.DB.prepare('SELECT * FROM cloud_event_subscriptions WHERE owner_id=?').bind(owner).first<Subscription>();}
-export async function eventConnection(env:GalleryEnv,owner:string){const sub=await subscription(env,owner);return {ready:Boolean(sub?.active&&sub.expires_at>Date.now()),expiresAt:sub?.active?sub.expires_at:null};}
+export async function eventConnection(env:GalleryEnv,owner:string){
+  const sub=await subscription(env,owner),state=await env.DB.prepare('SELECT ai_state FROM library_owner WHERE id=1 AND user_id=?').bind(owner).first<{ai_state:string}>();
+  return {ready:Boolean(sub?.active&&sub.expires_at>Date.now()),expiresAt:sub?.active?sub.expires_at:null,setup:state?JSON.parse(state.ai_state).eventSetup||null:null};
+}
+/** Keep only the last non-secret setup outcome, independently of provider errors. */
+export async function recordEventSetup(env:GalleryEnv,owner:string,method:string,phase:'received'|'configured'|'failed',error?:unknown){
+  const value={at:Date.now(),method,phase,...(phase==='failed'?{reason:error instanceof CallbackError?error.reason:error instanceof ApiError?error.message:'internal_error',...(error instanceof CallbackError&&error.origin?{callbackOrigin:error.origin.slice(0,256)}:{})}:{})};
+  await env.DB.prepare("UPDATE library_owner SET ai_state=json_set(ai_state,'$.eventSetup',json(?)) WHERE id=1 AND user_id=?").bind(JSON.stringify(value),owner).run();
+}
 /** Only the authenticated gallery owner can configure this single hosted listener. */
 export async function handleEventMethod(env:GalleryEnv,owner:string,method:string,params:Record<string,any>){
   if(params.name!==PUBLIC_EVENT||!params.arguments||typeof params.arguments!=='object'||Array.isArray(params.arguments)||Object.keys(params.arguments).length)fail(400,'Invalid public sample event or filters.');

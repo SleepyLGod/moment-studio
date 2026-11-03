@@ -1,5 +1,7 @@
 # Website-triggered OpenAI subscription image proof
 
+> Recheck on 2026-11-04: the earlier failure is not sufficient to attribute the cause to OpenAI. A separate, definite bug was found in our callback transport: Workers rejects `redirect: error` before sending HTTP. The correction and a real Workers-runtime regression test are implemented; online subscription creation still needs rechecking after publication.
+
 ## Goal and boundary
 
 The owner clicks **Generate public sample** on `/cloud-proof`. The Site commits one public-coffee job and sends an MCP event to an already connected OpenAI Work Cloud listener. The listener claims the job, edits the fixed source with the native subscription image tool and saves actual output bytes through the Site MCP tool. No Mac process, paid API, third-party compute, private-photo input or manual-album write is involved.
@@ -65,8 +67,29 @@ The Work Cloud verification chat reports these concrete creation outcomes:
 
 After every failed creation, the verification chat checked the native task list and the Site's connection tool: no Moment task ID, no duplicate Moment task, and `{"ready":false,"expiresAt":null}`. The normal task-management UI also showed no Moment task; its available creation form exposed clock scheduling only. Existing unrelated tasks were untouched. There was no new queued public job, claim, inference or saved result in this automatic-trigger test. The older manually started successful proof remains a separate result.
 
-The verified blocker is the official creation tool's contradictory timing-field contract and its service errors. No downstream callback reason was returned. Added server diagnostics contain method/phase/origin only; absence of matching log entries is not proof that the downstream subscription was never attempted. Callback verification and event delivery remain unverified online.
+The observed failures are contradictory timing-field guidance/binding errors and opaque creation errors; their causal source was not established. The subsequent runtime recheck found an error in our own callback transport, so the earlier service attribution must not be treated as proven. No downstream callback reason was returned. Added server diagnostics contain method/phase/origin only; absence of matching log entries is not proof that the downstream subscription was never attempted. Callback verification and event delivery remain unverified online.
 
 The website keeps **Generate public sample** disabled until a real listener is ready. We did not replace this with Mac execution, a timed poller, another cloud service, private endpoint calls, copied subscription credentials, a paid API, or manual generation presented as an event run. All three manual-album rows compare exactly with their pre-change state.
 
 [Evidence record](evidence/2026-11-04-openai-event-trigger.json) and [verification chat](https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87). After the official task interface can create a webhook-only listener, resume at subscription readiness, then perform one actual website click and cloud-output/download readback. Do not repeat the image-generation proof manually as a substitute.
+
+
+## Callback runtime and parameter recheck — 2026-11-04
+
+The complete exposed create declaration accepts the generic Moment trigger `{connector_id, event, params}`; `schedule: ""` and `timing_mode: "condition_watch"` match both its required fields and one explicit paragraph of its description. A later paragraph says to omit them. Thus the omission experiments show a contract mismatch, but do **not** show that the original complete request was malformed or that OpenAI was unavailable. The update declaration is different: timing fields are optional, and it also supports the same generic trigger branch. No separate raw-webhook creation tool was exposed.
+
+A concrete local bug was reproduced in workerd/Miniflare: `redirect: "error"` throws a `TypeError` before the request is sent. Our new callback used it, even though the existing NVIDIA and executor paths already use `manual`. Replaced it with `manual`; verification and delivery already reject non-2xx responses, so redirects remain forbidden. `tests/cloud-events-runtime.test.mjs` exercises the real callback module in the Workers runtime: it failed on the old code and passes on the correction, including 302 rejection. This uses a controlled callback and is separate from live OpenAI acceptance.
+
+`public_cloud_connection` now includes the last authenticated setup phase/reason in a bounded diagnostic field in the existing owner state. It never exposes signing secrets or callback URL tokens. This will distinguish an actual incoming subscription failure from a creation failure that leaves no recorded authenticated setup. A missing diagnostic alone does not rule out earlier authorization or routing failure.
+
+Official alternative routes checked:
+
+| Route | Fit for this experiment | Evidence / limitation |
+| --- | --- | --- |
+| MCP Events from the private Site | Preferred: direct event, native subscription processing | [MCP Events](https://developers.openai.com/plugins/build/mcp-events); needs a verified listener and an actual click-to-result test |
+| OpenAI hosted task checking the Site queue | Cloud-only, but polling adds latency and idle task usage | [Hosted schedules](https://learn.chatgpt.com/docs/automations); not silently substituted for a direct trigger |
+| Existing GitHub PR comment mentioning Codex | Official cloud-chat trigger, but adds a PR/comment as a job carrier | [GitHub integration](https://learn.chatgpt.com/docs/third-party/github); no PR, comment or permission change was made for this research |
+| Codex GitHub Action | Excluded | [Official prerequisites](https://learn.chatgpt.com/docs/github-action) require an OpenAI API key; no credentials were copied and no workflow was added |
+| Slack / Linear / GitLab triggers | Excluded from this scope | Would add another connected service/workspace; not configured |
+
+Online outcome for the correction is pending; no new inference is authorized by the test code itself.
