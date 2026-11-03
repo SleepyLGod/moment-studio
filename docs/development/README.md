@@ -35,3 +35,5 @@ node scripts/verify-nvidia.mjs --infer --sample city --preferred nvidia/nemotron
 `--out PATH` 可保存脱敏结果。探针默认只访问目录；识图必须明确传 `--infer`，不在 CI 自动调用服务。返回 HTTP 200 但内容为空、JSON 不合法或结构不符仍视为失败。不会自动换模型重试、抓取网页、调用付费备用服务或发送真实图库。
 
 - [Cloudflare Style Lab](cloudflare-style-edit.md): free-only image edit profile, task lifecycle and actual usage evidence.
+
+- [大图、原图比例、NVIDIA完整目录与ChatGPT订阅接入复核](model-capabilities-and-resolution.md)：2026-11-03独立验证，未修改线上默认尺寸。

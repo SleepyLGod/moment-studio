@@ -30,3 +30,10 @@ The active implementation uses Sites TypeScript/Workers + D1 + R2. These items d
 - [ ] Multi-user sharing and explicit membership roles; the first release remains owner-private.
 
 No real photo library or second source repository is required. Hosted analysis uses a server-side NVIDIA key and the owner's Cloudflare executor account; credentials remain outside source.
+
+## Model and output configuration after verification
+
+- [ ] Replace fixed512px with tested aspect-preserving output sizes; update preview layout as well. See `docs/development/model-capabilities-and-resolution.md`.
+- [ ] Simple Connections / Models / Output settings, free-only selection and last-success preference.
+- [ ] Broader provider capability registry and bounded public-sample validation, without treating every catalog model as already integrated.
+- [ ] ChatGPT subscription-only OAuth eligibility for text/vision tasks; image generation currently unsupported by the documented subscription-sharing route. No OpenAI paid API or API-credit route.

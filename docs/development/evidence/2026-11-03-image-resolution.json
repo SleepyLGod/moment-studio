@@ -1,0 +1,130 @@
+{
+  "checkedAtHKT": "2026-11-03",
+  "scope": "Research and isolated own-account probes only; production defaults unchanged",
+  "provider": "Cloudflare Workers AI",
+  "accountPlan": "Workers Free, unchanged from earlier dashboard verification; no billing changes",
+  "model": "@cf/black-forest-labs/flux-2-klein-4b",
+  "trials": [
+    {
+      "time": "2026-11-03T13:01:54.887Z",
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "source": "public/photos/1060.jpg",
+      "originalOrientation": 1,
+      "sourceUpright": {
+        "width": 900,
+        "height": 700
+      },
+      "request": {
+        "width": 1152,
+        "height": 896,
+        "prompt": "Transform the reference photo into a handmade layered paper-cut illustration. Preserve the composition, subjects, viewpoint and aspect ratio. Moss green and cream paper, visible paper edges, soft daylight. No new objects or lettering."
+      },
+      "status": 404,
+      "responseContentType": "text/html; charset=UTF-8",
+      "error": "Non-JSON response: <!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endi"
+    },
+    {
+      "time": "2026-11-03T13:02:01.968Z",
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "source": "public/photos/1060.jpg",
+      "originalOrientation": 1,
+      "sourceUpright": {
+        "width": 900,
+        "height": 700
+      },
+      "request": {
+        "width": 1440,
+        "height": 1120,
+        "prompt": "Transform the reference photo into a handmade layered paper-cut illustration. Preserve the composition, subjects, viewpoint and aspect ratio. Moss green and cream paper, visible paper edges, soft daylight. No new objects or lettering."
+      },
+      "status": 200,
+      "responseContentType": "application/json",
+      "providerMs": 5902,
+      "error": null,
+      "output": {
+        "path": "1440x1120.jpg",
+        "width": 1440,
+        "height": 1120,
+        "bytes": 1161340,
+        "sha256": "ed27f4607f641558822931e06bf96b29771e6790786c54d0075a4a114f88f21d"
+      }
+    },
+    {
+      "time": "2026-11-03T13:02:11.893Z",
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "source": "public/photos/1060.jpg",
+      "originalOrientation": 1,
+      "sourceUpright": {
+        "width": 900,
+        "height": 700
+      },
+      "request": {
+        "width": 2016,
+        "height": 1568,
+        "prompt": "Transform the reference photo into a handmade layered paper-cut illustration. Preserve the composition, subjects, viewpoint and aspect ratio. Moss green and cream paper, visible paper edges, soft daylight. No new objects or lettering."
+      },
+      "status": 200,
+      "responseContentType": "application/json",
+      "providerMs": 8091,
+      "error": null,
+      "output": {
+        "path": "2016x1568.jpg",
+        "width": 2016,
+        "height": 1568,
+        "bytes": 1971006,
+        "sha256": "ab8cdfe89d9d5a35e5a0b93a3995ece1b5bae1051f6f65fad81ad3dcbe80d079"
+      }
+    },
+    {
+      "time": "2026-11-03T13:02:16.996Z",
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "source": "tests/fixtures/import/portrait-orientation-6.jpg",
+      "originalOrientation": 6,
+      "sourceUpright": {
+        "width": 512,
+        "height": 768
+      },
+      "request": {
+        "width": 768,
+        "height": 1152,
+        "prompt": "Transform the reference photo into a handmade layered paper-cut illustration. Preserve the composition, subjects, viewpoint and aspect ratio. Moss green and cream paper, visible paper edges, soft daylight. No new objects or lettering."
+      },
+      "status": 200,
+      "responseContentType": "application/json",
+      "providerMs": 4463,
+      "error": null,
+      "output": {
+        "path": "768x1152.jpg",
+        "width": 768,
+        "height": 1152,
+        "bytes": 601426,
+        "sha256": "320e33d78a9048b919d2696666322c672e42fc42caf1fe853512e5ed10c6f04e"
+      }
+    }
+  ],
+  "additionalTrial": {
+    "requested": {
+      "width": 1008,
+      "height": 784
+    },
+    "outcome": "Non-JSON response; original script failed to retain HTTP status. No image result was verified; not counted as successful."
+  },
+  "additionalIphoneTrial": {
+    "source": "public HEIC fixture converted by macOS sips",
+    "outcome": "Converted JPEG could not decode in sharp; stopped before submitting any image inference",
+    "modelCalled": false
+  },
+  "metering": {
+    "observedBeforeCompletedLargeTrials": 436.52,
+    "observedAfter": "1.03k / 10k (dashboard rounded)",
+    "sharedAccountCounter": true,
+    "perCallUsageReturned": false,
+    "previousTurnObservation": 326.98,
+    "exactPerCallAttribution": false
+  },
+  "temporaryValidationEndpointDisabled": true,
+  "paidEnabled": false,
+  "openaiCallsMade": false,
+  "nvidiaImageInferenceCallsMade": false,
+  "productionCodeChanged": false
+}
