@@ -18,6 +18,7 @@ The active implementation uses Sites TypeScript/Workers + D1 + R2. These items d
 - [x] Website model-directory refresh and last-successful compatible model preference; freeze model per job. Initial profile is the verified Nemotron analyzer.
 - [x] Month view and recent derived groups without a confirmation inbox or manual-album writes.
 - [ ] Manual labels/exclusions and EXIF capture-date extraction; uploads currently identify file-modified dates honestly.
+- [ ] Historical Hong Kong DST boundary: migration 0005 uses fixed UTC+8, while later saves use IANA Asia/Hong_Kong. A legacy `capturedAt=1979-05-31T15:30:00Z` can move from May to June on edit. Current 2026 records are unaffected; reconcile historical backfill before EXIF/legacy-library onboarding.
 
 - [ ] Real-library onboarding after backup/restore and larger-volume validation.
 - [ ] HEIC previews, original retention, Live Photo pairs and capture metadata.

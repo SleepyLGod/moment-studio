@@ -47,10 +47,12 @@ flowchart LR
 
 - RED→GREEN: model routes/selection, malformed refresh and removed candidates, concurrent refresh, old success backfill, frozen jobs and invalid-output preference protection.
 - RED→GREEN: calendar month boundary and invalid dates, month/category counts and cursors, recent window/bounds/determinism, manual-album equality, legacy migration preservation, client visibility after a date moves out of its month.
-- 43/43 tests, TypeScript, nine sample provenance checks, Sites and static-demo builds passed locally. Existing local Workers upload/download/auth/re-login smoke test passed after applying migrations 0003–0005.
+- 44/44 tests, TypeScript, nine sample provenance checks, Sites and static-demo builds passed locally. Existing local Workers upload/download/auth/re-login smoke test passed after applying migrations 0003–0005. The independent review's important slow-filter race was fixed with a delayed-response regression for both category/month action orders.
 - Browser: month cards → filtered photos → Recent cards → readonly detail; 390px viewport `scrollWidth=clientWidth=379`, all four tabs visible. Temporary viewport reset.
 - Production model refresh, source preference readback and hosted grouping are not replaced by these local checks; append actual hosted results here after private publication.
 
 ## Remaining boundaries
 
 One inference profile is registered today. Multi-model preference is a tested selection contract, not evidence that a second NVIDIA endpoint is currently callable. EXIF extraction, manual tags/exclusions, full-library clustering, live image editing and cloud lease-interruption fault injection are outside this change. No original or saved creation is deleted.
+
+Deferred minor from review: migration's fixed UTC+8 differs from IANA historical Hong Kong DST. A legacy zoned capture at `1979-05-31T15:30:00Z` can shift May→June on a subsequent edit. This does not affect current 2026 records; it is tracked before legacy/EXIF onboarding.

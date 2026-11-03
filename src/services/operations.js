@@ -20,3 +20,11 @@ export function mergePhotos(current,incoming){
   const byId=new Map(current.map(p=>[p.id,p]));for(const photo of incoming)byId.set(photo.id,photo);
   return [...byId.values()].sort((a,b)=>(b._order||0)-(a._order||0)||b.id.localeCompare(a.id));
 }
+/** Read the other filter axis only when this queued operation actually starts. */
+export function changePhotoScope(execute,client,scope,patch,apply){
+  return execute(async()=>{
+    const next={...scope.current,...patch};
+    const items=client?await client.filter(next.category,next.month):null;
+    scope.current=next;apply(next,items);return true;
+  });
+}

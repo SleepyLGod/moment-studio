@@ -94,3 +94,20 @@ test('the cloud client refreshes supported models without transmitting image byt
   const catalog=await client.refreshModels();assert.equal(catalog.selectedModelId,'nvidia/nemotron-3.5-super-vl-120b-a12b');
   assert.equal((await client.models()).checkedAt,catalog.checkedAt);
 });
+test('queued category and month changes read the latest committed scope under slow responses',async t=>{
+  const {client}=connect(t);await client.load(false);
+  await client.savePhoto({id:'trip-oct',name:'Trip October',src:'/photos/1060.jpg',category:'旅行',date:'2026-10-02'});
+  await client.savePhoto({id:'city-oct',name:'City October',src:'/photos/1060.jpg',category:'城市',date:'2026-10-02'});
+  await client.savePhoto({id:'trip-nov',name:'Trip November',src:'/photos/1060.jpg',category:'旅行',date:'2026-11-02'});
+  const {changePhotoScope}=await import('../src/services/operations.js');
+  for(const changes of [[{category:'旅行'},{month:'2026-10'}],[{month:'2026-10'},{category:'旅行'}]]){
+    await client.filter('all');let queue=Promise.resolve(),release,started;
+    const gate=new Promise(resolve=>release=resolve),entered=new Promise(resolve=>started=resolve),fetch=globalThis.fetch;
+    let slow=true;globalThis.fetch=async(input,options)=>{if(slow&&String(input).startsWith('/api/photos?')){slow=false;started();await gate;}return fetch(input,options);};
+    const scope={current:{category:'all',month:'all'}},states=[];
+    const execute=work=>queue=queue.then(work),apply=(next,items)=>states.push({scope:next,ids:items.map(p=>p.id)});
+    const first=changePhotoScope(execute,client,scope,changes[0],apply),second=changePhotoScope(execute,client,scope,changes[1],apply);
+    await entered;release();await Promise.all([first,second]);globalThis.fetch=fetch;
+    assert.deepEqual(scope.current,{category:'旅行',month:'2026-10'});assert.deepEqual(states.at(-1),{scope:{category:'旅行',month:'2026-10'},ids:['trip-oct']});assert.equal(client.count(),1);
+  }
+});

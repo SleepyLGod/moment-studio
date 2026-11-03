@@ -8,7 +8,7 @@ import {StyleLab} from './StyleLab';
 import {makeSampleDerivative, recipeSignature, sampleFor} from './recipes';
 import {persistState, readSavedState} from './storage';
 import {renderStyle} from './imaging';
-import {mergePhotos} from './services/operations';
+import {changePhotoScope,mergePhotos} from './services/operations';
 import {createCloudLibrary} from './services/cloud';
 import {calendarDay,photoDay,recentGroups} from './services/organization';
 
@@ -26,6 +26,7 @@ export default function App({mode="demo"}) {
   const [analysisJobs,setAnalysisJobs]=useState([]),[analysisProblem,setAnalysisProblem]=useState('');
   const [modelCatalog,setModelCatalog]=useState(null),[modelRefreshing,setModelRefreshing]=useState(false),[modelError,setModelError]=useState('');
   const [month,setMonth]=useState('all'),[monthRows,setMonthRows]=useState([]),[monthCursor,setMonthCursor]=useState(null);
+  const filterScope=useRef({category:'all',month:'all'});
   const [recent,setRecent]=useState({groups:[],days:30,truncated:false}),[recentGroup,setRecentGroup]=useState(null);
   const [collectionLoading,setCollectionLoading]=useState(false),[collectionError,setCollectionError]=useState(''),[collectionRefresh,setCollectionRefresh]=useState(0),[libraryRevision,setLibraryRevision]=useState(0);
   const toast=useCallback(message=>setNotice(message),[]);
@@ -112,7 +113,7 @@ export default function App({mode="demo"}) {
   async function saveAlbumRecord(album){return cloud?client.saveAlbum(album):album;}
   function importPhotos(items){return execute(async()=>{
     const saved=[];for(const photo of items){const item=await savePhoto(photo);upsert('photos',item);saved.push(item);}
-    setSelected(new Set(saved.map(p=>p.id)));setSelecting(true);if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setMonth('all');setTab('photos');setView('library');toast(saved.length+' photos imported');return saved;
+    setSelected(new Set(saved.map(p=>p.id)));setSelecting(true);if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}filterScope.current={category:'all',month:'all'};setFilter('all');setMonth('all');setTab('photos');setView('library');toast(saved.length+' photos imported');return saved;
   });}
   function assignCategory(category,ids=[...selected]){return execute(async()=>{
     for(const id of ids){const photo=stateRef.current.photos.find(p=>p.id===id);if(photo)upsert('photos',await savePhoto({...photo,category}));}
@@ -140,11 +141,9 @@ export default function App({mode="demo"}) {
     if(cloud){const missing=album.photoIds.filter(id=>!stateRef.current.photos.some(p=>p.id===id));const related=await client.resolve(missing);change(s=>({...s,photos:mergePhotos(s.photos,related)}));}
     setAlbumId(id);return true;
   });}
-  async function chooseCategory(value){if(!cloud){setFilter(value);return;}return execute(async()=>{const items=await client.filter(value,month);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());setFilter(value);return true;});}
-  function chooseMonth(value){return execute(async()=>{
-    if(cloud){const items=await client.filter(filter,value);change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());}
-    setMonth(value);setTab('photos');clear();setSelecting(false);return true;
-  });}
+  function applyPhotoScope(next,items){if(cloud){change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());}setFilter(next.category);setMonth(next.month);}
+  function chooseCategory(value){return changePhotoScope(execute,client,filterScope,{category:value},applyPhotoScope);}
+  function chooseMonth(value){return changePhotoScope(execute,client,filterScope,{month:value},(next,items)=>{applyPhotoScope(next,items);setTab('photos');clear();setSelecting(false);});}
   function moreMonths(){return execute(async()=>{
     if(!monthCursor)return true;const page=await client.months(filter,monthCursor),covers=await client.resolve(page.months.map(m=>m.coverId));change(s=>({...s,photos:mergePhotos(s.photos,covers)}));setMonthRows(rows=>[...rows,...page.months]);setMonthCursor(page.nextCursor);return true;
   });}
@@ -168,7 +167,7 @@ export default function App({mode="demo"}) {
   function saveCollage(src,title,sourcePhotoIds){return execute(async()=>{
     if(collageSave.current?.src!==src||collageSave.current?.title!==title)collageSave.current={src,title,id:crypto.randomUUID()};
     const item=await savePhoto({id:collageSave.current.id,name:title.trim()||'My collage',src,style:'original',date:calendarDay(Date.now()),category:'创作',kind:'collage',sourcePhotoIds});
-    upsert('photos',item);setSelected(new Set([item.id]));setSelecting(true);setTab('photos');if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}setFilter('all');setMonth('all');setView('library');toast('Collage saved to library');return true;
+    upsert('photos',item);setSelected(new Set([item.id]));setSelecting(true);setTab('photos');if(cloud){const page=await client.filter('all');change(s=>({...s,photos:mergePhotos(s.photos,page)}));setHasMore(client.hasMore());}filterScope.current={category:'all',month:'all'};setFilter('all');setMonth('all');setView('library');toast('Collage saved to library');return true;
   });}
   if(bootError)return <div className="boot"><p>{bootError.message}</p>{bootError.status===401?<a href="/signin-with-chatgpt?return_to=%2F" target="_top">Sign in</a>:<button onClick={()=>location.reload()}>Try again</button>}</div>;
   if(!ready)return <div className="boot"><Loader2 size={23} className="spinning"/><span>Opening your library…</span></div>;
