@@ -1,0 +1,79 @@
+{
+  "checkedAtUtc": "2026-11-03T11:35:27Z",
+  "applicationCommit": "59d39ba9a710cc654e3140c87551792be2c9fb62",
+  "siteUrl": "https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site",
+  "deploymentId": "appgdep_6ae9c64df1888191bcf7c1304fe19959",
+  "versionId": "appgprj_6ae83417d6b88191a4873a4bffafe1d4~appgver_4f9c3832aa288191a7b97cdf6d33efb6",
+  "local": {
+    "tests": 52,
+    "typecheck": true,
+    "sitesBuild": true,
+    "staticDemoBuild": true,
+    "workerSmoke": true,
+    "heicUprightPreview": {
+      "width": 576,
+      "height": 768
+    },
+    "toneAndCollageObserved": true,
+    "realSafariIosTested": false
+  },
+  "hosted": {
+    "initialPhotoCount": 18,
+    "finalPhotoCount": 21,
+    "addedPublicSamples": [
+      {
+        "id": "17ec40b1-2dea-4670-985d-1cc7fd9d6209",
+        "name": "iphone-exifr",
+        "originalMime": "image/heic",
+        "src": "/api/files/17ec40b1-2dea-4670-985d-1cc7fd9d6209-original",
+        "thumbnailSrc": "/api/files/17ec40b1-2dea-4670-985d-1cc7fd9d6209-preview",
+        "timelineDay": "2019-08-21",
+        "dateSource": "captured-local",
+        "capturedLocal": "2019-08-21T10:57:23",
+        "previewWidth": 768,
+        "previewHeight": 576
+      },
+      {
+        "id": "7072e1e5-5ad3-49a6-9398-08c38bdce01b",
+        "name": "portrait-orientation-6",
+        "originalMime": "image/jpeg",
+        "src": "/api/files/7072e1e5-5ad3-49a6-9398-08c38bdce01b-original",
+        "thumbnailSrc": "/api/files/7072e1e5-5ad3-49a6-9398-08c38bdce01b-preview",
+        "timelineDay": "2026-11-03",
+        "dateSource": "file-modified",
+        "capturedLocal": null,
+        "previewWidth": 512,
+        "previewHeight": 768
+      },
+      {
+        "id": "fff18256-e0ef-4170-9b60-d3da155dd208",
+        "name": "exifreader-test",
+        "originalMime": "image/heic",
+        "src": "/api/files/fff18256-e0ef-4170-9b60-d3da155dd208-original",
+        "thumbnailSrc": "/api/files/fff18256-e0ef-4170-9b60-d3da155dd208-preview",
+        "timelineDay": "2026-11-03",
+        "dateSource": "file-modified",
+        "capturedLocal": null,
+        "previewWidth": 576,
+        "previewHeight": 768
+      }
+    ],
+    "manualAlbumsExactComparisonUnchanged": true,
+    "manualAlbumCount": 3,
+    "reloadAndAugust2019Observed": true,
+    "heicOriginalDownloadSha256": "4ea589f9728e7e3c08060473ffde0189719a1810550571de693d743e1bf86292",
+    "downloadMatchesUpload": true,
+    "anonymousFileStatuses": [
+      401,
+      401
+    ],
+    "siteAudience": "existing owner-only policy preserved",
+    "repoVisibility": "PRIVATE"
+  },
+  "limits": [
+    "Public samples only; no real-library migration",
+    "Native Safari/iOS device behavior not tested",
+    "No new live image-edit provider invocation or integration",
+    "HEIC creative input currently uses the 768px preview"
+  ]
+}
