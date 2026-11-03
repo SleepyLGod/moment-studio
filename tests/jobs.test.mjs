@@ -125,3 +125,15 @@ test('an explicitly requested analysis can run again after trash and restore',as
  await api(env,'/photos/trash',{ids:['restored']});await api(env,'/photos/restore',{ids:['restored']});
  const next=(await (await api(env,'/jobs',{kind:'analyze',photoIds:['restored']})).json()).jobs[0];assert.equal(next.state,'queued');assert.equal(next.id,first.id);
 });
+
+test('trash between analysis validation and queue insertion rejects the whole batch',async()=>{
+ const env=environment();env.NVIDIA_API_KEY='test-only';env.MOMENT_EXECUTOR_KEY='test-executor-key';env.MOMENT_BACKGROUND_ENABLED='true';
+ for(const id of ['a','b'])await handleApi(new Request('https://moment.test/api/photos/'+id,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({id,name:id,src:'/photos/1060.jpg'})}),env,owner);seedCatalog(env);
+ const batch=env.DB.batch;env.DB.batch=async statements=>{env.DB.batch=batch;await api(env,'/photos/trash',{ids:['a']});return batch(statements);};
+ const created=await api(env,'/jobs',{kind:'analyze',photoIds:['a','b']});assert.equal(created.status,409,await created.clone().text());assert.equal(env.sql.prepare('SELECT count(*) AS n FROM jobs').get().n,0);
+});
+
+test('analysis claim does not send a queued row with a trashed source to NVIDIA',async t=>{
+ const env=environment(),job=await uploadedJob(env);await api(env,'/photos/trash',{ids:['coffee']});env.sql.prepare("UPDATE jobs SET state='queued' WHERE id=?").run(job.id);let calls=0;t.mock.method(globalThis,'fetch',async()=>{calls++;return modelReply();});
+ await run(env);assert.equal(calls,0);assert.equal(env.sql.prepare('SELECT state FROM jobs WHERE id=?').get(job.id).state,'cancelled');
+});

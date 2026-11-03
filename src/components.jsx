@@ -46,9 +46,9 @@ export function SelectionDock({count,onClear,onOrganize,onAlbum,onCollage,onLab,
   if(!count)return null;
   return <div className="selection-dock" aria-label="Selection actions">
     <span>{count} selected</span><div className="dock-divider"/>
-    {trashed?<button onClick={onRestore}><Undo2 size={16}/>Restore</button>:<><button onClick={onOrganize}><Tags size={16}/>Organize</button><button onClick={onAlbum}><FolderPlus size={16}/>Album</button>
+    {trashed?<button onClick={()=>onRestore()}><Undo2 size={16}/>Restore</button>:<><button onClick={onOrganize}><Tags size={16}/>Organize</button><button onClick={onAlbum}><FolderPlus size={16}/>Album</button>
     <button onClick={onCollage}>Collage</button><button onClick={onLab}>Style Lab</button>
-    {onAnalyze&&<button onClick={onAnalyze} disabled={analyzing||count>20}>{analyzing?'Analyzing…':'AI tags'}</button>}{onTrash&&<button onClick={onTrash}><Trash2 size={16}/>Trash</button>}</>}
+    {onAnalyze&&<button onClick={onAnalyze} disabled={analyzing||count>20}>{analyzing?'Analyzing…':'AI tags'}</button>}{onTrash&&<button onClick={()=>onTrash()}><Trash2 size={16}/>Trash</button>}</>}
     <IconButton icon={X} label="Clear selection" onClick={onClear}/>
   </div>;
 }

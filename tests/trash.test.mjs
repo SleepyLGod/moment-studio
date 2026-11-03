@@ -22,3 +22,16 @@ test('trash cancels pending jobs and rejects a mixed missing batch without parti
  assert.equal((await call(env,'/photos/trash','POST',{ids:['p','missing']})).status,404);assert.equal((await (await call(env,'/photos')).json()).total,1);
  await call(env,'/photos/trash','POST',{ids:['p']});assert.equal(env.sql.prepare('SELECT state FROM jobs').get().state,'cancelled');
 });
+
+test('retained album and derivative relationships stay editable but new trash references are rejected',async()=>{
+ const env=environment();for(const id of ['p','q'])await call(env,'/photos/'+id,'PUT',{id,name:id,src:'/photos/1060.jpg'});
+ const album=(await (await call(env,'/albums/a','PUT',{id:'a',title:'Manual',note:'',photoIds:['p']})).json()).item;
+ const derivative=(await (await call(env,'/photos/derived','PUT',{id:'derived',name:'Result',src:'/photos/1060.jpg',parentPhotoId:'p',kind:'generation'})).json()).item;
+ const collage=(await (await call(env,'/photos/collage','PUT',{id:'collage',name:'Collage',src:'/photos/1060.jpg',sourcePhotoIds:['p'],kind:'collage'})).json()).item;
+ await call(env,'/photos/trash','POST',{ids:['p']});
+ const renamed=await call(env,'/albums/a','PUT',{...album,title:'Renamed',photoIds:['p','q']});assert.equal(renamed.status,200,await renamed.clone().text());
+ assert.equal((await call(env,'/photos/derived','PUT',{...derivative,name:'Edited result'})).status,200);
+ assert.equal((await call(env,'/photos/collage','PUT',{...collage,name:'Edited collage'})).status,200);
+ assert.equal((await call(env,'/albums/new','PUT',{id:'new',title:'New',note:'',photoIds:['p']})).status,400);
+ assert.equal((await call(env,'/photos/new-result','PUT',{id:'new-result',name:'New',src:'/photos/1060.jpg',parentPhotoId:'p',kind:'generation'})).status,400);
+});

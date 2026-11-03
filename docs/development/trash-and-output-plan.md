@@ -16,3 +16,13 @@ User acceptance: retain the reviewed paper-cut appearance; add photo deletion; o
 ## Rulings
 - Reuse existing checkout on a feature branch and existing architecture; user has approved the feature behavior. Additional design approval menus would repeat authorization.
 - Trash retains bytes indefinitely. It will not reclaim storage until a separately authorized retention policy exists.
+
+## Final review and verification
+- Fresh read-only whole-branch review of a08269d..eb18072 found four Important issues and no Critical/Minor issues.
+- Fixed batch button event arguments: browser RED (Select1–100 error) → GREEN (Trash/Restore success).
+- Fixed retained album/derivative/collage relations: API regression RED400 → GREEN200; newly added trash references still rejected.
+- Fixed enqueue/Trash interleaving using whole-batch active-source guards in D1 transaction; retired inactive queued tasks before claiming. Analysis/edit interleaving and claim tests RED→GREEN.
+- Fixed static-demo month/recent membership through tested monthGroups and active-only recentGroups. RED→GREEN.
+- Whole suite74/74, typecheck, static-demo and Sites builds pass after the fix pass. No second reviewer needed.
+- Final Ruling: website-to-Codex remains a separate pending integration, not part of this branch — execution location is not yet authorized after the user's clarification request — cost: subscription generation cannot yet be triggered from the website.
+- Final Ruling: live provider/accounting claims are based on the separately observed trial, not the reviewer's local tests — reviewer ran no provider calls — cost: remaining allowance and always-on operation remain unverified.

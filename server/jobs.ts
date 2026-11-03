@@ -5,6 +5,7 @@ import {analyze,AnalysisError,RULE_VERSION} from './ai/nvidia.ts';
 import {models,refreshModels} from './ai/catalog.ts';
 import {claimEdit,createEditJobs,presentEdit} from './edit-jobs.ts';
 import {executorOwner} from './executor-auth.ts';
+import {cancelInactiveJobs} from './trash.ts';
 type JobRow={id:string;owner_id:string;photo_id:string;kind:string;input:string;model_id:string;state:string;result:string|null;error_code:string|null;lease_token:string|null;lease_until:number|null;attempts:number;};
 function present(row:JobRow){return row.kind==='edit'?presentEdit(row):{id:row.id,photoId:row.photo_id,kind:'analyze',state:row.state,result:row.result?JSON.parse(row.result):null,errorCode:row.error_code};}
 
@@ -38,11 +39,12 @@ export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):P
   if(previous.length===rows.length&&previous.every(job=>job.state!=='cancelled'))return json({jobs:previous.map(present)},202);
   let catalog=await models(env,user.userId);if(!catalog.checkedAt)catalog=await refreshModels(env,user.userId);
   const modelId=catalog.selectedModelId;if(!modelId)fail(503,'No compatible NVIDIA model is available. Refresh models before retrying.');
-  const now=Date.now(),statements=[];
-  for(const photo of rows)statements.push(env.DB.prepare("UPDATE jobs SET input=?,model_id=?,state='queued',attempts=0,next_run_at=?,lease_token=NULL,lease_until=NULL,result=NULL,error_code=NULL,updated_at=? WHERE owner_id=? AND work_key=? AND kind='analyze' AND state='cancelled'").bind(JSON.stringify(photo.input),modelId,now,now,user.userId,[photo.id,photo.input.originalSrc,RULE_VERSION].join('|')));
-  for(const photo of rows)statements.push(env.DB.prepare("INSERT OR IGNORE INTO jobs (id,owner_id,work_key,kind,photo_id,input,model_id,state,next_run_at,created_at,updated_at) VALUES (?,?,?,'analyze',?,?,?,'queued',?,?,?)").bind(crypto.randomUUID(),user.userId,[photo.id,photo.input.originalSrc,RULE_VERSION].join('|'),photo.id,JSON.stringify(photo.input),modelId,now,now,now));
+  const now=Date.now(),statements=[],active=`(SELECT count(*) FROM photos WHERE owner_id=? AND deleted_at IS NULL AND id IN (${ids.map(()=>'?').join(',')}))=?`,activeArgs=[user.userId,...ids,ids.length];
+  for(const photo of rows)statements.push(env.DB.prepare(`UPDATE jobs SET input=?,model_id=?,state='queued',attempts=0,next_run_at=?,lease_token=NULL,lease_until=NULL,result=NULL,error_code=NULL,updated_at=? WHERE owner_id=? AND work_key=? AND kind='analyze' AND state='cancelled' AND ${active}`).bind(JSON.stringify(photo.input),modelId,now,now,user.userId,[photo.id,photo.input.originalSrc,RULE_VERSION].join('|'),...activeArgs));
+  for(const photo of rows)statements.push(env.DB.prepare(`INSERT OR IGNORE INTO jobs (id,owner_id,work_key,kind,photo_id,input,model_id,state,next_run_at,created_at,updated_at) SELECT ?,?,?,'analyze',?,?,?,'queued',?,?,? WHERE ${active}`).bind(crypto.randomUUID(),user.userId,[photo.id,photo.input.originalSrc,RULE_VERSION].join('|'),photo.id,JSON.stringify(photo.input),modelId,now,now,now,...activeArgs));
   await env.DB.batch(statements);
   const selected=await env.DB.prepare(`SELECT * FROM jobs WHERE owner_id=? AND work_key IN (${rows.map(()=>'?').join(',')})`).bind(user.userId,...rows.map(p=>[p.id,p.input.originalSrc,RULE_VERSION].join('|'))).all<JobRow>();
+  if(selected.results.length!==rows.length||selected.results.some(job=>job.state==='cancelled'))fail(409,'A source photo was moved to Trash. Reload before retrying.');
   return json({jobs:selected.results.map(present)},202);
 }
 
@@ -75,6 +77,7 @@ async function inputBytes(env:GalleryEnv,job:JobRow){
 
 /** One bounded step per tick. An expired execution cannot commit after another claim. */
 async function runDue(env:GalleryEnv,ownerId:string){
+  await cancelInactiveJobs(env,ownerId,'analyze');
   const now=Date.now(),token=crypto.randomUUID();
   await env.DB.prepare("UPDATE jobs SET state='failed',error_code='RETRY_EXHAUSTED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE owner_id=? AND kind='analyze' AND state='running' AND lease_until<=? AND attempts>=3").bind(now,ownerId,now).run();
   const job=await env.DB.prepare("UPDATE jobs SET state='running',lease_token=?,lease_until=?,attempts=attempts+1,updated_at=? WHERE id=(SELECT id FROM jobs WHERE owner_id=? AND kind='analyze' AND attempts<3 AND ((state='queued' AND next_run_at<=?) OR (state='running' AND lease_until<=?)) ORDER BY next_run_at,created_at LIMIT 1) RETURNING *").bind(token,now+60000,now,ownerId,now,now).first<JobRow>();

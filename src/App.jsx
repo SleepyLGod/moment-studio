@@ -11,7 +11,7 @@ import {renderStyle} from './imaging';
 import {changePhotoScope,mergePhotos} from './services/operations';
 import {createCloudLibrary} from './services/cloud';
 import {editSignature} from './services/output-size';
-import {calendarDay,photoDay,recentGroups} from './services/organization';
+import {calendarDay,recentGroups,monthGroups} from './services/organization';
 
 export default function App({mode="demo"}) {
   const cloud=mode==='cloud';
@@ -74,7 +74,7 @@ export default function App({mode="demo"}) {
         if(tab==='months'){
           let page;
           if(cloud)page=await client.months(filter);
-          else{const counts=new Map();for(const photo of stateRef.current.photos){if(filter!=='all'&&photo.category!==filter)continue;const key=photoDay(photo).slice(0,7);if(!counts.has(key))counts.set(key,{month:key,count:0,coverId:photo.id});counts.get(key).count++;}page={months:[...counts.values()].sort((a,b)=>b.month.localeCompare(a.month)),nextCursor:null};}
+          else page={months:monthGroups(stateRef.current.photos,filter),nextCursor:null};
           const missing=cloud?await client.resolve(page.months.map(m=>m.coverId).filter(id=>!stateRef.current.photos.some(p=>p.id===id))):[];
           if(!live)return;change(s=>({...s,photos:mergePhotos(s.photos,missing)}));setMonthRows(page.months);setMonthCursor(page.nextCursor);
         }else{

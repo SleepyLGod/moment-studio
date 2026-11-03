@@ -94,3 +94,16 @@ test('original resolution is preserved as requested or rejected, never automatic
  assert.equal((await api(env,'/jobs','POST',{...command,photoIds:['large'],output:{mode:'original'}})).status,400);
  assert.equal(env.sql.prepare('SELECT count(*) AS n FROM jobs').get().n,0);
 });
+
+test('trash between source validation and queue insertion cannot enqueue or claim an edit batch',async()=>{
+ const env=await setup();await api(env,'/photos/second','PUT',{id:'second',name:'Second',src:'/photos/1067.jpg'});
+ const batch=env.DB.batch;env.DB.batch=async statements=>{env.DB.batch=batch;await api(env,'/photos/trash','POST',{ids:['coffee']});return batch(statements);};
+ const created=await api(env,'/jobs','POST',{...command,photoIds:['coffee','second']});assert.equal(created.status,409,await created.clone().text());
+ assert.equal(env.sql.prepare('SELECT count(*) AS n FROM jobs').get().n,0,'batch must not partially enqueue');
+ assert.equal((await (await api(env,'/internal/jobs/run','POST',{},null,runner)).json()).editTask,undefined);
+});
+
+test('claim never executes a queued row whose source is now trashed',async()=>{
+ const env=await setup();await api(env,'/jobs','POST',command);await api(env,'/photos/trash','POST',{ids:['coffee']});env.sql.prepare("UPDATE jobs SET state='queued'").run();
+ assert.equal((await (await api(env,'/internal/jobs/run','POST',{},null,runner)).json()).editTask,undefined);assert.equal(env.sql.prepare('SELECT state FROM jobs').get().state,'cancelled');
+});

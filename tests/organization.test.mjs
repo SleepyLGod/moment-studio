@@ -76,3 +76,10 @@ test('timeline migration backfills old photos without rewriting their metadata o
   assert.equal(sql.prepare('SELECT timeline_day FROM photos WHERE id=?').get('invalid').timeline_day,'2026-11-04');
   assert.equal(sql.prepare('SELECT date_source FROM photos WHERE id=?').get('file').date_source,'file-modified');
 });
+
+test('demo months and recent groups ignore trashed photos and recover them on restore',async()=>{
+ const {monthGroups,recentGroups}=await import('../src/services/organization.js');
+ const items=[{id:'a',date:'2026-11-03',category:'旅行'},{id:'b',date:'2026-11-03',category:'旅行',trashedAt:1},{id:'c',date:'2026-10-01',trashedAt:1}];
+ assert.deepEqual(monthGroups(items,'all').map(m=>[m.month,m.count]),[['2026-11',1]]);assert.deepEqual(recentGroups(items,'2026-11-03'),[]);
+ const restored=items.map(p=>({...p,trashedAt:null}));assert.equal(monthGroups(restored,'旅行')[0].count,2);assert.deepEqual(recentGroups(restored,'2026-11-03')[0].photoIds,['a','b']);
+});

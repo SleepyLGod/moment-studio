@@ -16,7 +16,7 @@ const MAX_FILE = 12 * 1024 * 1024;
 const MIME = new Set(['image/jpeg','image/png','image/webp','image/heic']);
 const TABLES = new Set(['photos','albums','styles']);
 async function fileRow(env:GalleryEnv,user:string,id:string){return env.DB.prepare('SELECT * FROM files WHERE id=? AND owner_id=?').bind(id,user).first<FileRow>();}
-async function record(env:GalleryEnv,table:string,user:string,id:string){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?${table==='photos'?' AND deleted_at IS NULL':''}`).bind(id,user).first<DataRow>();}
+async function record(env:GalleryEnv,table:string,user:string,id:string,includeTrash=false){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?${table==='photos'&&!includeTrash?' AND deleted_at IS NULL':''}`).bind(id,user).first<DataRow>();}
 function item(row:DataRow){return presentPhoto(row);}
 async function authorize(env:GalleryEnv,user:Identity|null){
   if(!user?.userId||!user.email)fail(401,'Sign in to open your library.');
@@ -36,7 +36,8 @@ async function validateSource(env:GalleryEnv,user:string,src:unknown){
   if(!match)fail(400,'Use an uploaded image or a bundled sample.');
   const row=await fileRow(env,user,match[1]);if(!row||row.status!=='ready')fail(400,'Image upload is not complete.');
 }
-async function validateRecord(env:GalleryEnv,table:string,user:string,data:RecordData){
+async function validateRecord(env:GalleryEnv,table:string,user:string,data:RecordData,existing:DataRow|null){
+  const retained=existing?JSON.parse(existing.data):null;
   // Prevent accidental base64 blobs or arbitrary external URLs in persistent metadata.
   const raw=JSON.stringify(data);if(raw.length>48*1024||/"(?:src|renderedSrc|generationSrc|thumbnailSrc|cover)":"(?:data:|blob:)/.test(raw))fail(400,'Upload image files separately from metadata.');
   if(table==='photos'){
@@ -50,13 +51,13 @@ async function validateRecord(env:GalleryEnv,table:string,user:string,data:Recor
       const preview=previewId?await fileRow(env,user,previewId):null;
       if(data.originalMime!=='image/heic'||!preview||preview.status!=='ready'||preview.purpose!=='preview'||preview.mime==='image/heic')fail(400,'A HEIC photo requires its web-compatible preview.');
     }
-    if(data.parentPhotoId&&!await record(env,'photos',user,identifier(data.parentPhotoId)))fail(400,'Original photo was not found.');
-    if(data.sourcePhotoIds){if(!Array.isArray(data.sourcePhotoIds)||data.sourcePhotoIds.length>20)fail(400,'Invalid collage sources.');for(const id of data.sourcePhotoIds)if(!await record(env,'photos',user,identifier(id)))fail(400,'A collage source was not found.');}
+    if(data.parentPhotoId&&!await record(env,'photos',user,identifier(data.parentPhotoId),retained?.parentPhotoId===data.parentPhotoId))fail(400,'Original photo was not found.');
+    if(data.sourcePhotoIds){if(!Array.isArray(data.sourcePhotoIds)||data.sourcePhotoIds.length>20)fail(400,'Invalid collage sources.');for(const id of data.sourcePhotoIds)if(!await record(env,'photos',user,identifier(id),retained?.sourcePhotoIds?.includes(id)))fail(400,'A collage source was not found.');}
     if(data.recipe?.reference?.src)await validateSource(env,user,data.recipe.reference.src);
   }else if(table==='albums'){
     if(typeof data.title!=='string'||!data.title.trim()||data.title.length>48||typeof data.note!=='string'||data.note.length>400)fail(400,'Invalid album title or note.');
     if(!Array.isArray(data.photoIds)||data.photoIds.length>500||new Set(data.photoIds).size!==data.photoIds.length)fail(400,'Invalid album selection.');
-    for(const id of data.photoIds)if(!await record(env,'photos',user,identifier(id)))fail(400,'An album photo was not found.');
+    for(const id of data.photoIds)if(!await record(env,'photos',user,identifier(id),retained?.photoIds?.includes(id)))fail(400,'An album photo was not found.');
   }else{
     if(typeof data.name!=='string'||!data.name.trim()||data.name.length>40||typeof data.prompt!=='string'||!data.prompt.trim()||data.prompt.length>8000)fail(400,'A style name and prompt are required.');
     if(data.reference?.src)await validateSource(env,user,data.reference.src);
@@ -153,7 +154,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       if(method==='GET'){if(!existing)fail(404,'Record not found.');return json({item:item(existing)});}
       if(method==='PUT'){
         const scope=table==='photos'?photoScope(user.userId,url.searchParams.get('category'),url.searchParams.get('month')):null;
-        const data=await body(request);if(data.id!==id)fail(400,'Record ID does not match.');await validateRecord(env,table,user.userId,data);
+        const data=await body(request);if(data.id!==id)fail(400,'Record ID does not match.');await validateRecord(env,table,user.userId,data,existing);
         if(existing&&table==='photos'&&data.src!==JSON.parse(existing.data).src)fail(409,'The original image cannot be replaced.');
         const {trashedAt:ignoredTrash,revision:ignored,_order:ignoredOrder,timelineDay:ignoredDay,dateSource:ignoredSource,...values}=data;const now=Date.now(),raw=JSON.stringify(values),date=timeline(data,existing?.created_at||now);
         if(existing&&existing.data!==raw&&data.revision!==existing.revision)fail(409,'This item changed in another session. Reload before saving.');

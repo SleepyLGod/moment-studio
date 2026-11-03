@@ -11,3 +11,8 @@ export async function handleTrash(request:Request,env:GalleryEnv,user:Identity):
  const statements=[photo];if(trash)statements.push(env.DB.prepare(`UPDATE jobs SET state='cancelled',error_code='PHOTO_TRASHED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE owner_id=? AND photo_id IN (${slots}) AND state IN ('queued','running','unknown')`).bind(now,user.userId,...ids));
  await env.DB.batch(statements);return json({ids,trashed:trash});
 }
+
+/** Retire stale queued rows before claiming; Trash itself cancels current rows atomically. */
+export async function cancelInactiveJobs(env:GalleryEnv,owner:string,kind:'edit'|'analyze'){
+ await env.DB.prepare("UPDATE jobs SET state='cancelled',error_code='PHOTO_TRASHED',lease_token=NULL,lease_until=NULL,updated_at=? WHERE owner_id=? AND kind=? AND state IN ('queued','running','unknown') AND NOT EXISTS(SELECT 1 FROM photos WHERE photos.id=jobs.photo_id AND photos.owner_id=jobs.owner_id AND deleted_at IS NULL)").bind(Date.now(),owner,kind).run();
+}

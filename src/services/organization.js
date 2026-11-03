@@ -17,10 +17,16 @@ export function dayOffset(day,offset){return new Date(Date.parse(day+'T00:00:00Z
 export function photoDay(photo){return photo.timelineDay||timeline(photo,photo._order||photo.createdAt||Date.now()).day;}
 export function monthTitle(month){return new Intl.DateTimeFormat('en',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(month+'-01T00:00:00Z'));}
 
+/** Static-demo month index follows the same active-photo rule as cloud queries. */
+export function monthGroups(photos,category='all'){
+  const counts=new Map();for(const photo of photos){if(photo.trashedAt||(category!=='all'&&photo.category!==category))continue;const month=photoDay(photo).slice(0,7);if(!counts.has(month))counts.set(month,{month,count:0,coverId:photo.id});counts.get(month).count++;}
+  return [...counts.values()].sort((a,b)=>b.month.localeCompare(a.month));
+}
+
 /** Derived recent views: no image copies, inference requests or album writes. */
 export function recentGroups(photos,today=calendarDay(Date.now())){
   const from=dayOffset(today,-29),days=new Map();
-  for(const photo of photos){const day=photoDay(photo);if((photo.kind||'photo')!=='photo'||!day||day<from||day>today)continue;if(!days.has(day))days.set(day,[]);days.get(day).push(photo);}
+  for(const photo of photos){const day=photoDay(photo);if(photo.trashedAt||(photo.kind||'photo')!=='photo'||!day||day<from||day>today)continue;if(!days.has(day))days.set(day,[]);days.get(day).push(photo);}
   const groups=[];
   for(const [day,items] of [...days].sort(([a],[b])=>b.localeCompare(a))){
     items.sort((a,b)=>a.id.localeCompare(b.id));
