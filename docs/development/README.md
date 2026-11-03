@@ -39,3 +39,5 @@ node scripts/verify-nvidia.mjs --infer --sample city --preferred nvidia/nemotron
 - [大图、原图比例、NVIDIA完整目录与ChatGPT订阅接入复核](model-capabilities-and-resolution.md)：尺寸实测、NVIDIA目录，以及外部OAuth与原生Codex订阅能力的区别。
 
 - [回收站、显式输出尺寸与订阅能力验证](trash-output-and-subscription.md)：恢复边界、Original/Custom、原生Codex真实改图与尚未接通的网站执行端。
+
+- [OpenAI subscription cloud round-trip proof](openai-cloud-proof.md): isolated public sample, Site MCP boundary, acceptance criteria and unverified automatic trigger.

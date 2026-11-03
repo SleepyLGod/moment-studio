@@ -1,3 +1,4 @@
+import {digest,jpegDimensions} from './image-integrity.ts';
 import type {GalleryEnv,Identity} from './api.ts';
 import {body,boundedBytes,fail,identifier,json} from './http.ts';
 import {executorOwner} from './executor-auth.ts';
@@ -9,16 +10,7 @@ export const EDIT_MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 type EditRow={id:string;owner_id:string;photo_id:string;input:string;state:string;result:string|null;error_code:string|null;lease_token:string|null;lease_until:number|null;};
 const enabled=(env:GalleryEnv)=>env.MOMENT_IMAGE_EDIT_ENABLED==='true'&&env.MOMENT_BACKGROUND_ENABLED==='true'&&Boolean(env.MOMENT_EXECUTOR_KEY);
 export function presentEdit(row:EditRow){const input=JSON.parse(row.input),outputChoice=input.outputChoice||{mode:'custom',width:512,height:512};return {id:row.id,photoId:row.photo_id,kind:'edit',state:row.state,result:row.result?JSON.parse(row.result):null,errorCode:row.error_code,recipe:input.recipe,recipeSignature:editSignature(input.recipe,outputChoice),outputChoice,output:input.output||{width:512,height:512}};}
-async function digest(bytes:Uint8Array){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new Uint8Array(bytes).buffer))].map(n=>n.toString(16).padStart(2,'0')).join('');}
 function base64(bytes:Uint8Array){let value='';for(let i=0;i<bytes.length;i+=8192)value+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(value);}
-function jpegDimensions(bytes:Uint8Array){
-  if(bytes.length<12||bytes[0]!==255||bytes[1]!==216||bytes.at(-2)!==255||bytes.at(-1)!==217)return null;
-  const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);let offset=2;
-  while(offset+4<bytes.length){if(bytes[offset++]!==255)return null;while(bytes[offset]===255)offset++;const marker=bytes[offset++];if(marker===218||marker===217)return null;
-    const length=view.getUint16(offset);if(length<2||offset+length>bytes.length)return null;
-    if([192,193,194].includes(marker)&&length>=8)return {height:view.getUint16(offset+3),width:view.getUint16(offset+5)};offset+=length;
-  }return null;
-}
 async function imageInput(env:GalleryEnv,owner:string,src:string){
   const id=/^\/api\/files\/([a-zA-Z0-9_-]{1,100})$/.exec(src)?.[1];
   if(id){const row=await env.DB.prepare("SELECT object_key,mime,size FROM files WHERE id=? AND owner_id=? AND status='ready'").bind(id,owner).first<{object_key:string;mime:string;size:number}>();

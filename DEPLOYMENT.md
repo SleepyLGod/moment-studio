@@ -50,3 +50,7 @@ Code-version rollback does not restore database or uploaded files. Before a real
 ## Cloud image editing
 
 Deploy the own-account executor with its AI binding and existing encrypted secrets, then set `MOMENT_IMAGE_EDIT_ENABLED=true` on the private Site and publish the matching version. Keep the account on Workers Free; do not activate Paid. See [image editing](docs/development/cloudflare-style-edit.md). No schema migration is needed. Static demo builds remain sample-only.
+
+## OpenAI subscription cloud proof
+
+The private Site declares `mcp` and exposes only public-sample proof tools. Publishing provisions its private Sites plugin; connect that plugin in the OpenAI cloud task. `/cloud-proof` is an isolated validation page. No API key, Mac runner, new external host, or executor configuration change is required for this experiment. See [scope and acceptance](docs/development/openai-cloud-proof.md). Automatic website task triggering is still unverified.

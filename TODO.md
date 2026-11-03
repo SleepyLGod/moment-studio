@@ -37,3 +37,5 @@ No real photo library or second source repository is required. Hosted analysis u
 - [ ] Simple Connections / Models / Output settings, free-only selection and last-success preference.
 - [ ] Broader provider capability registry and bounded public-sample validation, without treating every catalog model as already integrated.
 - [ ] ChatGPT subscription-only OAuth eligibility for text/vision tasks; image generation currently unsupported by the documented subscription-sharing route. No OpenAI paid API or API-credit route.
+
+- Verify public-sample OpenAI subscription cloud round trip; only then evaluate automatic hosted triggering and broader Style Lab integration. Do not treat manual test-task kickoff as an automatic website trigger.

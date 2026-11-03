@@ -7,6 +7,7 @@ import {timeline} from '../src/services/organization.js';
 import {photoMime} from '../src/services/photo-format.js';
 import {handleTrash} from './trash.ts';
 import {finishEditJob} from './edit-jobs.ts';
+import {handleCloudProof} from './cloud-proof.ts';
 export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; MOMENT_IMAGE_EDIT_ENABLED?:string; ASSETS?: Fetcher; }
 export interface Identity { userId: string; email: string; }
 type RecordData = Record<string, any>;
@@ -18,7 +19,7 @@ const TABLES = new Set(['photos','albums','styles']);
 async function fileRow(env:GalleryEnv,user:string,id:string){return env.DB.prepare('SELECT * FROM files WHERE id=? AND owner_id=?').bind(id,user).first<FileRow>();}
 async function record(env:GalleryEnv,table:string,user:string,id:string,includeTrash=false){return env.DB.prepare(`SELECT * FROM ${table} WHERE id=? AND owner_id=?${table==='photos'&&!includeTrash?' AND deleted_at IS NULL':''}`).bind(id,user).first<DataRow>();}
 function item(row:DataRow){return presentPhoto(row);}
-async function authorize(env:GalleryEnv,user:Identity|null){
+export async function authorize(env:GalleryEnv,user:Identity|null){
   if(!user?.userId||!user.email)fail(401,'Sign in to open your library.');
   if(!env.DB||!env.BUCKET)fail(503,'Cloud storage is not configured.');
   let owner=await env.DB.prepare('SELECT user_id FROM library_owner WHERE id=1').first<{user_id:string}>();
@@ -75,6 +76,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       const origin=request.headers.get('origin');if(origin&&origin!==url.origin)fail(403,'Cross-origin writes are not allowed.');
     }
     const modelResponse=await handleModels(request,env,user.userId);if(modelResponse)return modelResponse;
+    const proofResponse=await handleCloudProof(request,env,user.userId);if(proofResponse)return proofResponse;
     const collectionResponse=await handleLibraryViews(request,env,user.userId);if(collectionResponse)return collectionResponse;
     const jobResponse=await handleJobs(request,env,user);if(jobResponse)return jobResponse;
     if(path[0]==='me'&&method==='GET'){
