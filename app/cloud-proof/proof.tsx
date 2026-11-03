@@ -12,7 +12,7 @@ export default function CloudProof(){
   return <main style={{maxWidth:1080,margin:'64px auto',padding:'0 28px'}}>
     <a href="/">← Library</a><h1 style={{marginTop:32}}>OpenAI cloud proof</h1>
     <p>One public coffee sample. Native subscription image editing. Saved back to this private library.</p>
-    <p><strong>{!loaded?'Loading…':job?.state||'Ready'}</strong> · {connected?'OpenAI cloud connected':'Cloud listener not connected'}</p>
+    <p><strong>{!loaded?'Loading…':job?.state||(connected?'Ready':'Not connected')}</strong> · {connected?'OpenAI cloud connected':'Cloud listener not connected'}</p>
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))',gap:24,margin:'28px 0'}}>
       <figure style={{margin:0}}><img src="/photos/1060.jpg" alt="Original public coffee sample" style={imageStyle}/><figcaption>Original · public sample</figcaption></figure>
       <figure style={{margin:0}}>{job?.result?<img src={job.result.src} alt="OpenAI cloud edited coffee result" style={imageStyle}/>:<div style={{...imageStyle,display:'grid',placeItems:'center'}}>Awaiting cloud result</div>}<figcaption>Layered paper · OpenAI subscription</figcaption></figure>

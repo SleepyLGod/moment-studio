@@ -39,3 +39,5 @@ No real photo library or second source repository is required. Hosted analysis u
 - [x] OpenAI cloud native subscription image editing and private Sites MCP result saving: public-sample round trip verified. This does not use the separate third-party subscription-sharing OAuth route or a paid API.
 
 - Public-sample OpenAI subscription cloud round trip verified (see docs/development/openai-cloud-proof.md). Next: implement and validate automatic hosted triggering before broader Style Lab integration. Do not treat manual test-task kickoff as an automatic website trigger.
+
+- [ ] Unblock the official OpenAI webhook-only task creation contract/service errors; then verify `/cloud-proof` from a real website click through unattended generation and result download. MCP event source discovery and 80 local tests pass; hosted listener creation and the automatic run remain unverified. See docs/development/openai-event-trigger.md.

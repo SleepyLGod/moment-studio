@@ -1,0 +1,33 @@
+{
+  "status": "blocked_before_website_end_to_end_acceptance",
+  "dateTimezone": "2026-11-04 Asia/Hong_Kong",
+  "site": "https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site",
+  "projectId": "appgprj_6ae83417d6b88191a4873a4bffafe1d4",
+  "applicationCommit": "5181fb7946710b7cb1301f79aab2d1f67cbab087",
+  "siteVersion": 19,
+  "deploymentId": "appgdep_6aea0623060881919a4e2dda2352c36a",
+  "sourceConnectorId": "asdk_app_sites_b9b46a1a49788191878618b24fcd671b",
+  "event": "public_sample.queued",
+  "verificationChat": "https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87",
+  "localChecks": {"testsPassed":80,"types":"passed","demoBuild":"passed","fullstackBuild":"passed","localMigration0007":"applied"},
+  "directBrowserObservations": {"pluginTools":5,"pluginEventDiscovered":true,"proofButtonDisabledWithoutListener":true,"noMomentTaskInTaskManagementUi":true,"taskFormOnlyExposesClockScheduling":true},
+  "reportedByOpenaiCloudVerificationChat": {
+    "nativeSubscriptionImageToolAvailable":true,
+    "cloudFilesAndChecksumAvailable":true,
+    "eventDiscoverySucceeded":true,
+    "creationAttempts":[
+      {"count":2,"schedule":"","timing_mode":"condition_watch","outcome":"nested ERROR: The task service returned an unexpected error","downstreamReasonProvided":false},
+      {"count":1,"scheduleOmitted":true,"timingModeOmitted":true,"outcome":"InvalidActionArgumentsError: Missing required tool arguments: timing_mode","stage":"argument_binding"},
+      {"count":1,"scheduleOmitted":true,"timing_mode":"condition_watch","outcome":"nested ERROR: Missing required tool arguments: schedule"}
+    ],
+    "momentTaskSaved":false,
+    "momentDuplicatesFound":false,
+    "taskIdReturned":null,
+    "connection":{"ready":false,"expiresAt":null}
+  },
+  "independentNativeReadbacks":{"newEventProofJob":null,"manualAlbumCount":3,"allManualAlbumRowsExactlyUnchanged":true,"albumProjectionTruncated":false},
+  "newAutomaticProofProcessing":{"claim":false,"imageInference":false,"resultSaved":false},
+  "notVerified":["Hosted callback verification","Webhook event delivery","Automatic image execution after website click","Result download for a newly event-triggered job"],
+  "boundaries":{"macRunner":false,"additionalCloudService":false,"paidOpenaiApi":false,"manualAlbumChanges":false,"manualGenerationSubstitutedForAutomaticRun":false,"timedPollerCreated":false,"privateBackendEndpointCalled":false},
+  "resume":"Create the official webhook-only listener after the creation contract/service issue is resolved; require connection readiness, then click the actual website button and validate generated-file persistence and bytes."
+}

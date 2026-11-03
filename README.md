@@ -39,3 +39,5 @@ EXIF capture dates drive monthly organization. Unknown camera timezones stay exp
 [Asset notes](docs/ASSETS.md) document the bundled example photos, generated samples and font license. The screenshots above are illustrative, not evidence of a hosted persistence test.
 
 The isolated [OpenAI subscription cloud proof](docs/development/openai-cloud-proof.md) has completed a public-sample cloud round trip into private D1/R2 storage. View `/cloud-proof` on the private Site. This is an explicitly started validation task; automatic website task triggering and production Style Lab integration remain separate work.
+
+The [website event-trigger experiment](docs/development/openai-event-trigger.md) is deployed but **not accepted end to end**: official OpenAI task creation currently returns timing-field contract/service errors. The button remains disabled without a verified listener. No Mac runner, polling substitute or paid API was added.

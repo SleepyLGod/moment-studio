@@ -52,3 +52,21 @@ Hosted acceptance remains pending until the actual plugin discovers the event, O
 - [Official MCP Events implementation and lifecycle](https://developers.openai.com/plugins/build/mcp-events)
 - [Native subscription image generation](https://learn.chatgpt.com/docs/image-generation)
 - [Earlier explicitly started cloud round trip](openai-cloud-proof.md)
+
+## Hosted outcome — 2026-11-04 (Hong Kong)
+
+**Not end-to-end accepted.** Site v19 (`5181fb7`) is published owner-private, and the official plugin UI discovers all five tools plus `public_sample.queued`. A normal OpenAI Work Cloud capability check confirmed native image editing and cloud file/checksum tools. However, the official event-task creation interface did not establish a listener.
+
+The Work Cloud verification chat reports these concrete creation outcomes:
+
+1. Two attempts using the exposed declaration's `schedule: ""`, `timing_mode: "condition_watch"` and the exact discovered trigger returned the nested error `The task service returned an unexpected error`. The outer wrapper's `isError: false` was not treated as success.
+2. Fresh event discovery says not to provide a schedule, and part of the create description says to omit both timing fields. One controlled attempt omitting both failed at argument binding: `InvalidActionArgumentsError: Missing required tool arguments: timing_mode`.
+3. Supplying the required `timing_mode` while still omitting `schedule` then returned `Missing required tool arguments: schedule`.
+
+After every failed creation, the verification chat checked the native task list and the Site's connection tool: no Moment task ID, no duplicate Moment task, and `{"ready":false,"expiresAt":null}`. The normal task-management UI also showed no Moment task; its available creation form exposed clock scheduling only. Existing unrelated tasks were untouched. There was no new queued public job, claim, inference or saved result in this automatic-trigger test. The older manually started successful proof remains a separate result.
+
+The verified blocker is the official creation tool's contradictory timing-field contract and its service errors. No downstream callback reason was returned. Added server diagnostics contain method/phase/origin only; absence of matching log entries is not proof that the downstream subscription was never attempted. Callback verification and event delivery remain unverified online.
+
+The website keeps **Generate public sample** disabled until a real listener is ready. We did not replace this with Mac execution, a timed poller, another cloud service, private endpoint calls, copied subscription credentials, a paid API, or manual generation presented as an event run. All three manual-album rows compare exactly with their pre-change state.
+
+[Evidence record](evidence/2026-11-04-openai-event-trigger.json) and [verification chat](https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87). After the official task interface can create a webhook-only listener, resume at subscription readiness, then perform one actual website click and cloud-output/download readback. Do not repeat the image-generation proof manually as a substitute.
