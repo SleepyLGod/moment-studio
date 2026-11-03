@@ -11,6 +11,7 @@ test('an owned analysis request is persisted as a job, with duplicate submission
   const env=environment();
   env.NVIDIA_API_KEY='test-only';env.MOMENT_EXECUTOR_KEY='test-executor-key';env.MOMENT_BACKGROUND_ENABLED='true';
   await handleApi(new Request('https://moment.test/api/me'),env,owner);
+  seedCatalog(env);
   const photo={id:'coffee',name:'Coffee',src:'/photos/1060.jpg',kind:'photo',category:'日常',style:'original'};
   assert.equal((await handleApi(new Request('https://moment.test/api/photos/coffee',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(photo)}),env,owner)).status,200);
   const first=await api(env,'/jobs',{kind:'analyze',photoIds:['coffee']});
@@ -34,12 +35,14 @@ async function uploadedJob(env){
   await api(env,'/uploads',{id:'original',name:'coffee.jpg',mime:'image/jpeg',size:jpeg.length,purpose:'original'});
   await handleApi(new Request('https://moment.test/api/uploads/original/body',{method:'PUT',body:jpeg}),env,owner);
   await api(env,'/uploads/original/complete',{});
+  seedCatalog(env);
   const photo={id:'coffee',name:'Coffee',src:'/api/files/original',kind:'photo',category:'日常',manualTags:['mine'],style:'original'};
   await handleApi(new Request('https://moment.test/api/photos/coffee',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(photo)}),env,owner);
   return (await (await api(env,'/jobs',{kind:'analyze',photoIds:['coffee']})).json()).jobs[0];
 }
 function run(env){return api(env,'/internal/jobs/run',{},null,{'x-moment-executor-key':'test-executor-key'});}
 const modelReply=()=>Response.json({choices:[{message:{content:JSON.stringify({tags:['咖啡','手冲'],caption:'手冲咖啡'})},finish_reason:'stop'}]});
+function seedCatalog(env){env.sql.prepare('UPDATE library_owner SET ai_state=? WHERE id=1').run(JSON.stringify({catalogIds:['nvidia/nemotron-3.5-super-vl-120b-a12b'],checkedAt:'2026-11-03T00:00:00Z'}));}
 
 test('the executor persists validated tags and task success together while preserving manual data and original bytes',{timeout:2500},async t=>{
   const env=environment(),job=await uploadedJob(env);let calls=0;const original=new Uint8Array(await (await handleApi(new Request('https://moment.test/api/files/original'),env,owner)).arrayBuffer());

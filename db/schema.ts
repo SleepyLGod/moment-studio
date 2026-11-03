@@ -3,6 +3,7 @@ import {sql} from 'drizzle-orm';
 
 export const owner = sqliteTable('library_owner', {
   id: integer('id').primaryKey(), userId: text('user_id').notNull(), initialized: integer('initialized').notNull().default(0),
+  aiState: text('ai_state').notNull().default('{}'),
 });
 export const files = sqliteTable('files', {
   id: text('id').primaryKey(), ownerId: text('owner_id').notNull(),

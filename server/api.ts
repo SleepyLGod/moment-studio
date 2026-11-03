@@ -1,6 +1,7 @@
 import {freshState,CATEGORIES} from '../src/data.js';
 import {ApiError,fail,json,identifier,body,boundedBytes,privateHeaders as headers} from './http.ts';
 import {handleJobs,runInternalJobs} from './jobs.ts';
+import {handleModels} from './ai/catalog.ts';
 export interface GalleryEnv { DB: D1Database; BUCKET: R2Bucket; NVIDIA_API_KEY?: string; MOMENT_EXECUTOR_KEY?: string; MOMENT_BACKGROUND_ENABLED?: string; ASSETS?: Fetcher; }
 export interface Identity { userId: string; email: string; }
 type RecordData = Record<string, any>;
@@ -66,6 +67,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
     if(!['GET','HEAD'].includes(method)){
       const origin=request.headers.get('origin');if(origin&&origin!==url.origin)fail(403,'Cross-origin writes are not allowed.');
     }
+    const modelResponse=await handleModels(request,env,user.userId);if(modelResponse)return modelResponse;
     const jobResponse=await handleJobs(request,env,user);if(jobResponse)return jobResponse;
     if(path[0]==='me'&&method==='GET'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();

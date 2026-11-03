@@ -13,6 +13,7 @@ const jpegData='data:image/jpeg;base64,'+jpg.toString('base64');
 function connect(t){
   const env=environment(),native=globalThis.fetch;let failAfter=null;
   globalThis.fetch=async(input,options={})=>{
+    if(String(input)==='https://integrate.api.nvidia.com/v1/models')return Response.json({object:'list',data:[{id:'nvidia/nemotron-3.5-super-vl-120b-a12b',object:'model'}]});
     if(String(input).startsWith('/api/')){
       const response=await handleApi(new Request('https://moment.test'+input,options),env,owner);
       if(failAfter?.(input,options,response)){failAfter=null;throw new TypeError('Response lost after commit');}return response;

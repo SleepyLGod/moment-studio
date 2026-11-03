@@ -29,6 +29,13 @@
       "when": 1793686352294,
       "tag": "0003_talented_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793693963076,
+      "tag": "0004_dazzling_pride",
+      "breakpoints": true
     }
   ]
 }
