@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-03",
+  "applicationCommit": "dab25b8d311663741281f9e24c277671998a9553",
+  "siteVersion": 15,
+  "deploymentId": "appgdep_6ae9e96e0cf0819191d7ca5e1112594c",
+  "executorVersion": "6b07918c-2f71-4d49-b80d-b26108030a8f",
+  "checks": {
+    "testsPassed": 74,
+    "typecheck": true,
+    "demoBuild": true,
+    "sitesBuild": true,
+    "sampleProvenance": true,
+    "freshReviewImportantFixed": 4
+  },
+  "trash": {
+    "publicPhotoId": "1060",
+    "observedLibraryCounts": [
+      23,
+      22,
+      23
+    ],
+    "trashedAtObserved": true,
+    "restoreObserved": true,
+    "photoDataUnchanged": true,
+    "manualAlbumRowsCompared": 3,
+    "manualAlbumRowsUnchanged": true,
+    "filesPermanentlyRemoved": 0
+  },
+  "edit": {
+    "sourcePhotoId": "1060",
+    "requested": {
+      "mode": "custom",
+      "width": 1440,
+      "height": 1120
+    },
+    "actual": {
+      "width": 1440,
+      "height": 1120,
+      "bytes": 790974,
+      "sha256": "f357ab8134afd2f377e0348a8053ea60ef89da2eeadd1d0a9c5f8e09c8f31536"
+    },
+    "jobId": "daf8ab15-021e-4c6a-b55b-feb204ff59b0",
+    "state": "succeeded",
+    "resultFilesAdded": 1,
+    "sourceBytesUnchanged": true,
+    "sourceSha256": "82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2",
+    "reloadPreserved": true,
+    "historyRestoredOutputChoice": true
+  },
+  "access": {
+    "identitylessPhotoList": 401,
+    "identitylessPrivateResult": 401,
+    "githubPrivate": true,
+    "siteOwnerOnly": true
+  },
+  "notVerified": [
+    "cloud enqueue/trash fault injection (local regression passed)",
+    "native Codex website execution",
+    "remaining subscription allowance",
+    "new per-call Cloudflare quota cost"
+  ],
+  "paidPlanEnabledByThisWork": false
+}

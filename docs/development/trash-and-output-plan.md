@@ -26,3 +26,8 @@ User acceptance: retain the reviewed paper-cut appearance; add photo deletion; o
 - Whole suite74/74, typecheck, static-demo and Sites builds pass after the fix pass. No second reviewer needed.
 - Final Ruling: website-to-Codex remains a separate pending integration, not part of this branch — execution location is not yet authorized after the user's clarification request — cost: subscription generation cannot yet be triggered from the website.
 - Final Ruling: live provider/accounting claims are based on the separately observed trial, not the reviewer's local tests — reviewer ran no provider calls — cost: remaining allowance and always-on operation remain unverified.
+
+## Publication
+- Main merged/pushed at dab25b8. Existing owner-private Sitev15 succeeded; existing Cron executor updated without adding routes or changing secrets.
+- Hosted public-coffee Trash/Restore,1440×1120 actual generation, source hash, reload/history, ownerless401 and three unchanged manual-album rows verified. Evidence: evidence/2026-11-03-trash-output-cloud.json.
+- Later documentation-only commits record acceptance; no application changes after dab25b8.
