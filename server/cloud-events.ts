@@ -7,7 +7,7 @@ export const publicEventDefinition={name:PUBLIC_EVENT,description:'The owner cli
 type Subscription={owner_id:string;id:string;callback_url:string;secret:string;previous_secret:string|null;rotate_until:number|null;expires_at:number;verified_at:number;active:number;};
 // This integration targets OpenAI only. No caller-selected hosts, subdomains,
 // IP literals, ports or redirects are accepted, including during verification.
-const CALLBACK_HOSTS=new Set(['chatgpt.com','chat.openai.com','api.openai.com']);
+const CALLBACK_HOSTS=new Set(['chatgpt.com','chat.openai.com','api.openai.com','connectors.api.openai.com']);
 const encoder=new TextEncoder();
 export class CallbackError extends Error {reason:string;origin?:string;constructor(reason:string,origin?:string){super('OpenAI callback verification failed.');this.reason=reason;this.origin=origin;}}
 function callbackUrl(value:unknown){
@@ -39,6 +39,9 @@ export async function eventConnection(env:GalleryEnv,owner:string){
 }
 /** Keep only the last non-secret setup outcome, independently of provider errors. */
 export async function recordEventSetup(env:GalleryEnv,owner:string,method:string,phase:'received'|'configured'|'failed',error?:unknown){
+  // A failed create may trigger unsubscribe cleanup. Preserve the subscribe
+  // outcome so cleanup cannot erase the actual setup failure.
+  if(method!=='events/subscribe')return;
   const value={at:Date.now(),method,phase,...(phase==='failed'?{reason:error instanceof CallbackError?error.reason:error instanceof ApiError?error.message:'internal_error',...(error instanceof CallbackError&&error.origin?{callbackOrigin:error.origin.slice(0,256)}:{})}:{})};
   await env.DB.prepare("UPDATE library_owner SET ai_state=json_set(ai_state,'$.eventSetup',json(?)) WHERE id=1 AND user_id=?").bind(JSON.stringify(value),owner).run();
 }

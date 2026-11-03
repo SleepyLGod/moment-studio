@@ -49,3 +49,11 @@ test('event source image is fixed and checksum-verified; no private photo select
  const result=(await rpc(env,'tools/call',{name:'public_sample_image',arguments:{}})).result;assert.equal(result.content[1].type,'image');assert.deepEqual(Buffer.from(result.content[1].data,'base64'),bytes);
  env.ASSETS={fetch:async()=>new Response('wrong')};assert.equal((await rpc(env,'tools/call',{name:'public_sample_image',arguments:{}})).result.isError,true);
 });
+test('observed OpenAI callback host is accepted, and cleanup preserves the subscribe outcome',async()=>{
+ const env=await setup(),observed={...params,delivery:{...params.delivery,url:'https://connectors.api.openai.com/public-test-callback'}};
+ await withFetch(async(url,options)=>{assert.equal(url,observed.delivery.url);verifySignature(options);return Response.json({challenge:JSON.parse(options.body).challenge});},async()=>{
+  assert.ok((await rpc(env,'events/subscribe',observed)).result?.id);
+  assert.deepEqual((await rpc(env,'events/unsubscribe',observed)).result,{});
+  const connection=JSON.parse((await rpc(env,'tools/call',{name:'public_cloud_connection',arguments:{}})).result.content[0].text);assert.equal(connection.ready,false);assert.equal(connection.setup.method,'events/subscribe');assert.equal(connection.setup.phase,'configured');
+ });
+});
