@@ -17,7 +17,7 @@ export function captureFields(tags={},lastModified){
 }
 export async function captureMetadata(input,lastModified){
   let tags;
-  try{tags=await exifr.parse(input,{pick:['DateTimeOriginal','OffsetTimeOriginal','Orientation','ExifImageWidth','ExifImageHeight','ImageWidth','ImageHeight'],reviveValues:false,translateValues:false,gps:false,xmp:false,icc:false,iptc:false,makerNote:false,userComment:false});}
+  try{tags=await exifr.parse(input,{pick:['DateTimeOriginal','OffsetTimeOriginal','Orientation','ExifImageWidth','ExifImageHeight','ImageWidth','ImageHeight'],silentErrors:false,reviveValues:false,translateValues:false,gps:false,xmp:false,icc:false,iptc:false,makerNote:false,userComment:false});}
   catch{return {...captureFields({},lastModified),metadataWarning:'Capture metadata could not be read; using file date.'};}
   return captureFields(tags||{},lastModified);
 }

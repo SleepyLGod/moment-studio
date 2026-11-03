@@ -14,6 +14,14 @@ test('missing capture date uses file date and preserves the real orientation',as
   const data=await captureMetadata(readFileSync(new URL('./fixtures/import/portrait-orientation-6.jpg',import.meta.url)),Date.parse('2026-11-03T18:00:00Z'));
   assert.equal(data.orientation,6);assert.equal(data.date,'2026-11-04');assert.equal(data.dateSource,'file-modified');assert.equal(data.capturedLocal,undefined);
 });
+test('a readable JPEG with corrupt EXIF reports metadata failure instead of silent file-date success',async()=>{
+  const {captureMetadata}=await import('../src/services/import-metadata.js');
+  const bytes=new Uint8Array(readFileSync(new URL('./fixtures/import/portrait-orientation-6.jpg',import.meta.url)));
+  bytes[34]=255; // TIFF IFD0 offset points outside this file; image bytes stay intact.
+  const data=await captureMetadata(bytes,Date.parse('2026-11-03T12:00:00Z'));
+  assert.equal(data.dateSource,'file-modified');assert.equal(data.capturedAt,undefined);
+  assert.equal(data.metadataWarning,'Capture metadata could not be read; using file date.');
+});
 test('EXIF offsets are validated, malformed time does not become capture success',async()=>{
   const {captureFields}=await import('../src/services/import-metadata.js');
   const modified=Date.parse('2026-11-03T12:00:00Z');
