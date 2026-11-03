@@ -18,6 +18,10 @@ export async function handleMcp(request:Request,env:GalleryEnv,identity:Identity
     const bytes=await boundedBytes(request.body,3*1024*1024),rpc=JSON.parse(new TextDecoder().decode(bytes));id=rpc.id??null;
     if(rpc.jsonrpc!=='2.0'||typeof rpc.method!=='string')throw new ApiError(400,'Invalid JSON-RPC request.');
     method=rpc.method;let result:unknown;
+    if(method.startsWith('events/')){
+      const target=rpc.params?.delivery?.url;
+      console.info(JSON.stringify({component:'moment-events',method,phase:'received',callbackOrigin:typeof target==='string'&&URL.canParse(target)?new URL(target).origin:undefined}));
+    }
     if(rpc.method==='server/discover')result={resultType:'complete',supportedVersions:['2026-07-28'],serverInfo:{name:'Moment public cloud proof',version:'1.1.0'},capabilities:{tools:{},events:{}}};
     else if(rpc.method==='initialize')result={protocolVersion:'2025-03-26',serverInfo:{name:'Moment public cloud proof',version:'1.1.0'},capabilities:{tools:{},events:{}}};
     else if(rpc.method==='notifications/initialized')return new Response(null,{status:202});
@@ -25,6 +29,7 @@ export async function handleMcp(request:Request,env:GalleryEnv,identity:Identity
     else if(rpc.method==='events/list')result={events:[publicEventDefinition]};
     else if(['events/subscribe','events/unsubscribe'].includes(rpc.method)){
       const user=await authorize(env,identity);result=await handleEventMethod(env,user.userId,rpc.method,rpc.params||{});
+      console.info(JSON.stringify({component:'moment-events',method,phase:'configured'}));
     }
     else if(rpc.method==='ping')result={};
     else if(rpc.method==='tools/call'){
@@ -40,6 +45,7 @@ export async function handleMcp(request:Request,env:GalleryEnv,identity:Identity
     }else return json({jsonrpc:'2.0',id,error:{code:-32601,message:'Method not found.'}});
     return json({jsonrpc:'2.0',id,result});
   }catch(error){
+    if(method.startsWith('events/'))console.error(JSON.stringify({component:'moment-events',method,phase:'failed',reason:error instanceof CallbackError?error.reason:error instanceof ApiError?error.message:'internal_error',...(error instanceof CallbackError&&error.origin?{callbackOrigin:error.origin}:{})}));
     if(error instanceof CallbackError)return json({jsonrpc:'2.0',id,error:{code:-32015,message:error.message,data:{reason:error.reason,...(error.origin?{origin:error.origin}:{})}}});
     const message=error instanceof ApiError?error.message:error instanceof SyntaxError?'Invalid JSON.':'Cloud proof request failed.';
     if(method.startsWith('events/'))return json({jsonrpc:'2.0',id,error:{code:-32602,message}});
