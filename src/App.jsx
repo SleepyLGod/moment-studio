@@ -135,7 +135,11 @@ export default function App({mode="demo"}) {
   const chosen=useMemo(()=>photos.filter(p=>selected.has(p.id)),[photos,selected]);
   const examples=useMemo(()=>{const found=['1015','1043','1011'].map(id=>photos.find(p=>p.id===id)).filter(Boolean);return found.length?found:photos.slice(0,3);},[photos]);
   const workPhotos=chosen.length?chosen:examples;
-  const labPhotos=chosen.length?chosen:['1015','1067','1060'].map(id=>photos.find(p=>p.id===id)).filter(Boolean);
+  const liveStyle = Boolean(client?.canGenerate());
+  const labPhotos = liveStyle
+    ? chosen.filter(photo => (photo.kind || 'photo') === 'photo')
+    : chosen.length ? chosen : ['1015','1067','1060'].map(id=>photos.find(p=>p.id===id)).filter(Boolean);
+  const liveStylePicker = pickerNext === 'lab' && liveStyle;
   useEffect(()=>{if(tab!=='trash')return;let live=true;setSelected(new Set());setSelecting(false);setTrashError('');
     (cloud?client.trashPage():Promise.resolve({items:stateRef.current.photos.filter(p=>p.trashedAt),nextCursor:null})).then(page=>{if(live){setTrashPhotos(page.items);setTrashCursor(page.nextCursor);}}).catch(error=>{if(live)setTrashError(error.message);});return ()=>{live=false;};},[tab,client,cloud]);
   function moreTrash(){return execute(async()=>{const page=await client.trashPage(trashCursor);setTrashPhotos(current=>mergePhotos(current,page.items));setTrashCursor(page.nextCursor);return true;});}
@@ -186,7 +190,12 @@ export default function App({mode="demo"}) {
     setAlbumId(id);return true;
   });}
   function applyPhotoScope(next,items){if(cloud){change(s=>({...s,photos:mergePhotos(s.photos,items)}));setHasMore(client.hasMore());}setFilter(next.category);setMonth(next.month);}
-  function chooseCategory(value){return changePhotoScope(execute,client,filterScope,{category:value},applyPhotoScope);}
+  function chooseCategory(value){
+    return changePhotoScope(execute,client,filterScope,{category:value},(next,items)=>{
+      applyPhotoScope(next,items);
+      clear();
+    });
+  }
   function chooseMonth(value){return changePhotoScope(execute,client,filterScope,{month:value},(next,items)=>{applyPhotoScope(next,items);setTab('photos');clear();setSelecting(false);});}
   function moreMonths(){return execute(async()=>{
     if(!monthCursor)return true;const page=await client.months(filter,monthCursor),covers=await client.resolve(page.months.map(m=>m.coverId));change(s=>({...s,photos:mergePhotos(s.photos,covers)}));setMonthRows(rows=>[...rows,...page.months]);setMonthCursor(page.nextCursor);return true;
@@ -220,7 +229,7 @@ export default function App({mode="demo"}) {
     <Header view={view} onView={setView} onUpload={()=>setModal('upload')}/>
     <main aria-busy={busy} id="workspace" className={'workspace view-'+view}>
       {saveProblem&&<p className="save-warning" role="status">Changes were not confirmed. Check your connection, then reload before retrying.</p>}
-      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={value=>{clear();setSelecting(false);setTab(value);}} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)||modelRefreshing||!modelCatalog?.selectedModelId}
+      {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={value=>{clear();setSelecting(false);setTab(value);}} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} onSelectAll={ids=>setSelected(new Set(ids))} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)||modelRefreshing||!modelCatalog?.selectedModelId}
         modelCatalog={modelCatalog} modelRefreshing={modelRefreshing} modelError={modelError} onRefreshModels={refreshModelCatalog}
         month={month} months={monthRows} onMonth={chooseMonth} hasMoreMonths={Boolean(monthCursor)} onMoreMonths={moreMonths}
         recent={recent} onOpenGroup={openRecentGroup} collectionLoading={collectionLoading} collectionError={collectionError} onRefreshCollections={()=>setCollectionRefresh(n=>n+1)} trashPhotos={trashPhotos} trashMore={Boolean(trashCursor)} onMoreTrash={moreTrash} onTrash={moveTrash} onRestore={restorePhotos}/>}
@@ -233,7 +242,8 @@ export default function App({mode="demo"}) {
     {modal==='upload'&&<UploadDialog cloud={cloud} onClose={()=>setModal(null)} onImport={importPhotos} toast={toast}/>}
     {modal==='organize'&&<OrganizeDialog photos={chosen.length?chosen:photos} onClose={()=>setModal(null)} onSave={saveOrganize} onAssign={assignCategory}/>}
     {modal==='album'&&<AlbumDialog albums={state.albums} count={chosen.length} onClose={()=>setModal(null)} onSave={saveAlbum}/>}
-    {modal==='picker'&&<Modal title="Choose photos" className="picker-modal" onClose={()=>setModal(null)}><PhotoPicker photos={photos} initial={selected.size?[...selected]:(pickerNext==='lab'?labPhotos:workPhotos).map(p=>p.id)} onClose={()=>setModal(null)} onConfirm={confirmPicker}/></Modal>}
+    {modal==='picker'&&<Modal title="Choose photos" className="picker-modal" onClose={()=>setModal(null)}><PhotoPicker photos={liveStylePicker?photos.filter(photo=>(photo.kind||'photo')==='photo'):photos} limit={liveStylePicker?4:undefined}
+      initial={liveStylePicker?labPhotos.map(photo=>photo.id):selected.size?[...selected]:(pickerNext==='lab'?labPhotos:workPhotos).map(p=>p.id)} onClose={()=>setModal(null)} onConfirm={confirmPicker}/></Modal>}
     {modal==='info'&&<InfoDialog cloud={cloud} credits={credits} onClose={()=>setModal(null)}/>}
     {preview&&<PhotoPreview photo={photos.find(p=>p.id===preview.id)||preview} onClose={()=>setPreview(null)} onTrash={moveTrash} onRestore={restorePhotos}/>}
     {recentGroup&&<RecentGroupDetail group={recentGroup} photos={photos} onClose={()=>setRecentGroup(null)} onPreview={photo=>{setRecentGroup(null);setPreview(photo);}} onSelect={ids=>{setSelected(new Set(ids));setSelecting(true);setRecentGroup(null);}}/>}

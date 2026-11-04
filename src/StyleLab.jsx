@@ -1,4 +1,4 @@
-import {readPhotoSize,editSignature} from './services/output-size';
+import {editSignature} from './services/output-size';
 import React, {useEffect, useRef, useState} from 'react';
 import {Bookmark, Check, ChevronsLeftRight, ImagePlus, Info, Layers, X} from 'lucide-react';
 import {Button, Modal} from './components';
@@ -18,9 +18,10 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
   const [output,setOutput]=useState({mode:'native'}),[sourceSize,setSourceSize]=useState(null);
   const photo=photos.find(p=>p.id===activeId)||photos[0];
   const live=Boolean(onGenerate),job=live?editJobs.find(item=>item.photoId===photo?.id&&item.recipeSignature===editSignature(draft,output)):null;
-  useEffect(()=>{let active=true;setSourceSize(null);if(photo)readPhotoSize(photo).then(size=>{if(active)setSourceSize(size);}).catch(()=>{/* Comparison can use its default layout. */});return ()=>{active=false;};},[photo?.id,photo?.src]);
+  const sourceUrl = photo ? assetUrl(originalDisplaySrc(photo)) : null;
+  const previewSize = sourceSize?.url === sourceUrl ? sourceSize : null;
   const pending=job&&['queued','running','unknown'].includes(job.state),deliveryFailed=job?.state==='queued'&&job.delivery?.state==='failed';
-  const cloudReady=connection?.ready===true,cloudLabel=!connection?'Checking OpenAI cloud…':cloudReady?'OpenAI cloud connected':'OpenAI cloud unavailable';
+  const cloudReady=connection?.ready===true,cloudLabel=!connection?(editProblem?'Could not check OpenAI cloud':'Checking OpenAI cloud…'):cloudReady?'OpenAI cloud connected':'OpenAI cloud unavailable';
   const unchanged=recipeSignature(draft)===recipeSignature(displayed);
   const result=live?(job?.state==='succeeded'?job.result.src:null):(unchanged?sampleFor(photo,displayed):null);
   const eligible=sampleFor(photo,draft);
@@ -30,6 +31,18 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
   const title=draft.name||recipe?.name||'Custom style';
   useEffect(()=>{setImageError(false);setImageReady(false);},[result,imageAttempt]);
   useEffect(()=>{if(dialog)toast('');if(dialog!=='save')pendingStyle.current=null;},[dialog,toast]);
+  const jobStatus = {queued:'Queued',running:'Generating…',unknown:'Result unknown',failed:'Could not generate',cancelled:'Cancelled'};
+  const previewStatus = imageError ? 'Image unavailable' : deliveryFailed ? 'Delivery needs retry' : jobStatus[job?.state] || 'Original preview';
+  let previewMessage = editProblem;
+  if (imageError) previewMessage = 'Try opening the preview again.';
+  else if (deliveryFailed) previewMessage = 'Retry the same request.';
+  else if (job?.state === 'unknown') previewMessage = 'Check the cloud task before trying again.';
+  else if (job?.state === 'failed') {
+    previewMessage = ['FREE_QUOTA_EXCEEDED','SUBSCRIPTION_LIMIT'].includes(job.errorCode)
+      ? 'Image generation limit reached. Try again later.'
+      : job.errorCode || 'Try a different prompt or photo.';
+  }
+
   function loadStyle(item) {
     setDraft({...item});setDisplayed({...item});setOutput({mode:'native'});setSplit(38);
   }
@@ -65,16 +78,6 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
   return <>
     <div className="section-title"><h1>Style Lab</h1><button className="demo-info" onClick={()=>setDialog('info')} aria-label={live?'About live image editing':'About demo mode'}>{live?'OpenAI cloud':'Demo'} <Info size={14}/></button><button className="text-button title-action" onClick={()=>{toast('');onChoose();}}>Choose photos</button></div>
     {photo?<>
-      <div className={'comparison prompt-comparison '+(!result?'no-result':'')} style={sourceSize?{aspectRatio:sourceSize.width+'/'+sourceSize.height,width:'min(100%, '+(68*sourceSize.width/sourceSize.height)+'vh)',marginInline:'auto'}:undefined}>
-        <img src={assetUrl(originalDisplaySrc(photo))} alt={photo.name+' original'}/>
-        {result&&!imageError&&<div className="comparison-overlay" style={{clipPath:'inset(0 0 0 '+split+'%)'}}><img key={result+imageAttempt} src={assetUrl(result)} alt={title+(live?' AI result':' sample')} onLoad={()=>setImageReady(true)} onError={()=>setImageError(true)}/></div>}
-        <span className="comparison-label label-original">Original</span>
-        {result&&!imageError?<>
-          <span className="comparison-label label-style">{imageReady?'Preview':'Loading…'}</span>
-          <div className="comparison-line" style={{left:split+'%'}}><span><ChevronsLeftRight size={19}/></span></div>
-          <input type="range" min="0" max="100" step="1" aria-label={live?"Compare original and result":"Compare original and sample"} value={split} onChange={e=>setSplit(Number(e.target.value))}/>
-        </>:<div className="pending-result" role="status"><span>{imageError?'Image unavailable':deliveryFailed?'Delivery needs retry':job?.state==='queued'?'Queued':job?.state==='running'?'Generating…':job?.state==='unknown'?'Result unknown':job?.state==='failed'?'Could not generate':'Not generated'}</span><p>{imageError?'Try loading the preview again.':editProblem||(deliveryFailed?'Retry the same request.':((job?.state==='failed'||job?.state==='unknown')?(['FREE_QUOTA_EXCEEDED','SUBSCRIPTION_LIMIT'].includes(job.errorCode)?'Image generation limit reached. Try again later.':job.state==='unknown'?'Not retried automatically.':job.errorCode):live?'Enter a prompt to create a new image.':'Save this style to try later.'))}</p></div>}
-      </div>
       <div className="source-strip"><div className="source-photos" role="group" aria-label="Selected photos">{photos.map(p=><button key={p.id} aria-label={'Use '+p.name} aria-pressed={p.id===photo.id} onClick={()=>setActiveId(p.id)}><img src={assetUrl(originalDisplaySrc(p))} alt=""/>{p.id===photo.id&&<span><Check size={12}/></span>}</button>)}</div><span className="source-count">{photoCount(photos.length)}</span></div>
       <div className="prompt-editor">
         <label htmlFor="creative-prompt" className="prompt-label sr-only">Describe a new look</label>
@@ -86,8 +89,25 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
       </div>
       <p id="prompt-status" className="prompt-status sr-only" role="status">{imageError?'Image unavailable. Please try again.':live?(result?'Image saved.':pending?'Generation in progress.':'Ready to generate.'):result?'Sample ready.':eligible?'Preview available.':'No sample for this input.'}</p>
       {live&&<p className="prompt-status muted small" role="status">{cloudLabel}{cloudReady?' · Selected previews go to OpenAI · Size is automatic':''}</p>}
+      {(imageError||!result)&&<div className="pending-result" role="status">
+        <strong>{previewStatus}</strong>{previewMessage&&<span>{previewMessage}</span>}
+      </div>}
+      <div className={'comparison prompt-comparison '+(!result?'no-result':'')} style={previewSize?{aspectRatio:previewSize.width+'/'+previewSize.height,width:'min(100%, '+(56*previewSize.width/previewSize.height)+'vh)',marginInline:'auto'}:undefined}>
+        <img key={sourceUrl} src={sourceUrl} alt={photo.name+' original'} onLoad={event=>{
+          const {naturalWidth:width,naturalHeight:height}=event.currentTarget;
+          if (width&&height) setSourceSize({url:sourceUrl,width,height});
+        }}/>
+        {result&&!imageError&&<div className="comparison-overlay" style={{clipPath:'inset(0 0 0 '+split+'%)'}}><img key={result+imageAttempt} src={assetUrl(result)} alt={title+(live?' AI result':' sample')} onLoad={()=>setImageReady(true)} onError={()=>setImageError(true)}/></div>}
+        <span className="comparison-label label-original">Original</span>
+        {result&&!imageError?<>
+          <span className="comparison-label label-style">{imageReady?'Preview':'Loading…'}</span>
+          <div className="comparison-line" style={{left:split+'%'}}><span><ChevronsLeftRight size={19}/></span></div>
+          <input type="range" min="0" max="100" step="1" aria-label={live?"Compare original and result":"Compare original and sample"} value={split} onChange={e=>setSplit(Number(e.target.value))}/>
+        </>:null}
+      </div>
+    </>:<div className="empty-state lab-empty"><h2>Choose a photo to edit</h2><p>Select an original from your library to get started.</p></div>}
       <section className="styles-library" aria-labelledby="my-styles-title">
-        <div className="styles-heading"><h2 id="my-styles-title">Styles</h2><button className="text-button" disabled={!reusable.length||reusable.length>(live?4:20)||!draft.prompt.trim()||(live&&(busy||batchPending||!cloudReady))} onClick={()=>live?generate(reusable.map(p=>p.id)):setDialog('batch')}><Layers size={16}/>Apply to {reusable.length}</button></div>
+        <div className="styles-heading"><h2 id="my-styles-title">Styles</h2><button className="text-button" disabled={!photo||!reusable.length||reusable.length>(live?4:20)||!draft.prompt.trim()||(live&&(busy||batchPending||!cloudReady))} onClick={()=>live?generate(reusable.map(p=>p.id)):setDialog('batch')}><Layers size={16}/>Apply to {reusable.length}</button></div>
         <div className="recipe-grid">{[...STYLE_RECIPES,...savedStyles].map(item=>{
           const builtin=STYLE_RECIPES.some(s=>s.id===item.id);
           const cover=builtin?'/styles/'+item.id+'-fjord.png':item.cover;
@@ -95,8 +115,8 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
         })}</div>
       </section>
       {live&&editJobs.length>0&&<section className="styles-library" aria-label="Recent image edits"><div className="styles-heading"><h2>Recent</h2></div><div className="recipe-grid">{editJobs.slice(0,4).map(item=><button key={item.id} className="recipe-card" onClick={()=>{loadStyle(item.recipe);setOutput(item.outputChoice||{mode:'native'});setActiveId(item.photoId);void onOpenEdit(item);}}>{item.state==='succeeded'?<img src={assetUrl(item.result.src)} alt={item.recipe.name+' result'}/>:<div className="recipe-placeholder"><Layers size={22}/></div>}<span className="recipe-info"><strong>{item.recipe.name}</strong><small>{{queued:'Queued',running:'Generating…',succeeded:'Saved',failed:'Failed',unknown:'Result unknown',cancelled:'Cancelled'}[item.state]}</small></span></button>)}</div></section>}
-      <div className="lab-secondary"><details className="basic-colors"><summary>Tone</summary><div className="basic-controls"><div role="group" aria-label="Tone">{STYLES.map(s=><button aria-pressed={basic===s.id} className={basic===s.id?'active':''} key={s.id} onClick={()=>setBasic(s.id)}>{{original:'Original',film:'Film',mono:'Mono',soft:'Soft'}[s.id]}</button>)}</div><Button disabled={busy} onClick={()=>onApply(basic,photos.map(p=>p.id))}>{busy?'Applying…':'Apply tone'}</Button><p>Color adjustments only.</p></div></details>{!live&&<button className="text-button" disabled={!result||!imageReady||imageError||saving||busy} onClick={()=>saveResults([photo])}>Save image</button>}</div>
-    </>:<div className="empty-state"><h2>Choose a photo</h2><Button onClick={onChoose}>Choose photos</Button></div>}
+      {photo&&<div className="lab-secondary"><details className="basic-colors"><summary>Tone</summary><div className="basic-controls"><div role="group" aria-label="Tone">{STYLES.map(s=><button aria-pressed={basic===s.id} className={basic===s.id?'active':''} key={s.id} onClick={()=>setBasic(s.id)}>{{original:'Original',film:'Film',mono:'Mono',soft:'Soft'}[s.id]}</button>)}</div><Button disabled={busy} onClick={()=>onApply(basic,photos.map(p=>p.id))}>{busy?'Applying…':'Apply tone'}</Button><p>Color adjustments only.</p></div></details>{!live&&<button className="text-button" disabled={!result||!imageReady||imageError||saving||busy} onClick={()=>saveResults([photo])}>Save image</button>}</div>
+}
     {dialog==='info'&&<Modal title={live?'Live image editing':'Demo mode'} onClose={()=>setDialog(null)}><p className="info-copy">{live?'OpenAI subscription image editing uses the selected photo preview, prompt and any style reference. OpenAI chooses the output size. Results save as new images, and editing continues after you close this page. Save a style to use the same prompt and reference on another photo.':'These images were generated in advance. Three photos, three styles. Custom prompts and references can be saved, but live generation is not connected.'}</p></Modal>}
     {dialog==='save'&&<Modal title="Save style" onClose={()=>setDialog(null)} className="save-style-modal"><form onSubmit={saveStyle}><label className="field">Style name<input autoFocus value={styleName} maxLength={40} onChange={e=>{setStyleName(e.target.value);pendingStyle.current=null;}} required/></label><div className="recipe-summary"><p>{draft.prompt}</p><span>{draft.preserve?'Keep composition':'Free composition'}{draft.reference?' · Reference attached':''}</span><small>{result?'Recipe and preview will be saved.':'Recipe only. Image not generated.'}</small></div><footer className="modal-footer"><Button type="button" onClick={()=>setDialog(null)}>Cancel</Button><Button type="submit" variant="primary" disabled={!styleName.trim()||saving}>Save style</Button></footer></form></Modal>}
     {dialog==='batch'&&<Modal title="Apply style" onClose={()=>setDialog(null)} className="batch-style-modal"><p className="batch-description">{title} · {reusable.length} of {photos.length} samples available.</p><div className="batch-list">{photos.map(p=>{const src=sampleFor(p,draft);return <div key={p.id}><img src={assetUrl(originalDisplaySrc(p))} alt={p.name}/><span>{p.name}<small>{src?'Sample ready':'No sample'}</small></span>{src?<img src={assetUrl(src)} alt={p.name+' sample'}/>:<span className="batch-unavailable">Draft</span>}</div>;})}</div><p className="muted small">Available for the three demo photos. Originals stay untouched.</p><footer className="modal-footer"><Button onClick={()=>setDialog(null)}>Cancel</Button><Button variant="primary" disabled={!reusable.length||saving||busy} onClick={()=>saveResults(reusable)}>Save {reusable.length} images</Button></footer></Modal>}

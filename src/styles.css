@@ -298,9 +298,8 @@ input,textarea {caret-color:#d7c993}
 .prompt-comparison .label-original {left:18px}
 .prompt-comparison .label-style {right:18px}
 .prompt-comparison>img,.prompt-comparison .comparison-overlay img {object-position:center}
-.pending-result {position:absolute;right:0;top:0;bottom:0;width:48%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#242c27f5;border-left:1px solid #687361;padding:24px;text-align:center}
-.pending-result span {font-size:20px;font-weight:500}
-.pending-result p {font-size:14px;color:var(--muted);line-height:1.8;max-width:24ch}
+.pending-result {display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px;margin:14px 0;color:var(--muted);font-size:13px}
+.pending-result strong {color:var(--text);font-weight:600}
 .source-strip {display:flex;align-items:center;gap:12px;min-height:48px;margin-top:8px;color:var(--muted);font-size:12px}
 .source-photos {display:flex;gap:7px;overflow:auto;max-width:45%;padding:4px;flex-shrink:0}
 .source-photos>button {padding:0;position:relative;width:48px;height:32px;flex-shrink:0;border-radius:3px}
@@ -394,7 +393,6 @@ button:disabled {opacity:.65}
   .recipe-card>img,.recipe-placeholder {width:100%;aspect-ratio:1.4}
   .recipe-info {gap:3px}.recipe-info strong {font-size:14px}.recipe-info small {font-size:12px}
   .lab-secondary {flex-wrap:wrap;gap:8px}.lab-secondary>.text-button {min-height:44px}
-  .pending-result {padding:15px}.pending-result span {font-size:16px}.pending-result p {font-size:12px}
 }
 @media(max-width:480px) {
   .view-lab .section-title {gap:12px}.view-lab .title-meta {padding-left:12px}
@@ -533,3 +531,10 @@ button:disabled {cursor:wait;opacity:.6}
 .size-presets {display:flex;gap:14px}
 .size-presets .text-button {font-size:12px}
 .size-error {flex-basis:100%;margin:0;color:#c9ad81;font-size:12px}
+
+/* Keep the picker confirmation visible while the photo list scrolls. */
+.picker-modal[open] {display:flex;flex-direction:column;overflow:hidden}
+.picker-content {display:flex;flex-direction:column;min-height:0}
+.picker-grid {overflow:auto;padding:3px}
+.picker-content .modal-footer {flex-shrink:0}
+.lab-empty {min-height:180px}
