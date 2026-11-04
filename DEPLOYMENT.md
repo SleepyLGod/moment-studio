@@ -38,7 +38,7 @@ for migration in drizzle/*.sql; do
   node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB \
     --local --config dist/server/wrangler.json --persist-to .wrangler/state --file "$migration" || exit 1
 done
-npm run start -- --port 4174
+npm run dev -- --port 4174
 ```
 
 For an existing local store, apply only its outstanding migrations. The loopback preview has mock sign-in. `.wrangler/state` is local, ignored and separate from hosted data.

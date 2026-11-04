@@ -15,7 +15,7 @@ Both editions share the React interface. The demo loads bundled examples and can
 
 - **Library:** Import still HEIC, JPG, PNG or WebP, up to 12 MiB per file and 20 files per batch. Browse by month, use AI tags and recent groups, or organize manually. Manual albums are edited independently of automatic grouping.
 - **Style Lab:** Choose originals, write a prompt and save a reusable Style. The connected OpenAI cloud task edits an upright preview and saves the result separately. Collages and tone adjustments render in the browser.
-- **Trash:** Restore photos or select several and review permanent deletion. Photos with album or creation references stay in Trash. A result lists what was deleted and why each remaining photo was kept. Trash is cleared only by explicit action.
+- **Trash:** Restore photos or select several and review permanent deletion. Photos with album or creation references stay in Trash. A result shows the totals and why each remaining photo was kept. Trash is cleared only by explicit action.
 - **Settings:** Set the thumbnail size for this browser and check the OpenAI cloud connection.
 
 Original uploads are immutable and downloadable in their original format. The browser creates one upright JPEG preview up to 768 pixels. Capture dates use EXIF when available and fall back to the file modification date. See [import behavior](docs/development/heic-import.md) for metadata details.
