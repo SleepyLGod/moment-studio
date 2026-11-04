@@ -555,9 +555,12 @@ button:disabled {cursor:wait;opacity:.6}
 .settings-connection {border-top:1px solid var(--line);margin-top:22px;padding-top:18px}
 .settings-connection small {display:block;margin-top:4px;color:var(--muted)}
 .purge-action {margin-left:12px;color:#efb0a6}
-.purge-name {font-weight:600;margin-bottom:12px;overflow-wrap:anywhere}
+.selection-dock .dock-delete {color:#efb0a6}
+.purge-review {list-style:none;padding:0;margin:12px 0;max-height:min(42vh,360px);overflow:auto}
+.purge-review-row {padding:10px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.purge-review-row p {margin:5px 0}
 .purge-problem {color:#efb0a6;margin-bottom:12px}
-.purge-links {padding:0;list-style:none;margin:14px 0;max-height:260px;overflow:auto}
+.purge-links {padding:0;list-style:none;margin:4px 0}
 .purge-links li {display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .purge-links small {flex-shrink:0;color:var(--muted)}
 .danger-button {background:#75372e;color:#fff0eb;border:1px solid #c88173}

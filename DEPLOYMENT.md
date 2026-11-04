@@ -1,56 +1,50 @@
-# Sites + static demo, one repository
+# Deployment
 
-The active backend is Sites-native TypeScript/Workers + D1 + R2. Go/PostgreSQL and independent container hosting are future alternatives in `TODO.md`.
+One source repository builds two editions. GitHub Actions publishes the static demo. Sites publishes the authenticated workspace from an exact pushed commit.
 
-## Sites
+| Edition | Entry | Build | Hosting |
+| --- | --- | --- | --- |
+| Demo | `demo/index.html` | `DEMO_BASE=/moment-studio/ npm run build:demo` | [GitHub Pages](https://sleepylgod.github.io/moment-studio/) |
+| Private workspace | `app/`, `worker/`, `server/` | `npm run build` | Existing owner-private Sites project |
 
-Reuse the project_id in `.openai/hosting.json`. The manifest declares `d1: DB` and `r2: BUCKET`; Sites provisions hosted resources. It must not contain the old static directory declaration. Keep the official starter's build and `sites()` integration.
+## Public demo
 
-Existing address: <https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site>. Preserve owner-private access. Hosted authentication is supplied by Sites; API handlers additionally require identity and record ownership. Platform service-access tokens do not supply a visitor identity and cannot substitute for user authorization.
+The [Pages workflow](.github/workflows/pages.yml) builds on pushes to `main` and can also run manually. Pages uses GitHub Actions as its source. The deployment artifact contains the HTML, frontend bundles, bundled sample images and their public credits, fonts and license files. It excludes the Sites build, private files and test records. The demo runs in browser-local mode and uses IndexedDB.
 
-Generate schema-only migrations with `npm run db:generate`, inspect the SQL and commit SQL plus Drizzle metadata. Applied migrations are immutable. Local migrations and hosted migrations are independent; Sites applies hosted migrations during publication.
+The source repository is private. GitHub's Pages entitlement for this repository permits the demo to be public. The project URL uses the `/moment-studio/` path under the account's existing `.github.io` address. Release checks should open that path in a browser and exercise sample images, the font and one sample Style result.
 
-Use the Sites source helper to build, push the exact source and package `dist/`; save and deploy that same commit. GitHub source synchronization is separate from Sites publication. A successful frontend build does not prove that D1 or R2 are connected.
+## Private Sites workspace
 
-## Local simulation
+Reuse the `project_id` in `.openai/hosting.json` and the existing owner-only audience. Sites provisions the manifest's D1 (`DB`) and R2 (`BUCKET`) bindings and supplies visitor identity. API handlers also enforce owner and resource checks. Service-access tokens do not supply a visitor identity.
 
-After a build, apply each migration in filename order, substituting its exact path:
+Use the Sites source helper to push the exact checked commit and package `dist/`. Save and deploy that same commit through Sites, then verify its deployment status and owner-only audience. A GitHub push publishes the demo through Actions, while the private workspace uses the Sites publication workflow.
 
-    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_ambitious_black_cat.sql
-    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_loud_blue_blade.sql
-    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_same_gamora.sql
-    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_talented_william_stryker.sql
-    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0004_dazzling_pride.sql
-    node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0005_ambiguous_wild_pack.sql
+Sites applies SQL migrations during publication. Generate new ones with `npm run db:generate`, inspect them and commit the SQL plus Drizzle metadata. Treat applied migrations as immutable.
 
-Run `npm run dev -- --port 4174`. Mock sign-in is only for loopback development and is excluded from hosted production. `.wrangler/state` contains local simulated records and files; it is ignored and must not be treated as hosted storage or uploaded as source.
+### AI execution
 
-## Own-account scheduled executor
+- [Style Lab](docs/development/style-lab-subscription.md) uses the private Sites plugin and an OpenAI cloud task triggered by `style_edit.queued`. The existing listener has its own renewal lifecycle. The private site's Settings shows readiness and expiry.
+- [NVIDIA photo tags](docs/development/models-and-organization.md) use the same-repo [Cloudflare Cron executor](executor/README.md). It wakes the private Sites runner. Job records and images stay with Sites. Store `MOMENT_EXECUTOR_KEY`, `MOMENT_SITE_ACCESS_TOKEN` and `NVIDIA_API_KEY` as applicable platform secrets.
+- [Cloudflare FLUX.2 experiments](docs/development/cloudflare-style-edit.md) and the [public-sample OpenAI proof](docs/development/openai-event-trigger.md) are separate historical routes. The active Style Lab uses the subscription task above.
 
-The Worker in `executor/` is deployed separately in the owner's Cloudflare account, from this same repository. It has no D1/R2 bindings and no enabled public URL. Its one-minute Cron awaits the private Sites runner; Sites owns the business logic, job records and images. See [executor setup](executor/README.md) and [cloud evidence](docs/development/cloud-executor-validation.md).
+## Local cloud simulation
 
-Set `MOMENT_EXECUTOR_KEY` and `MOMENT_SITE_ACCESS_TOKEN` as encrypted Worker secrets through Wrangler secret input. Set the same executor key and `NVIDIA_API_KEY` as Sites secrets. Never use shell arguments, source files or browser storage for secret values. After changing Sites environment values, redeploy a saved version to apply the new revision. Enable `MOMENT_BACKGROUND_ENABLED` only after the executor is configured.
+Use Node.js 24. Install dependencies, build once, and apply migrations to a fresh local store in filename order.
 
-For a new Cloudflare account, opening Workers & Pages initializes an account subdomain required even for Cron. This does not enable a public executor URL: `workers_dev` stays false. OAuth uses account/user read, Workers write, script write, tail read and background access; no DNS, storage or paid-plan provisioning is needed.
+```sh
+npm ci
+npm run build
+for migration in drizzle/*.sql; do
+  node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB \
+    --local --config dist/server/wrangler.json --persist-to .wrangler/state --file "$migration" || exit 1
+done
+npm run start -- --port 4174
+```
 
-`wrangler deploy --config executor/wrangler.jsonc` publishes this executor; it does not publish the Sites application. Cron configuration can take up to 15 minutes to propagate. Check actual scheduled logs and D1 result readback, rather than treating successful upload as background acceptance.
+For an existing local store, apply only its outstanding migrations. The loopback preview has mock sign-in. `.wrangler/state` is local, ignored and separate from hosted data.
 
-## Static demo / GitHub Pages
+## Verify and recover
 
-`npm run build:demo` builds the same UI from `demo/index.html` into `dist-demo/`. Only this mode uses IndexedDB records. Set `DEMO_BASE=/moment-studio/` for the Pages project path. No production credentials are bundled.
+`npm run check` runs the tests, type checking and both builds. For local HTTP verification, run `node tests/worker-smoke.mjs http://127.0.0.1:4174` against a disposable store. Use bundled examples for hosted checks and document hosted outcomes separately in [Cloud validation](docs/cloud-validation.md). For changes to Trash, verify mixed outcomes locally and use read-only impact previews on the real site.
 
-Pages publication is deferred until private-repository entitlement is confirmed. Do not create a second source repo or change repository visibility as a workaround. The existing personal homepage is unchanged.
-
-## Acceptance and recovery
-
-Local unit tests, local Workers HTTP tests and hosted browser tests are separate evidence. Hosted acceptance requires example upload/download byte equality, owner-only reads, persisted album/style/creation records, re-authentication and readback after redeployment. Record actual results in `docs/cloud-validation.md` when performed.
-
-Code-version rollback does not restore database or uploaded files. Before a real gallery is onboarded, design database/file export and perform a restore drill. Live analysis acceptance uses only explicit bundled examples. No implicit browser-data migration, real-library upload, live image generation or file cleanup is part of this release.
-
-## Cloud image editing
-
-Deploy the own-account executor with its AI binding and existing encrypted secrets, then set `MOMENT_IMAGE_EDIT_ENABLED=true` on the private Site and publish the matching version. Keep the account on Workers Free; do not activate Paid. See [image editing](docs/development/cloudflare-style-edit.md). No schema migration is needed. Static demo builds remain sample-only.
-
-## OpenAI subscription cloud proof
-
-The private Site declares `mcp` and exposes only public-sample proof tools. Publishing provisions its private Sites plugin; connect that plugin in the OpenAI cloud task. `/cloud-proof` is an isolated validation page. No API key, Mac runner, new external host, or executor configuration change is required for this experiment. See [scope and acceptance](docs/development/openai-cloud-proof.md). Automatic website task triggering is still unverified.
+A code rollback cannot restore deleted data. Permanent deletion checks links again at execution, protects shared files and preserves photos that cannot be deleted. Export and restore drills are still open.

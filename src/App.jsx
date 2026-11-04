@@ -4,7 +4,7 @@ import {CheckCircle2, Loader2} from 'lucide-react';
 import {AlbumDetail, AlbumDialog, Header, InfoDialog, Modal, NoticeContext, OrganizeDialog, PhotoPreview, RecentGroupDetail, UploadDialog} from './components';
 import {CollageView, Library, PhotoPicker} from './views';
 import {categoryLabel, freshState, assetUrl} from './data';
-import {DeletePhotoDialog, SettingsDialog, readGridSize, writeGridSize} from './gallery-dialogs';
+import {DeletePhotosDialog, SettingsDialog, readGridSize, writeGridSize} from './gallery-dialogs';
 import {StyleLab} from './StyleLab';
 import {makeSampleDerivative, recipeSignature, sampleFor} from './recipes';
 import {persistState, readSavedState} from './storage';
@@ -242,7 +242,7 @@ export default function App({mode="demo"}) {
       {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={value=>{clear();setSelecting(false);setTab(value);}} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} onSelectAll={ids=>setSelected(new Set(ids))} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)||modelRefreshing||!modelCatalog?.selectedModelId}
         modelCatalog={modelCatalog} modelRefreshing={modelRefreshing} modelError={modelError} onRefreshModels={refreshModelCatalog}
         month={month} months={monthRows} onMonth={chooseMonth} hasMoreMonths={Boolean(monthCursor)} onMoreMonths={moreMonths}
-        recent={recent} onOpenGroup={openRecentGroup} collectionLoading={collectionLoading} collectionError={collectionError} onRefreshCollections={()=>setCollectionRefresh(n=>n+1)} trashPhotos={trashPhotos} trashMore={Boolean(trashCursor)} onMoreTrash={moreTrash} onTrash={moveTrash} onRestore={restorePhotos}/>}
+        recent={recent} onOpenGroup={openRecentGroup} collectionLoading={collectionLoading} collectionError={collectionError} onRefreshCollections={()=>setCollectionRefresh(n=>n+1)} trashPhotos={trashPhotos} trashMore={Boolean(trashCursor)} onMoreTrash={moreTrash} onTrash={moveTrash} onRestore={restorePhotos} onDelete={cloud?()=>setDeletion(trashPhotos.filter(photo=>selected.has(photo.id))):undefined}/>}
       {view==='library'&&tab==='trash'&&trashError&&<p role="alert">{trashError}</p>}
       {view==='lab'&&<StyleLab photos={labPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('lab')} savedStyles={state.savedStyles||[]} onSaveStyle={saveStyle} onSaveResults={saveStyleResults} onApply={apply} onGenerate={client?.canGenerate()?generateStyle:undefined} onOpenEdit={openEditJob} onRetry={retryStyle} connection={styleConnection} editJobs={editJobs} editProblem={editProblem} busy={busy} toast={toast}/>}
       {view==='collage'&&<CollageView photos={workPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('collage')} onSave={saveCollage} toast={toast} busy={busy}/>}
@@ -256,17 +256,17 @@ export default function App({mode="demo"}) {
       initial={liveStylePicker?labPhotos.map(photo=>photo.id):selected.size?[...selected]:(pickerNext==='lab'?labPhotos:workPhotos).map(p=>p.id)} onClose={()=>setModal(null)} onConfirm={confirmPicker}/></Modal>}
     {modal==='info'&&<InfoDialog cloud={cloud} credits={credits} onClose={()=>setModal(null)}/>}
     {modal==='settings'&&<SettingsDialog size={gridSize} onSize={changeGridSize} client={client} onClose={()=>setModal(null)}/>}
-    {deletion&&<DeletePhotoDialog photo={deletion} client={client} onClose={()=>setDeletion(null)} onDeleted={id=>{
-      setTrashPhotos(current=>current.filter(photo=>photo.id!==id));
-      change(current=>({...current,photos:current.photos.filter(photo=>photo.id!==id)}));
-      setSelected(current=>new Set([...current].filter(selectedId=>selectedId!==id)));
-      setEditJobs(current=>current.filter(job=>job.photoId!==id&&job.result?.photoId!==id));
+    {deletion&&<DeletePhotosDialog photos={deletion} client={client} onClose={()=>setDeletion(null)} onDeleted={ids=>{
+      if (!ids.length) return;
+      const removed = new Set(ids);
+      setTrashPhotos(current=>current.filter(photo=>!removed.has(photo.id)));
+      change(current=>({...current,photos:current.photos.filter(photo=>!removed.has(photo.id))}));
+      setSelected(current=>new Set([...current].filter(id=>!removed.has(id))));
+      setEditJobs(current=>current.filter(job=>!removed.has(job.photoId)&&!removed.has(job.result?.photoId)));
       setLibraryRevision(revision=>revision+1);
-      setDeletion(null);
-      toast('Photo permanently deleted');
     }}/>}
     {preview&&<PhotoPreview photo={photos.find(p=>p.id===preview.id)||preview} onClose={()=>setPreview(null)} onTrash={moveTrash} onRestore={restorePhotos}
-      onDelete={cloud?photo=>{setPreview(null);setDeletion(photo);}:undefined}/>}
+      onDelete={cloud?photo=>{setPreview(null);setDeletion([photo]);}:undefined}/>}
     {recentGroup&&<RecentGroupDetail group={recentGroup} photos={photos} onClose={()=>setRecentGroup(null)} onPreview={photo=>{setRecentGroup(null);setPreview(photo);}} onSelect={ids=>{setSelected(new Set(ids));setSelecting(true);setRecentGroup(null);}}/>}
     {albumId&&state.albums.some(a=>a.id===albumId)&&<AlbumDetail album={state.albums.find(a=>a.id===albumId)} photos={photos} onClose={()=>setAlbumId(null)} onUpdate={updateAlbum} toast={toast}/>}
   </NoticeContext.Provider>;

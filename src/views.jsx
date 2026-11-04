@@ -6,7 +6,7 @@ import {collageInputs} from './services/operations';
 import {downloadFile, renderCollage} from './imaging';
 import {monthTitle,photoDay} from './services/organization';
 
-export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,onSelectAll,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading,visibleIds,photoTotal,onAnalyze,analyzing,modelCatalog,modelRefreshing,modelError,onRefreshModels,month,months,recent,onMonth,hasMoreMonths,onMoreMonths,onOpenGroup,collectionLoading,collectionError,onRefreshCollections,trashPhotos=[],trashMore=false,onMoreTrash,onTrash,onRestore}) {
+export function Library({photos,albums,tab,setTab,selected,selecting,setSelecting,onToggle,onPreview,onClear,onSelectAll,filter,setFilter,onOrganize,onAlbum,onCollage,onLab,onOpenAlbum,onInfo,hasMore,onLoadMore,loading,visibleIds,photoTotal,onAnalyze,analyzing,modelCatalog,modelRefreshing,modelError,onRefreshModels,month,months,recent,onMonth,hasMoreMonths,onMoreMonths,onOpenGroup,collectionLoading,collectionError,onRefreshCollections,trashPhotos=[],trashMore=false,onMoreTrash,onTrash,onRestore,onDelete}) {
   const visible=tab==='trash'?trashPhotos:photos.filter(p=>(!visibleIds||visibleIds.has(p.id))&&(filter==='all'||p.category===filter)&&(month==='all'||photoDay(p).startsWith(month)));
   const selectionTab = tab === 'photos' || tab === 'trash';
   const moreInScope = tab === 'trash' ? trashMore : hasMore;
@@ -64,7 +64,7 @@ export function Library({photos,albums,tab,setTab,selected,selecting,setSelectin
       </button>;
     })}</div>}
     <footer className="workspace-footer"><button onClick={onInfo}>Demo <Info size={16}/></button></footer>
-    <SelectionDock count={selected.size} onClear={onClear} onOrganize={onOrganize} onAlbum={()=>onAlbum(false)} onCollage={onCollage} onLab={onLab} onAnalyze={onAnalyze} analyzing={analyzing} onTrash={onTrash} onRestore={onRestore} trashed={tab==='trash'}/>
+    <SelectionDock count={selected.size} onClear={onClear} onOrganize={onOrganize} onAlbum={()=>onAlbum(false)} onCollage={onCollage} onLab={onLab} onAnalyze={onAnalyze} analyzing={analyzing} onTrash={onTrash} onRestore={onRestore} onDelete={onDelete} trashed={tab==='trash'}/>
   </>;
 }
 
