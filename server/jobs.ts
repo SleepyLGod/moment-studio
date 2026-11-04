@@ -4,6 +4,8 @@ import {body,fail,identifier,json} from './http.ts';
 import {analyze,AnalysisError,RULE_VERSION} from './ai/nvidia.ts';
 import {models,refreshModels} from './ai/catalog.ts';
 import {claimEdit,createEditJobs,presentEdit} from './edit-jobs.ts';
+import {eventConnection,STYLE_EVENT} from './cloud-events.ts';
+import {expireSubscriptionEdits,retrySubscriptionDelivery} from './subscription-edits.ts';
 import {executorOwner} from './executor-auth.ts';
 import {cancelInactiveJobs} from './trash.ts';
 type JobRow={id:string;owner_id:string;photo_id:string;kind:string;input:string;model_id:string;state:string;result:string|null;error_code:string|null;lease_token:string|null;lease_until:number|null;attempts:number;};
@@ -14,7 +16,7 @@ export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):P
   const url=new URL(request.url);
   if(url.pathname!=='/api/jobs')return null;
   if(request.method==='GET'){
-    if(url.searchParams.get('kind')==='edit'&&!url.searchParams.get('ids')){const rows=await env.DB.prepare("SELECT * FROM jobs WHERE owner_id=? AND kind='edit' AND (state IN ('queued','running','unknown') OR id IN (SELECT id FROM jobs WHERE owner_id=? AND kind='edit' ORDER BY created_at DESC,id DESC LIMIT 20)) ORDER BY created_at DESC,id DESC").bind(user.userId,user.userId).all<JobRow>();return json({jobs:rows.results.map(present)});}
+    if(url.searchParams.get('kind')==='edit'&&!url.searchParams.get('ids')){await expireSubscriptionEdits(env,user.userId);const rows=await env.DB.prepare("SELECT * FROM jobs WHERE owner_id=? AND kind='edit' AND (state IN ('queued','running','unknown') OR id IN (SELECT id FROM jobs WHERE owner_id=? AND kind='edit' ORDER BY created_at DESC,id DESC LIMIT 20)) ORDER BY created_at DESC,id DESC").bind(user.userId,user.userId).all<JobRow>();return json({jobs:rows.results.map(present),connection:await eventConnection(env,user.userId,STYLE_EVENT)});}
     const ids=(url.searchParams.get('ids')||'').split(',').filter(Boolean).map(identifier);
     if(!ids.length||ids.length>20)fail(400,'Read up to 20 task IDs.');
     const rows=await env.DB.prepare(`SELECT * FROM jobs WHERE owner_id=? AND id IN (${ids.map(()=>'?').join(',')})`).bind(user.userId,...ids).all<JobRow>();
@@ -22,6 +24,7 @@ export async function handleJobs(request:Request,env:GalleryEnv,user:Identity):P
   }
   if(request.method!=='POST')fail(405,'Use GET or POST.');
   const data=await body(request);
+  if(data.kind==='retry-subscription-edit')return json({job:await retrySubscriptionDelivery(env,user.userId,data.jobId),connection:await eventConnection(env,user.userId,STYLE_EVENT)});
   if(data.kind==='edit')return createEditJobs(env,user,data);
   if(!env.NVIDIA_API_KEY||!env.MOMENT_EXECUTOR_KEY||env.MOMENT_BACKGROUND_ENABLED!=='true')fail(503,'Background analysis is not configured.');
   if(data.kind!=='analyze')fail(400,'Only photo analysis is available.');

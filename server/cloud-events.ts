@@ -4,7 +4,13 @@ import {digest} from './image-integrity.ts';
 
 export const PUBLIC_EVENT='public_sample.queued';
 export const publicEventDefinition={name:PUBLIC_EVENT,description:'The owner clicked Generate for the bundled public coffee sample. No private photos or albums are included.',delivery:['webhook'],inputSchema:{type:'object',properties:{},additionalProperties:false},payloadSchema:{type:'object',properties:{jobId:{type:'string'},photoId:{type:'string'}},required:['jobId','photoId'],additionalProperties:false}};
-type Subscription={owner_id:string;id:string;callback_url:string;secret:string;previous_secret:string|null;rotate_until:number|null;expires_at:number;verified_at:number;active:number;};
+export const STYLE_EVENT='style_edit.queued';
+export const SUBSCRIPTION_MODEL='openai-subscription-cloud';
+export const styleEventDefinition={...publicEventDefinition,name:STYLE_EVENT,description:'The library owner explicitly queued a Style Lab edit. Only a job ID is sent; claim that job to obtain the authorized preview and prompt.',payloadSchema:{type:'object',properties:{jobId:{type:'string'}},required:['jobId'],additionalProperties:false}};
+type EventName=typeof PUBLIC_EVENT|typeof STYLE_EVENT;
+const tableFor=(event:EventName)=>event===STYLE_EVENT?'style_event_subscriptions':'cloud_event_subscriptions';
+const diagnosticFor=(event:EventName)=>event===STYLE_EVENT?'styleEventSetup':'eventSetup';
+type Subscription={owner_id:string;id:string;callback_url:string;secret:string;previous_secret:string|null;rotate_until:number|null;expires_at:number;verified_at:number;active:number;renewed_at?:number|null;};
 // This integration targets OpenAI only. No caller-selected hosts, subdomains,
 // IP literals, ports or redirects are accepted, including during verification.
 const CALLBACK_HOSTS=new Set(['chatgpt.com','chat.openai.com','api.openai.com','connectors.api.openai.com']);
@@ -32,31 +38,32 @@ async function signedPost(sub:Subscription,id:string,body:string){
   // caller so verification/delivery can reject it without forwarding headers.
   return fetch(callbackUrl(sub.callback_url),{method:'POST',redirect:'manual',signal:AbortSignal.timeout(7000),headers:{'content-type':'application/json','webhook-id':id,'webhook-timestamp':timestamp,'webhook-signature':signatures.join(' '),'X-MCP-Subscription-Id':sub.id},body});
 }
-async function subscription(env:GalleryEnv,owner:string){return env.DB.prepare('SELECT * FROM cloud_event_subscriptions WHERE owner_id=?').bind(owner).first<Subscription>();}
-export async function eventConnection(env:GalleryEnv,owner:string){
-  const sub=await subscription(env,owner),state=await env.DB.prepare('SELECT ai_state FROM library_owner WHERE id=1 AND user_id=?').bind(owner).first<{ai_state:string}>();
-  return {ready:Boolean(sub?.active&&sub.expires_at>Date.now()),expiresAt:sub?.active?sub.expires_at:null,setup:state?JSON.parse(state.ai_state).eventSetup||null:null};
+async function subscription(env:GalleryEnv,owner:string,event:EventName){return env.DB.prepare(`SELECT * FROM ${tableFor(event)} WHERE owner_id=?`).bind(owner).first<Subscription>();}
+export async function eventConnection(env:GalleryEnv,owner:string,event:EventName=PUBLIC_EVENT){
+  const sub=await subscription(env,owner,event),state=await env.DB.prepare('SELECT ai_state FROM library_owner WHERE id=1 AND user_id=?').bind(owner).first<{ai_state:string}>();
+  return {ready:Boolean(sub?.active&&sub.expires_at>Date.now()),expiresAt:sub?.active?sub.expires_at:null,...(event===STYLE_EVENT?{renewedAt:sub?.renewed_at??null}:{}),setup:state?JSON.parse(state.ai_state)[diagnosticFor(event)]||null:null};
 }
 /** Keep only the last non-secret setup outcome, independently of provider errors. */
-export async function recordEventSetup(env:GalleryEnv,owner:string,method:string,phase:'received'|'configured'|'failed',error?:unknown){
+export async function recordEventSetup(env:GalleryEnv,owner:string,method:string,phase:'received'|'configured'|'failed',error?:unknown,event:EventName=PUBLIC_EVENT){
   // A failed create may trigger unsubscribe cleanup. Preserve the subscribe
   // outcome so cleanup cannot erase the actual setup failure.
   if(method!=='events/subscribe')return;
   const value={at:Date.now(),method,phase,...(phase==='failed'?{reason:error instanceof CallbackError?error.reason:error instanceof ApiError?error.message:'internal_error',...(error instanceof CallbackError&&error.origin?{callbackOrigin:error.origin.slice(0,256)}:{})}:{})};
-  await env.DB.prepare("UPDATE library_owner SET ai_state=json_set(ai_state,'$.eventSetup',json(?)) WHERE id=1 AND user_id=?").bind(JSON.stringify(value),owner).run();
+  await env.DB.prepare("UPDATE library_owner SET ai_state=json_set(ai_state,?,json(?)) WHERE id=1 AND user_id=?").bind('$.'+diagnosticFor(event),JSON.stringify(value),owner).run();
 }
 /** Only the authenticated gallery owner can configure this single hosted listener. */
 export async function handleEventMethod(env:GalleryEnv,owner:string,method:string,params:Record<string,any>){
-  if(params.name!==PUBLIC_EVENT||!params.arguments||typeof params.arguments!=='object'||Array.isArray(params.arguments)||Object.keys(params.arguments).length)fail(400,'Invalid public sample event or filters.');
+  if((params.name!==PUBLIC_EVENT&&params.name!==STYLE_EVENT)||!params.arguments||typeof params.arguments!=='object'||Array.isArray(params.arguments)||Object.keys(params.arguments).length)fail(400,'Invalid Moment event or filters.');
   if(params.delivery?.mode!=='webhook')fail(400,'Only webhook delivery is supported.');
-  const url=callbackUrl(params.delivery.url),id='moment-'+await digest(encoder.encode(owner+'\n'+PUBLIC_EVENT+'\n'+url)),now=Date.now(),current=await subscription(env,owner);
+  const event:EventName=params.name,table=tableFor(event),url=callbackUrl(params.delivery.url),id='moment-'+await digest(encoder.encode(owner+'\n'+event+'\n'+url)),now=Date.now(),current=await subscription(env,owner,event);
   if(method==='events/unsubscribe'){
-    await env.DB.prepare('UPDATE cloud_event_subscriptions SET active=0,updated_at=? WHERE owner_id=? AND id=?').bind(now,owner,id).run();return {};
+    await env.DB.prepare(`UPDATE ${table} SET active=0,updated_at=? WHERE owner_id=? AND id=?`).bind(now,owner,id).run();return {};
   }
   if(current?.active&&current.expires_at>now&&current.id!==id)fail(409,'Another OpenAI cloud listener is already connected. Stop it before replacing it.');
   const secret=params.delivery.secret;signingKey(secret);
   if(params.ttlMs!==undefined&&params.ttlMs!==null&&(!Number.isSafeInteger(params.ttlMs)||params.ttlMs<=0))fail(400,'Invalid subscription lifetime.');
-  const expires=now+Math.min(params.ttlMs??86400000,86400000),changed=current?.secret!==secret;
+  const maximum=event===STYLE_EVENT?7*86400000:86400000;
+  const expires=now+Math.min(params.ttlMs??maximum,maximum),changed=current?.secret!==secret;
   const same=current?.id===id;
   const candidate:Subscription={owner_id:owner,id,callback_url:url,secret,previous_secret:same?(changed?current.secret:current.previous_secret):null,rotate_until:same?(changed?now+300000:current.rotate_until):null,expires_at:expires,verified_at:current?.verified_at||0,active:1};
   if(!current||current.id!==id||changed||current.verified_at<now-300000){
@@ -68,24 +75,30 @@ export async function handleEventMethod(env:GalleryEnv,owner:string,method:strin
     let difference=0;for(let i=0;i<challenge.length;i++)difference|=challenge.charCodeAt(i)^received.charCodeAt(i);if(difference)throw new CallbackError('challenge_failed');
     candidate.verified_at=now;
   }
-  const saved=await env.DB.prepare('INSERT INTO cloud_event_subscriptions(owner_id,id,callback_url,secret,previous_secret,rotate_until,expires_at,verified_at,active,updated_at) VALUES(?,?,?,?,?,?,?,?,1,?) ON CONFLICT(owner_id) DO UPDATE SET id=excluded.id,callback_url=excluded.callback_url,secret=excluded.secret,previous_secret=excluded.previous_secret,rotate_until=excluded.rotate_until,expires_at=excluded.expires_at,verified_at=excluded.verified_at,active=1,updated_at=excluded.updated_at WHERE cloud_event_subscriptions.id=excluded.id OR cloud_event_subscriptions.active=0 OR cloud_event_subscriptions.expires_at<=?').bind(owner,id,url,secret,candidate.previous_secret,candidate.rotate_until,expires,candidate.verified_at,now,now).run();
+  const renewal=event===STYLE_EVENT?`,renewed_at=CASE WHEN ${table}.id<>excluded.id OR ${table}.active=0 THEN NULL WHEN excluded.expires_at>${table}.expires_at THEN excluded.updated_at ELSE ${table}.renewed_at END`:'';
+  const saved=await env.DB.prepare(`INSERT INTO ${table}(owner_id,id,callback_url,secret,previous_secret,rotate_until,expires_at,verified_at,active,updated_at) VALUES(?,?,?,?,?,?,?,?,1,?) ON CONFLICT(owner_id) DO UPDATE SET id=excluded.id,callback_url=excluded.callback_url,secret=excluded.secret,previous_secret=excluded.previous_secret,rotate_until=excluded.rotate_until,expires_at=excluded.expires_at,verified_at=excluded.verified_at,active=1,updated_at=excluded.updated_at${renewal} WHERE ${table}.id=excluded.id OR ${table}.active=0 OR ${table}.expires_at<=?`).bind(owner,id,url,secret,candidate.previous_secret,candidate.rotate_until,expires,candidate.verified_at,now,now).run();
   if(saved.meta.changes!==1)fail(409,'Another OpenAI listener connected concurrently.');
   return {id,refreshBefore:new Date(expires).toISOString(),cursor:null,truncated:false};
 }
 /** Await bounded signed delivery in the button request; never rely on waitUntil. */
-export async function deliverPublicEvent(env:GalleryEnv,owner:string,jobId:string){
-  const now=Date.now(),sub=await subscription(env,owner),principal=await env.DB.prepare('SELECT user_id FROM library_owner WHERE id=1').first<{user_id:string}>();
-  if(principal?.user_id!==owner||!sub?.active||sub.expires_at<=now)fail(503,'Connect the OpenAI cloud listener first.');
-  const acquired=await env.DB.prepare("UPDATE jobs SET input=json_set(input,'$.delivery',json(?)),updated_at=? WHERE id=? AND owner_id=? AND kind='subscription-proof' AND state='queued' AND coalesce(json_extract(input,'$.delivery.accepted'),0)=0 AND coalesce(json_extract(input,'$.delivery.leaseUntil'),0)<=?").bind(JSON.stringify({accepted:false,state:'sending',leaseUntil:now+30000}),now,jobId,owner,now).run();
+export async function deliverEvent(env:GalleryEnv,owner:string,jobId:string,event:EventName){
+  const now=Date.now(),sub=await subscription(env,owner,event),principal=await env.DB.prepare('SELECT user_id FROM library_owner WHERE id=1').first<{user_id:string}>();
+  if(principal?.user_id!==owner)fail(403,'This library is private to its owner.');
+  const kind=event===STYLE_EVENT?'edit':'subscription-proof';
+  const acquired=await env.DB.prepare("UPDATE jobs SET input=json_set(input,'$.delivery',json(?)),updated_at=? WHERE id=? AND owner_id=? AND kind=? AND model_id=? AND state='queued' AND coalesce(json_extract(input,'$.delivery.accepted'),0)=0 AND coalesce(json_extract(input,'$.delivery.leaseUntil'),0)<=?").bind(JSON.stringify({accepted:false,state:'sending',leaseUntil:now+30000}),now,jobId,owner,kind,SUBSCRIPTION_MODEL,now).run();
   if(acquired.meta.changes!==1)return;
   const task=await env.DB.prepare('SELECT created_at FROM jobs WHERE id=? AND owner_id=?').bind(jobId,owner).first<{created_at:number}>();
-  const body=JSON.stringify({eventId:'moment-job-'+jobId,name:PUBLIC_EVENT,timestamp:new Date(task!.created_at).toISOString(),data:{jobId,photoId:'1060'},cursor:null});
+  const eventId='moment-job-'+jobId;
+  const body=JSON.stringify({eventId,name:event,timestamp:new Date(task!.created_at).toISOString(),data:{jobId,...(event===PUBLIC_EVENT?{photoId:'1060'}:{})},cursor:null});
   let status:number|null=null,accepted=false;
   for(let attempt=0;attempt<3;attempt++){
-    const current=await subscription(env,owner);if(!current?.active||current.id!==sub.id||current.expires_at<=Date.now()){status=410;break;}
-    try{const response=await signedPost(sub,'moment-job-'+jobId,body);status=response.status;accepted=response.ok;await response.body?.cancel();}catch{status=null;}
+    const current=await subscription(env,owner,event);if(!current?.active||current.id!==sub?.id||current.expires_at<=Date.now()){status=410;break;}
+    try{const response=await signedPost(current,eventId,body);status=response.status;accepted=response.ok;await response.body?.cancel();
+      if(status===410)await env.DB.prepare(`UPDATE ${tableFor(event)} SET active=0 WHERE owner_id=? AND id=? AND expires_at=? AND secret=?`).bind(owner,current.id,current.expires_at,current.secret).run();
+    }catch{status=null;}
     if(accepted||(status!==null&&status<500&&status!==429))break;
     if(attempt<2)await new Promise(resolve=>setTimeout(resolve,attempt===0?300:900));
   }
-  await env.DB.prepare("UPDATE jobs SET input=json_set(input,'$.delivery',json(?)),updated_at=? WHERE id=? AND owner_id=? AND kind='subscription-proof'").bind(JSON.stringify({accepted,state:accepted?'accepted':'failed',httpStatus:status,eventId:'moment-job-'+jobId,at:Date.now()}),Date.now(),jobId,owner).run();
+  await env.DB.prepare("UPDATE jobs SET input=json_set(input,'$.delivery',json(?)),updated_at=? WHERE id=? AND owner_id=? AND kind=? AND model_id=?").bind(JSON.stringify({accepted,state:accepted?'accepted':'failed',httpStatus:status,eventId,at:Date.now()}),Date.now(),jobId,owner,kind,SUBSCRIPTION_MODEL).run();
 }
+export function deliverPublicEvent(env:GalleryEnv,owner:string,jobId:string){return deliverEvent(env,owner,jobId,PUBLIC_EVENT);}

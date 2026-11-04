@@ -43,3 +43,5 @@ node scripts/verify-nvidia.mjs --infer --sample city --preferred nvidia/nemotron
 - [OpenAI subscription cloud round-trip proof](openai-cloud-proof.md): isolated public sample, Site MCP boundary, acceptance criteria and historical explicit task start.
 
 - [Website-triggered OpenAI cloud proof](openai-event-trigger.md): signed MCP Events, corrected callback transport and passed hosted click-to-result acceptance (82 local tests plus independent cloud/download checks).
+
+- [Style Lab subscription editing](style-lab-subscription.md): owner-selected inputs, saved recipes, job delivery and automatic listener renewal.

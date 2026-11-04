@@ -26,7 +26,7 @@ export default function App({mode="demo"}) {
   const [busy,setBusy]=useState(false),[pickerNext,setPickerNext]=useState(null);
   const [analysisJobs,setAnalysisJobs]=useState([]),[analysisProblem,setAnalysisProblem]=useState('');
   const [trashPhotos,setTrashPhotos]=useState([]),[trashCursor,setTrashCursor]=useState(null),[trashError,setTrashError]=useState('');
-  const [editJobs,setEditJobs]=useState([]),[editProblem,setEditProblem]=useState('');const generationRequests=useRef(new Map());
+  const [editJobs,setEditJobs]=useState([]),[editProblem,setEditProblem]=useState(''),[styleConnection,setStyleConnection]=useState(null);const generationRequests=useRef(new Map());
   const [modelCatalog,setModelCatalog]=useState(null),[modelRefreshing,setModelRefreshing]=useState(false),[modelError,setModelError]=useState('');
   const [month,setMonth]=useState('all'),[monthRows,setMonthRows]=useState([]),[monthCursor,setMonthCursor]=useState(null);
   const filterScope=useRef({category:'all',month:'all'});
@@ -54,17 +54,20 @@ export default function App({mode="demo"}) {
     catch(error){setModelError(error.message);}
     finally{setModelRefreshing(false);}
   },[client,cloud]);
-  useEffect(()=>{if(!ready||!client?.canGenerate())return;let live=true;client.editJobs().then(jobs=>{if(live)setEditJobs(jobs);}).catch(error=>{if(live)setEditProblem(error.message);});return ()=>{live=false;};},[ready,client]);
   useEffect(()=>{
-    if(!client||!editJobs.some(job=>['queued','running'].includes(job.state)))return;
+    if(!ready||!client?.canGenerate())return;
     let live=true,timer;
+    const pending=editJobs.some(job=>job.state==='running'||(job.state==='queued'&&job.delivery?.state!=='failed'));
     async function refresh(){try{
-      const jobs=await client.editJobs(),missing=jobs.filter(job=>job.state==='succeeded'&&job.result?.photoId&&!stateRef.current.photos.some(photo=>photo.id===job.result.photoId)).map(job=>job.result.photoId);
+      const {jobs,connection}=await client.editJobs();if(!live)return;
+      const missing=jobs.filter(job=>job.state==='succeeded'&&job.result?.photoId&&!stateRef.current.photos.some(photo=>photo.id===job.result.photoId)).map(job=>job.result.photoId);
       if(missing.length)await execute(async()=>{if(!live)return;const items=await client.resolve(missing),scope=filterScope.current,page=await client.filter(scope.category,scope.month);if(!live)return;change(s=>({...s,photos:mergePhotos(s.photos,[...items,...page])}));setHasMore(client.hasMore());setLibraryRevision(n=>n+1);});
-      if(!live)return;setEditProblem('');setEditJobs(jobs);if(!jobs.some(job=>['queued','running'].includes(job.state)))generationRequests.current.clear();
-    }catch(error){if(live){setEditProblem(error.message);timer=setTimeout(refresh,10000);}}}
-    timer=setTimeout(refresh,2500);return ()=>{live=false;clearTimeout(timer);};
-  },[editJobs,client]);
+      if(!live)return;setEditProblem('');setEditJobs(jobs);setStyleConnection(connection);
+    }catch(error){if(live)setEditProblem(error.message);}
+    finally{if(live)timer=setTimeout(refresh,pending?3000:30000);}}
+    if(view==='lab'||pending){if(pending)timer=setTimeout(refresh,2500);else void refresh();}
+    return ()=>{live=false;clearTimeout(timer);};
+  },[ready,client,view,editJobs.some(job=>job.state==='running'||(job.state==='queued'&&job.delivery?.state!=='failed'))]);
   useEffect(()=>{if(ready)void refreshModelCatalog();},[ready,refreshModelCatalog]);
   useEffect(()=>{
     if(!ready||view!=='library'||!['months','recent'].includes(tab))return;
@@ -119,7 +122,13 @@ export default function App({mode="demo"}) {
   function generateStyle(recipe,ids,output){return execute(async()=>{
     const key=JSON.stringify([ids,editSignature(recipe,output)]);if(!generationRequests.current.has(key))generationRequests.current.set(key,crypto.randomUUID());
     const jobs=await client.generate(ids,recipe,generationRequests.current.get(key),output);
-    setEditJobs(current=>[...jobs,...current.filter(job=>!jobs.some(item=>item.id===job.id))]);setEditProblem('');toast(jobs.length+' edits queued');return jobs;
+    generationRequests.current.delete(key);
+    setEditJobs(current=>[...jobs,...current.filter(job=>!jobs.some(item=>item.id===job.id))]);setEditProblem('');toast(jobs.some(job=>job.delivery?.state==='failed')?'Delivery needs a retry':jobs.length===1?'Edit queued':jobs.length+' edits queued');return jobs;
+  });}
+  function retryStyle(job){return execute(async()=>{
+    const response=await client.retryEdit(job.id);
+    setStyleConnection(response.connection);setEditJobs(current=>current.map(item=>item.id===job.id?response.job:item));
+    setEditProblem('');return response.job;
   });}
   function openEditJob(job){return execute(async()=>{const items=await client.resolve([job.photoId]);if(!items.length)throw new Error('The source photo is in Trash. Restore it first.');change(s=>({...s,photos:mergePhotos(s.photos,items)}));setSelected(new Set([job.photoId]));setSelecting(true);setView('lab');return true;});}
   const photos=state.photos.filter(photo=>!photo.trashedAt);
@@ -216,7 +225,7 @@ export default function App({mode="demo"}) {
         month={month} months={monthRows} onMonth={chooseMonth} hasMoreMonths={Boolean(monthCursor)} onMoreMonths={moreMonths}
         recent={recent} onOpenGroup={openRecentGroup} collectionLoading={collectionLoading} collectionError={collectionError} onRefreshCollections={()=>setCollectionRefresh(n=>n+1)} trashPhotos={trashPhotos} trashMore={Boolean(trashCursor)} onMoreTrash={moreTrash} onTrash={moveTrash} onRestore={restorePhotos}/>}
       {view==='library'&&tab==='trash'&&trashError&&<p role="alert">{trashError}</p>}
-      {view==='lab'&&<StyleLab photos={labPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('lab')} savedStyles={state.savedStyles||[]} onSaveStyle={saveStyle} onSaveResults={saveStyleResults} onApply={apply} onGenerate={client?.canGenerate()?generateStyle:undefined} onOpenEdit={openEditJob} editJobs={editJobs} editProblem={editProblem} busy={busy} toast={toast}/>}
+      {view==='lab'&&<StyleLab photos={labPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('lab')} savedStyles={state.savedStyles||[]} onSaveStyle={saveStyle} onSaveResults={saveStyleResults} onApply={apply} onGenerate={client?.canGenerate()?generateStyle:undefined} onOpenEdit={openEditJob} onRetry={retryStyle} connection={styleConnection} editJobs={editJobs} editProblem={editProblem} busy={busy} toast={toast}/>}
       {view==='collage'&&<CollageView photos={workPhotos} isExample={!chosen.length} onChoose={()=>chooseForEditor('collage')} onSave={saveCollage} toast={toast} busy={busy}/>}
     </main>
     {analysisJobs.length>0&&<div className="analysis-progress" role="status"><Loader2 size={15} className="spinning"/>{analysisProblem?'Could not refresh status. Retrying…':'Analyzing '+analysisJobs.length+' photos…'}{analysisProblem&&<button className="text-button" onClick={()=>location.reload()}>Reload</button>}</div>}

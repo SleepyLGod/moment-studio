@@ -1,4 +1,3 @@
-import {readPhotoSize} from './output-size.js';
 /** A resource client: no cloud records or image bytes are persisted in browser storage. */
 export function createCloudLibrary(){
   let cursor=null,category='all',month='all',visible=new Set(),total=0,analysisEnabled=false,imageEditEnabled=false;
@@ -57,7 +56,7 @@ export function createCloudLibrary(){
   async function resolve(ids){const items=[];for(let i=0;i<ids.length;i+=50){const page=await request('/photos/resolve',{method:'POST',body:JSON.stringify({ids:ids.slice(i,i+50)})});items.push(...page.items);}return items;}
   return {
     async load(seed=true){
-      const me=await request('/me');analysisEnabled=me.features?.analysis===true;imageEditEnabled=me.features?.imageEdit===true;if(seed&&!me.initialized)await request('/bootstrap',{method:'POST',body:'{}'});
+      const me=await request('/me');analysisEnabled=me.features?.analysis===true;imageEditEnabled=me.features?.subscriptionStyle===true;if(seed&&!me.initialized)await request('/bootstrap',{method:'POST',body:'{}'});
       const photos=await list('photos');
       const albums=await all('albums');
       const related=[...new Set([...albums.flatMap(a=>a.photoIds.slice(0,3)),'1015','1067','1060','1043','1011'])].filter(id=>!photos.items.some(p=>p.id===id));
@@ -69,8 +68,9 @@ export function createCloudLibrary(){
     trashPage:next=>request('/photos?trash=true&limit=50'+(next?'&cursor='+encodeURIComponent(next):'')),
     canAnalyze:()=>analysisEnabled,
     canGenerate:()=>imageEditEnabled,
-    editJobs:()=>request('/jobs?kind=edit').then(data=>data.jobs),
-    async generate(photoIds,recipe,requestId,output){const draft={...recipe};if(recipe.reference?.src)draft.reference={...recipe.reference,src:await materialize(recipe.reference.src,recipe.reference.name||'reference.jpg','reference')};const sourceSizes={};if(output.mode==='original')for(const id of photoIds){const photo=(await request('/photos/'+encodeURIComponent(id))).item;sourceSizes[id]=await readPhotoSize(photo);}return (await request('/jobs',{method:'POST',body:JSON.stringify({kind:'edit',photoIds,recipe:draft,requestId,output,sourceSizes})})).jobs;},
+    editJobs:()=>request('/jobs?kind=edit'),
+    retryEdit:jobId=>request('/jobs',{method:'POST',body:JSON.stringify({kind:'retry-subscription-edit',jobId})}),
+    async generate(photoIds,recipe,requestId){const draft={...recipe};if(recipe.reference?.src)draft.reference={...recipe.reference,src:await materialize(recipe.reference.src,recipe.reference.name||'reference.jpg','reference')};return (await request('/jobs',{method:'POST',body:JSON.stringify({kind:'edit',provider:'openai-subscription',photoIds,recipe:draft,requestId,output:{mode:'native'}})})).jobs;},
     models:()=>request('/ai/models'),
     refreshModels:()=>request('/ai/models/refresh',{method:'POST',body:'{}'}),
     months:(category='all',next=null)=>request('/photos/months?category='+encodeURIComponent(category)+(next?'&cursor='+encodeURIComponent(next):'')),

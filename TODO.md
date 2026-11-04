@@ -39,5 +39,5 @@ No real photo library or second source repository is required. Hosted analysis u
 - [x] OpenAI cloud native subscription image editing and private Sites MCP result saving: public-sample round trip verified. This does not use the separate third-party subscription-sharing OAuth route or a paid API.
 
 - [x] Website-triggered native OpenAI subscription image editing: actual `/cloud-proof` click, automatic cloud execution, private result save, reopen and matching download checksum verified. See [acceptance](docs/development/openai-event-trigger.md). Our Workers redirect mode and callback-host bugs were fixed; the original complete task parameters work.
-- [ ] Observe listener renewal/reconnect across its 24-hour lifetime before relying on unattended long-term use.
-- [ ] Extend the verified event route into general Style Lab photo/prompt selection and Style reuse, preserving ownership, originals, task idempotency and explicit unknown-state handling. The public proof currently accepts one fixed sample per owner.
+- [ ] Observe the first actual ChatGPT renewal of the Style Lab listener; the Site's same-ID extension and key rotation pass integration tests.
+- [x] Extend the event route into Style Lab photo/prompt selection and Style reuse. See [Style Lab subscription editing](docs/development/style-lab-subscription.md) for the architecture and acceptance boundary.
