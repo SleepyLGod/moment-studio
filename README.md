@@ -9,7 +9,9 @@ A photo workbench for browsing, organizing and reimagining a personal library.
 
 Both editions share the React interface. The demo loads bundled examples and can import files into the current browser. It has no live AI generation or connection to the private library.
 
-![Library preview](docs/screenshots/library.png)
+![Style Lab comparing a coffee photo with its paper-cut edit](docs/screenshots/style-lab-live.jpg)
+
+*Style Lab preview from the hosted workspace, with the original on the left and the edit on the right.*
 
 ## Private workspace
 
@@ -30,6 +32,10 @@ npm run dev:demo
 ```
 
 The local demo opens at `http://127.0.0.1:4173/`. Run `npm run check` for tests, TypeScript and both builds. To run the cloud app against local D1/R2 or publish either edition, follow [Deployment](DEPLOYMENT.md).
+
+## Deploy your own copy
+
+With access to the source, you can run the demo locally or deploy a separate, empty private gallery. The gallery, NVIDIA photo tags and subscription image editing are configured separately. See [the deployment checklist](DEPLOYMENT.md#deploy-your-own-copy).
 
 ## Project docs
 

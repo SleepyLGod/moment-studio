@@ -27,6 +27,17 @@ Sites applies SQL migrations during publication. Generate new ones with `npm run
 - [NVIDIA photo tags](docs/development/models-and-organization.md) use the same-repo [Cloudflare Cron executor](executor/README.md). It wakes the private Sites runner. Job records and images stay with Sites. Store `MOMENT_EXECUTOR_KEY`, `MOMENT_SITE_ACCESS_TOKEN` and `NVIDIA_API_KEY` as applicable platform secrets.
 - [Cloudflare FLUX.2 experiments](docs/development/cloudflare-style-edit.md) and the [public-sample OpenAI proof](docs/development/openai-event-trigger.md) are separate historical routes. The active Style Lab uses the subscription task above.
 
+## Deploy your own copy
+
+The source repository is private. Obtain access and permission from its owner before copying or deploying it. The application's source has no public open-source license. A new installation starts with an independent database, file storage and connections.
+
+1. **Browser demo.** Use `npm run dev:demo` locally or publish the static build. If you publish under a different project name, set `DEMO_BASE` in the Pages workflow to that project's URL path. This edition uses sample images and browser-local storage and needs no AI credentials.
+2. **Private cloud library.** Create your own ChatGPT Site and publish from its own source repository. Replace the existing `project_id` in `.openai/hosting.json` with the new Site's ID and retain the D1, R2 and MCP declarations. Sites provisions fresh storage. Keep the audience owner-only, then test login, upload and original download before enabling AI.
+3. **NVIDIA photo tags.** Get your own NVIDIA API key with access to a compatible vision endpoint. Set `NVIDIA_API_KEY` on your Site, change `SITE_ORIGIN` in `executor/worker.mjs` to your new Site URL, and deploy the Cron Worker to your own Cloudflare account. Use a new shared `MOMENT_EXECUTOR_KEY` and your new Site's `MOMENT_SITE_ACCESS_TOKEN`, following the [executor setup](executor/README.md).
+4. **Live Style Lab.** In an eligible ChatGPT Work account or workspace, connect the plugin provisioned by your new Site. Create your own cloud task for `style_edit.queued` with access to native image editing. Follow the [task setup](docs/development/style-lab-subscription.md#cloud-task-setup) and confirm that Settings reports a connection. Test one public sample through to a saved result. This route uses the connected subscription.
+
+The existing hosted installation has been exercised. This checklist has not been run end to end on a second account. Check Sites, plugin and event-trigger availability in the intended account before relying on live editing.
+
 ## Local cloud simulation
 
 Use Node.js 24. Install dependencies, build once, and apply migrations to a fresh local store in filename order.
