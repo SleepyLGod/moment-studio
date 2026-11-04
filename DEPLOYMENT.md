@@ -17,13 +17,27 @@ The source repository is private. GitHub's Pages entitlement for this repository
 
 Keep the existing owner-only audience. GitHub carries the portable manifest. The Sites-managed private source carries the same code with its own `project_id` added to `.openai/hosting.json`. Sites provisions the manifest's D1 (`DB`) and R2 (`BUCKET`) bindings and supplies visitor identity. API handlers also enforce owner and resource checks. Service-access tokens do not supply a visitor identity.
 
-After pushing changes to GitHub `main`, open the repository in Codex with the Sites plugin enabled and run:
+### Publish from the terminal
 
-```text
-$publish-moment-site
+Use the Codex CLI signed in with ChatGPT, with the Sites plugin installed, and GitHub access to the repository. Once per checkout, create `.sites/deploy.json`:
+
+```json
+{
+  "siteUrl": "https://your-private-site.chatgpt.site"
+}
 ```
 
-In a new conversation, append your private Site URL to the same command so Codex can select the existing deployment. The command fetches the latest pushed code, syncs it into a separate private checkout, runs the checks, and publishes through Sites. GitHub Pages continues to build from the GitHub push.
+Replace the example with your existing private Site URL. Git ignores `.sites/`. The config only contains the URL. Codex obtains short-lived release credentials from Sites.
+
+After pushing to GitHub `main`, run this from the repo:
+
+```sh
+npm run deploy:sites
+```
+
+The command invokes the authenticated Codex CLI, syncs the latest pushed code into a separate private checkout, runs checks, and publishes through Sites. It exits with an error if the release cannot be confirmed. GitHub Pages still builds from the GitHub push.
+
+From a Codex conversation, the equivalent is `$publish-moment-site` followed by the existing private Site URL.
 
 Sites applies SQL migrations during publication. Generate new ones with `npm run db:generate`, inspect them and commit the SQL plus Drizzle metadata. Treat applied migrations as immutable.
 
