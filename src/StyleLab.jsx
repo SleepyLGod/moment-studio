@@ -53,7 +53,8 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
     e.preventDefault();
     if(!styleName.trim()||!draft.prompt.trim())return;
     if(saving)return;setSaving(true);
-    const saved=prepareStyleSave(draft,styleName,result&&imageReady&&!imageError?result:null,pendingStyle.current);pendingStyle.current=saved;
+    const cover=live?result:result&&imageReady&&!imageError?result:null;
+    const saved=prepareStyleSave(draft,styleName,cover,pendingStyle.current);pendingStyle.current=saved;
     try{const confirmed=await onSaveStyle(saved);if(confirmed){setDraft(confirmed);setDisplayed(confirmed);setDialog(null);pendingStyle.current=null;}}finally{setSaving(false);}
   }
   async function saveResults(items) {
@@ -90,7 +91,7 @@ export function StyleLab({photos,isExample,onChoose,savedStyles,onSaveStyle,onSa
         <div className="recipe-grid">{[...STYLE_RECIPES,...savedStyles].map(item=>{
           const builtin=STYLE_RECIPES.some(s=>s.id===item.id);
           const cover=builtin?'/styles/'+item.id+'-fjord.png':item.cover;
-          return <button key={item.id} className={'recipe-card '+(item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)?'active':'')} aria-pressed={item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)} onClick={()=>loadStyle(item)}>{cover?<img src={assetUrl(cover)} alt={item.name+' preview'}/>:<div className="recipe-placeholder"><Bookmark size={22}/><span>Draft</span></div>}<span className="recipe-info"><strong>{item.name}</strong><small>{builtin?'':item.cover?'Saved':'Draft'}</small></span></button>;
+          return <button key={item.id} className={'recipe-card '+(item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)?'active':'')} aria-pressed={item.id===draft.id&&recipeSignature(item)===recipeSignature(draft)} onClick={()=>loadStyle(item)}>{cover?<img src={assetUrl(cover)} alt={item.name+' preview'}/>:<div className="recipe-placeholder"><Bookmark size={22}/><span>Recipe</span></div>}<span className="recipe-info"><strong>{item.name}</strong><small>{builtin?'':item.cover?'Saved':'Saved recipe'}</small></span></button>;
         })}</div>
       </section>
       {live&&editJobs.length>0&&<section className="styles-library" aria-label="Recent image edits"><div className="styles-heading"><h2>Recent</h2></div><div className="recipe-grid">{editJobs.slice(0,4).map(item=><button key={item.id} className="recipe-card" onClick={()=>{loadStyle(item.recipe);setOutput(item.outputChoice||{mode:'native'});setActiveId(item.photoId);void onOpenEdit(item);}}>{item.state==='succeeded'?<img src={assetUrl(item.result.src)} alt={item.recipe.name+' result'}/>:<div className="recipe-placeholder"><Layers size={22}/></div>}<span className="recipe-info"><strong>{item.recipe.name}</strong><small>{{queued:'Queued',running:'Generating…',succeeded:'Saved',failed:'Failed',unknown:'Result unknown',cancelled:'Cancelled'}[item.state]}</small></span></button>)}</div></section>}

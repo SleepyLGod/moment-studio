@@ -13,7 +13,6 @@ export async function expireSubscriptionEdits(env:GalleryEnv,owner:string){
   await env.DB.prepare("UPDATE jobs SET state='unknown',error_code='RESULT_UNKNOWN',lease_token=NULL,lease_until=NULL,updated_at=? WHERE owner_id=? AND kind='edit' AND model_id=? AND ((state='running' AND lease_until<=?) OR (state='queued' AND json_extract(input,'$.delivery.accepted')=1 AND json_extract(input,'$.delivery.at')<=?))").bind(now,owner,SUBSCRIPTION_MODEL,now,now-15*60*1000).run();
 }
 export async function subscriptionEditStatus(env:GalleryEnv,owner:string,jobId:unknown){
-  await expireSubscriptionEdits(env,owner);
   const job=await lookup(env,owner,identifier(jobId));if(!job)fail(404,'Style Lab job not found.');
   const {id,state,result,errorCode}=presentEdit(job);
   return {id,state,result,errorCode};
