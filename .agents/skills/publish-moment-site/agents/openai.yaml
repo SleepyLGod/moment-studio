@@ -1,0 +1,5 @@
+interface:
+  display_name: "Publish Moment Studio"
+  short_description: "Sync and publish the private Moment Studio Site"
+policy:
+  allow_implicit_invocation: false

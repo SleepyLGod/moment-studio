@@ -17,7 +17,13 @@ The source repository is private. GitHub's Pages entitlement for this repository
 
 Keep the existing owner-only audience. GitHub carries the portable manifest. The Sites-managed private source carries the same code with its own `project_id` added to `.openai/hosting.json`. Sites provisions the manifest's D1 (`DB`) and R2 (`BUCKET`) bindings and supplies visitor identity. API handlers also enforce owner and resource checks. Service-access tokens do not supply a visitor identity.
 
-Open the existing Site with the Sites source helper. Merge the checked GitHub source into that private checkout, retain its `project_id`, then build and commit there. Push and package that exact private commit with the helper. Verify its deployment and owner-only audience. A GitHub push publishes the demo through Actions, while the private workspace uses the Sites publication workflow.
+After pushing changes to GitHub `main`, open the repository in Codex with the Sites plugin enabled and run:
+
+```text
+$publish-moment-site
+```
+
+In a new conversation, append your private Site URL to the same command so Codex can select the existing deployment. The command fetches the latest pushed code, syncs it into a separate private checkout, runs the checks, and publishes through Sites. GitHub Pages continues to build from the GitHub push.
 
 Sites applies SQL migrations during publication. Generate new ones with `npm run db:generate`, inspect them and commit the SQL plus Drizzle metadata. Treat applied migrations as immutable.
 
