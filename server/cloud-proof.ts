@@ -1,3 +1,4 @@
+import {putGalleryFile} from './photo-purge.ts';
 import {digest as sha256,jpegDimensions as jpegSize} from './image-integrity.ts';
 import type {GalleryEnv} from './api.ts';
 import {boundedBytes,fail,identifier,json} from './http.ts';
@@ -58,7 +59,7 @@ export async function savePublicProof(env:GalleryEnv,owner:string,data:Record<st
   const source=await env.DB.prepare('SELECT data FROM photos WHERE id=? AND owner_id=? AND deleted_at IS NULL').bind(PUBLIC_SAMPLE.photoId,owner).first<{data:string}>();
   if(!source||JSON.parse(source.data).src!==PUBLIC_SAMPLE.src)fail(409,'The original public sample is no longer available.');
   const fileId='subscription-'+id,key='owners/'+owner+'/'+fileId;
-  await env.BUCKET.put(key,bytes,{httpMetadata:{contentType:'image/jpeg'},onlyIf:{etagDoesNotMatch:'*'}});
+  await putGalleryFile(env,owner,fileId,key,bytes,'image/jpeg');
   const stored=await env.BUCKET.get(key);if(!stored||await sha256(new Uint8Array(await stored.arrayBuffer()))!==sha)fail(409,'Stored result checksum mismatch.');
   const now=Date.now(),src='/api/files/'+fileId,result={photoId:fileId,src,sha256:sha,cloudTaskUrl:taskUrl,...dimensions,bytes:bytes.length};
   const photo={id:fileId,name:'Coffee · OpenAI cloud proof',kind:'generation',category:'创作',style:'generated',date:calendarDay(now),src:PUBLIC_SAMPLE.src,renderedSrc:src,generationSrc:src,parentPhotoId:PUBLIC_SAMPLE.photoId,recipeName:'Layered paper',recipe:{name:'Layered paper',prompt:PUBLIC_SAMPLE.prompt,preserve:true,reference:null},generationSource:'openai-subscription',generation:{provider:'openai-subscription-cloud',jobId:id,...result}};

@@ -5,6 +5,8 @@ import {handleModels} from './ai/catalog.ts';
 import {handleLibraryViews,photoScope,presentPhoto} from './library.ts';
 import {timeline} from '../src/services/organization.js';
 import {photoMime} from '../src/services/photo-format.js';
+import {handlePhotoPurge,purgeWriteFence,purgeWriteArgs,putGalleryFile} from './photo-purge.ts';
+import {eventConnection,STYLE_EVENT} from './cloud-events.ts';
 import {handleTrash} from './trash.ts';
 import {finishEditJob} from './edit-jobs.ts';
 import {handleCloudProof} from './cloud-proof.ts';
@@ -79,6 +81,10 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
     const proofResponse=await handleCloudProof(request,env,user.userId);if(proofResponse)return proofResponse;
     const collectionResponse=await handleLibraryViews(request,env,user.userId);if(collectionResponse)return collectionResponse;
     const jobResponse=await handleJobs(request,env,user);if(jobResponse)return jobResponse;
+    if(url.pathname==='/api/settings'&&method==='GET'){
+      const {ready,expiresAt}=await eventConnection(env,user.userId,STYLE_EVENT);
+      return json({connection:{ready,expiresAt}});
+    }
     if(path[0]==='me'&&method==='GET'){
       const row=await env.DB.prepare('SELECT initialized FROM library_owner WHERE id=1').first<{initialized:number}>();
       return json({user:{id:user.userId,email:user.email},storage:'cloud',initialized:Boolean(row?.initialized),features:{subscriptionStyle:true,analysis:Boolean(env.NVIDIA_API_KEY&&env.MOMENT_EXECUTOR_KEY&&env.MOMENT_BACKGROUND_ENABLED==='true'),imageEdit:Boolean(env.MOMENT_EXECUTOR_KEY&&env.MOMENT_BACKGROUND_ENABLED==='true'&&env.MOMENT_IMAGE_EDIT_ENABLED==='true')}});
@@ -102,24 +108,26 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       if(!MIME.has(mime)||!['original','preview','rendered','reference','generation'].includes(purpose)||(mime==='image/heic'&&purpose!=='original'))fail(400,'Use JPG, PNG, WebP or a HEIC original.');
       if(typeof data.name!=='string'||!data.name.trim()||data.name.length>200)fail(400,'Invalid file name.');
       const existing=await fileRow(env,user.userId,id);
-      if(existing){if(existing.size!==size||existing.mime!==mime||existing.purpose!==purpose||existing.name!==data.name)fail(409,'This upload ID already describes another file.');return json({upload:{id,status:existing.status}});}
+      if(existing){if(['purging','purged'].includes(existing.status))fail(410,'This file was permanently deleted.');if(existing.size!==size||existing.mime!==mime||existing.purpose!==purpose||existing.name!==data.name)fail(409,'This upload ID already describes another file.');return json({upload:{id,status:existing.status}});}
       await env.DB.prepare('INSERT INTO files (id,owner_id,name,mime,size,object_key,purpose,status,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(id,user.userId,data.name,mime,size,`owners/${user.userId}/${id}`,purpose,'pending',Date.now()).run();
       return json({upload:{id,status:'pending'}});
     }
     if(path[0]==='uploads'&&path.length===3){
       const id=identifier(path[1]),row=await fileRow(env,user.userId,id);if(!row)fail(404,'Upload not found.');
+      if(['purging','purged'].includes(row.status))fail(410,'This file was permanently deleted.');
       if(path[2]==='body'&&method==='PUT'){
         if(row.status==='ready')return json({uploaded:true});
         const bytes=await boundedBytes(request.body,Math.min(row.size,MAX_FILE));
         if(bytes.byteLength!==row.size||photoMime(bytes)!==row.mime)fail(400,'File contents do not match the upload.');
         // R2 create-only write prevents concurrent retries replacing the first accepted original.
-        await env.BUCKET.put(row.object_key,bytes,{httpMetadata:{contentType:row.mime},onlyIf:{etagDoesNotMatch:'*'}});
+        await putGalleryFile(env,user.userId,id,row.object_key,bytes,row.mime);
         const stored=await env.BUCKET.head(row.object_key);if(!stored||stored.size!==row.size)fail(503,'Upload could not be verified.');
         return json({uploaded:true});
       }
       if(path[2]==='complete'&&method==='POST'){
         const stored=await env.BUCKET.head(row.object_key);if(!stored||stored.size!==row.size)fail(409,'Upload is not complete.');
-        await env.DB.prepare("UPDATE files SET status='ready' WHERE id=? AND owner_id=?").bind(id,user.userId).run();
+        const completed=await env.DB.prepare("UPDATE files SET status='ready' WHERE id=? AND owner_id=? AND status IN ('pending','ready')").bind(id,user.userId).run();
+        if(!completed.meta.changes)fail(410,'This file was permanently deleted.');
         return json({file:{id,src:'/api/files/'+id,mime:row.mime,size:row.size,name:row.name}});
       }
     }
@@ -128,6 +136,7 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
       const object=await env.BUCKET.get(row.object_key);if(!object)fail(404,'File not found.');
       return new Response(method==='HEAD'?null:object.body,{headers:{...headers,'content-type':row.mime,'content-length':String(row.size),'content-disposition':`${url.searchParams.has('download')?'attachment':'inline'}; filename*=UTF-8''${encodeURIComponent(row.name)}`}});
     }
+    const purge=await handlePhotoPurge(request,env,user.userId);if(purge)return purge;
     const trashed=await handleTrash(request,env,user);if(trashed)return trashed;
     const table=path[0];
     if(table==='photos'&&path[1]==='resolve'&&path.length===2&&method==='POST'){
@@ -161,9 +170,9 @@ export async function handleApi(request:Request,env:GalleryEnv,identity:Identity
         const {trashedAt:ignoredTrash,revision:ignored,_order:ignoredOrder,timelineDay:ignoredDay,dateSource:ignoredSource,...values}=data;const now=Date.now(),raw=JSON.stringify(values),date=timeline(data,existing?.created_at||now);
         if(existing&&existing.data!==raw&&data.revision!==existing.revision)fail(409,'This item changed in another session. Reload before saving.');
         if(existing){
-          if(existing.data!==raw){const changed=await env.DB.prepare(`UPDATE ${table} SET data=?,revision=revision+1,updated_at=?${table==='photos'?',timeline_day=?,date_source=?':''} WHERE id=? AND owner_id=? AND revision=?`).bind(raw,now,...(table==='photos'?[date.day,date.source]:[]),id,user.userId,existing.revision).run();if(!changed.meta.changes)fail(409,'This item changed. Reload before saving.');}
+          if(existing.data!==raw){const changed=await env.DB.prepare(`UPDATE ${table} SET data=?,revision=revision+1,updated_at=?${table==='photos'?',timeline_day=?,date_source=?':''} WHERE id=? AND owner_id=? AND revision=? AND ${purgeWriteFence}`).bind(raw,now,...(table==='photos'?[date.day,date.source]:[]),id,user.userId,existing.revision,...purgeWriteArgs(raw,user.userId,table)).run();if(!changed.meta.changes)fail(409,'This item changed. Reload before saving.');}
         }else{
-          await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (id,owner_id,data,revision,created_at,updated_at${table==='photos'?',timeline_day,date_source':''}) VALUES (?,?,?,1,?,?${table==='photos'?',?,?':''})`).bind(id,user.userId,raw,now,now,...(table==='photos'?[date.day,date.source]:[])).run();
+          await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (id,owner_id,data,revision,created_at,updated_at${table==='photos'?',timeline_day,date_source':''}) SELECT ?,?,?,1,?,?${table==='photos'?',?,?':''} WHERE ${purgeWriteFence}`).bind(id,user.userId,raw,now,now,...(table==='photos'?[date.day,date.source]:[]),...purgeWriteArgs(raw,user.userId,table)).run();
           const stored=await record(env,table,user.userId,id);if(!stored||stored.data!==raw)fail(409,'This identifier already belongs to another record.');
         }
         const total=scope?(await env.DB.prepare(`SELECT count(*) AS total FROM photos WHERE ${scope.conditions.join(' AND ')}`).bind(...scope.args).first<{total:number}>())?.total:undefined;

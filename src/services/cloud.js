@@ -34,13 +34,19 @@ export function createCloudLibrary(){
     const response=await fetch(src);if(!response.ok)throw new Error('Could not read image bytes.');
     const blob=await response.blob();
     if(purpose==='rendered'||purpose==='generation')name=name.replace(/\.(?:jpg|jpeg|png|webp)$/i,'')+'.'+({'image/png':'png','image/webp':'webp'}[blob.type]||'jpg');
-    if(!id){
+    const contentAddressed = !id;
+    if(contentAddressed){
       const digest=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());
       const content=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
       const operation=await crypto.subtle.digest('SHA-256',new TextEncoder().encode([name,purpose,blob.type,content].join('|')));
       id='image-'+Array.from(new Uint8Array(operation),x=>x.toString(16).padStart(2,'0')).join('');
     }
-    return upload(blob,name,purpose,id);
+    try {
+      return await upload(blob,name,purpose,id);
+    } catch (error) {
+      if (!contentAddressed || error.status !== 410) throw error;
+      return upload(blob,name,purpose);
+    }
   }
   async function savePhoto(photo){
     const data={...photo};delete data.file;delete data.previewBlob;
@@ -63,6 +69,11 @@ export function createCloudLibrary(){
       const extras=await resolve(related);
       cursor=photos.nextCursor;return {photos:[...photos.items,...extras],albums,savedStyles:await all('styles')};
     },
+    settings:()=>request('/settings'),
+    deletionImpact:id=>request('/photos/'+encodeURIComponent(id)+'/purge'),
+    purgePhoto:(id,token)=>request('/photos/'+encodeURIComponent(id)+'/purge',{
+      method:'POST',body:JSON.stringify({confirmed:true,token}),
+    }),
     trash:ids=>request('/photos/trash',{method:'POST',body:JSON.stringify({ids})}),
     restore:ids=>request('/photos/restore',{method:'POST',body:JSON.stringify({ids})}),
     trashPage:next=>request('/photos?trash=true&limit=50'+(next?'&cursor='+encodeURIComponent(next):'')),

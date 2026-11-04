@@ -1,3 +1,4 @@
+import {putGalleryFile} from './photo-purge.ts';
 import {digest,jpegDimensions} from './image-integrity.ts';
 import type {GalleryEnv,Identity} from './api.ts';
 import {body,boundedBytes,fail,identifier,json} from './http.ts';
@@ -92,7 +93,7 @@ export async function commitEdit(env:GalleryEnv,row:EditRow,lease:string,bytes:U
   const source=await env.DB.prepare('SELECT data FROM photos WHERE id=? AND owner_id=? AND deleted_at IS NULL').bind(row.photo_id,owner).first<{data:string}>();
   if(!source||JSON.parse(source.data).src!==input.originalSrc)fail(409,'The original source changed.');
   const mime='image/jpeg';
-  await env.BUCKET.put(objectKey,bytes,{httpMetadata:{contentType:mime},onlyIf:{etagDoesNotMatch:'*'}});
+  await putGalleryFile(env,owner,fileId,objectKey,bytes,mime);
   const stored=await env.BUCKET.get(objectKey);if(!stored||await digest(new Uint8Array(await stored.arrayBuffer()))!==sha)fail(409,'This result file already contains different bytes.');
   const src='/api/files/'+fileId,photoId=fileId,result={photoId,src,sha256:sha,...dimensions};
   const photo={id:photoId,name:(input.sourceName+' · '+input.recipe.name).slice(0,200),src:input.originalSrc,originalMime:input.originalMime,thumbnailSrc:input.thumbnailSrc,renderedSrc:src,generationSrc:src,parentPhotoId:row.photo_id,kind:'generation',style:'generated',category:'创作',date:calendarDay(now),recipeName:input.recipe.name,recipe:input.recipe,recipeSignature:input.recipeSignature,generationSource:subscription?'openai-subscription':'cloudflare-ai',generation:{provider:subscription?'openai-subscription-cloud':'cloudflare',model:row.model_id,jobId:id,sha256:sha,...dimensions}};

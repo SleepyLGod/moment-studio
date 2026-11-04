@@ -4,6 +4,7 @@ import {CheckCircle2, Loader2} from 'lucide-react';
 import {AlbumDetail, AlbumDialog, Header, InfoDialog, Modal, NoticeContext, OrganizeDialog, PhotoPreview, RecentGroupDetail, UploadDialog} from './components';
 import {CollageView, Library, PhotoPicker} from './views';
 import {categoryLabel, freshState, assetUrl} from './data';
+import {DeletePhotoDialog, SettingsDialog, readGridSize, writeGridSize} from './gallery-dialogs';
 import {StyleLab} from './StyleLab';
 import {makeSampleDerivative, recipeSignature, sampleFor} from './recipes';
 import {persistState, readSavedState} from './storage';
@@ -20,6 +21,15 @@ export default function App({mode="demo"}) {
   const stateRef=useRef(state),queue=useRef(Promise.resolve()),collageSave=useRef(null);
   const [ready,setReady]=useState(false),[bootError,setBootError]=useState(null),[hasMore,setHasMore]=useState(false);
   const [view,setView]=useState('library'),[tab,setTab]=useState('photos'),[filter,setFilter]=useState('all');
+  const [gridSize,setGridSize] = useState('medium');
+  const [deletion,setDeletion] = useState(null);
+  useEffect(()=>setGridSize(readGridSize()),[]);
+
+  function changeGridSize(size) {
+    setGridSize(size);
+    writeGridSize(size);
+  }
+
   const [selected,setSelected]=useState(()=>new Set()),[selecting,setSelecting]=useState(false);
   const [modal,setModal]=useState(null),[preview,setPreview]=useState(null),[albumId,setAlbumId]=useState(null);
   const [notice,setNotice]=useState(''),[saveProblem,setSaveProblem]=useState(false),[credits,setCredits]=useState([]);
@@ -226,8 +236,8 @@ export default function App({mode="demo"}) {
   if(!ready)return <div className="boot"><Loader2 size={23} className="spinning"/><span>Opening your library…</span></div>;
   return <NoticeContext.Provider value={notice}>
     <a href="#workspace" className="skip-link">Skip to content</a>
-    <Header view={view} onView={setView} onUpload={()=>setModal('upload')}/>
-    <main aria-busy={busy} id="workspace" className={'workspace view-'+view}>
+    <Header view={view} onView={setView} onUpload={()=>setModal('upload')} onSettings={()=>setModal('settings')}/>
+    <main aria-busy={busy} id="workspace" className={'workspace view-'+view} data-grid-size={gridSize}>
       {saveProblem&&<p className="save-warning" role="status">Changes were not confirmed. Check your connection, then reload before retrying.</p>}
       {view==='library'&&<Library photos={photos} albums={state.albums} tab={tab} setTab={value=>{clear();setSelecting(false);setTab(value);}} selected={selected} selecting={selecting} setSelecting={setSelecting} onToggle={toggle} onPreview={setPreview} onClear={clear} onSelectAll={ids=>setSelected(new Set(ids))} filter={filter} setFilter={chooseCategory} visibleIds={client?.visibleIds()} photoTotal={client?.count()} onOrganize={()=>setModal('organize')} onAlbum={openAlbum} onCollage={()=>setView('collage')} onLab={()=>setView('lab')} onOpenAlbum={openAlbumDetail} hasMore={hasMore} onLoadMore={loadMore} loading={busy} onInfo={()=>setModal('info')} onAnalyze={client?.canAnalyze()?analyzeSelected:undefined} analyzing={Boolean(analysisJobs.length)||modelRefreshing||!modelCatalog?.selectedModelId}
         modelCatalog={modelCatalog} modelRefreshing={modelRefreshing} modelError={modelError} onRefreshModels={refreshModelCatalog}
@@ -245,7 +255,18 @@ export default function App({mode="demo"}) {
     {modal==='picker'&&<Modal title="Choose photos" className="picker-modal" onClose={()=>setModal(null)}><PhotoPicker photos={liveStylePicker?photos.filter(photo=>(photo.kind||'photo')==='photo'):photos} limit={liveStylePicker?4:undefined}
       initial={liveStylePicker?labPhotos.map(photo=>photo.id):selected.size?[...selected]:(pickerNext==='lab'?labPhotos:workPhotos).map(p=>p.id)} onClose={()=>setModal(null)} onConfirm={confirmPicker}/></Modal>}
     {modal==='info'&&<InfoDialog cloud={cloud} credits={credits} onClose={()=>setModal(null)}/>}
-    {preview&&<PhotoPreview photo={photos.find(p=>p.id===preview.id)||preview} onClose={()=>setPreview(null)} onTrash={moveTrash} onRestore={restorePhotos}/>}
+    {modal==='settings'&&<SettingsDialog size={gridSize} onSize={changeGridSize} client={client} onClose={()=>setModal(null)}/>}
+    {deletion&&<DeletePhotoDialog photo={deletion} client={client} onClose={()=>setDeletion(null)} onDeleted={id=>{
+      setTrashPhotos(current=>current.filter(photo=>photo.id!==id));
+      change(current=>({...current,photos:current.photos.filter(photo=>photo.id!==id)}));
+      setSelected(current=>new Set([...current].filter(selectedId=>selectedId!==id)));
+      setEditJobs(current=>current.filter(job=>job.photoId!==id&&job.result?.photoId!==id));
+      setLibraryRevision(revision=>revision+1);
+      setDeletion(null);
+      toast('Photo permanently deleted');
+    }}/>}
+    {preview&&<PhotoPreview photo={photos.find(p=>p.id===preview.id)||preview} onClose={()=>setPreview(null)} onTrash={moveTrash} onRestore={restorePhotos}
+      onDelete={cloud?photo=>{setPreview(null);setDeletion(photo);}:undefined}/>}
     {recentGroup&&<RecentGroupDetail group={recentGroup} photos={photos} onClose={()=>setRecentGroup(null)} onPreview={photo=>{setRecentGroup(null);setPreview(photo);}} onSelect={ids=>{setSelected(new Set(ids));setSelecting(true);setRecentGroup(null);}}/>}
     {albumId&&state.albums.some(a=>a.id===albumId)&&<AlbumDetail album={state.albums.find(a=>a.id===albumId)} photos={photos} onClose={()=>setAlbumId(null)} onUpdate={updateAlbum} toast={toast}/>}
   </NoticeContext.Provider>;

@@ -45,3 +45,10 @@ export const cloudEventSubscriptions = sqliteTable('cloud_event_subscriptions', 
 export const styleEventSubscriptions = sqliteTable('style_event_subscriptions', {
   ...eventSubscriptionColumns(), renewedAt:integer('renewed_at'),
 });
+
+export const photoPurges = sqliteTable('photo_purges', {
+  photoId:text('photo_id').primaryKey(),
+  ownerId:text('owner_id').notNull(),
+  fileIds:text('file_ids').notNull(),
+  completedAt:integer('completed_at'),
+});
