@@ -50,7 +50,7 @@ Local regression and hosted evidence are recorded separately. Before claiming a 
 
 ## Observed hosted result — 2026-11-03
 
-The explicitly started normal task in `moment-subscription-probe` successfully claimed Site job `b4b83c60-7fc6-4c09-b9c4-77b64952dc43`, generated a fresh layered-paper coffee image, and called the Site's save tool. The generation and conversion ran on OpenAI cloud Linux, not the Mac. The validation browser tab was closed while the task ran. Native MCP status subsequently returned `succeeded`.
+The explicitly started normal task in `moment-subscription-probe` successfully claimed Site job `<private record ID>`, generated a fresh layered-paper coffee image, and called the Site's save tool. The generation and conversion ran on OpenAI cloud Linux, not the Mac. The validation browser tab was closed while the task ran. Native MCP status subsequently returned `succeeded`.
 
 The saved JPEG is **1422 × 1106**, **544,973 bytes**. Reloading `/cloud-proof` displayed the actual image at those natural dimensions. Downloading it through the authenticated Site returned SHA-256 `181d5be03f008532f1ee1fecb22d253c7c494275347725e17fbba581a080409d`, exactly matching the cloud-saved result. Anonymous file and MCP tool requests both returned **401**. All three manual-album rows were read using the native live D1 inspector before and after, without projection truncation, and were exactly unchanged.
 

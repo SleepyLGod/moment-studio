@@ -1,14 +1,9 @@
 {
   "status": "blocked_before_website_end_to_end_acceptance",
   "dateTimezone": "2026-11-04 Asia/Hong_Kong",
-  "site": "https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site",
-  "projectId": "appgprj_6ae83417d6b88191a4873a4bffafe1d4",
   "applicationCommit": "5181fb7946710b7cb1301f79aab2d1f67cbab087",
   "siteVersion": 19,
-  "deploymentId": "appgdep_6aea0623060881919a4e2dda2352c36a",
-  "sourceConnectorId": "asdk_app_sites_b9b46a1a49788191878618b24fcd671b",
   "event": "public_sample.queued",
-  "verificationChat": "https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87",
   "localChecks": {"testsPassed":80,"types":"passed","demoBuild":"passed","fullstackBuild":"passed","localMigration0007":"applied"},
   "directBrowserObservations": {"pluginTools":5,"pluginEventDiscovered":true,"proofButtonDisabledWithoutListener":true,"noMomentTaskInTaskManagementUi":true,"taskFormOnlyExposesClockScheduling":true},
   "reportedByOpenaiCloudVerificationChat": {

@@ -8,9 +8,10 @@ Wrangler 4.92.0 is pinned in the root dependencies. OAuth and deployment complet
 
 Project-local Wrangler authentication can be isolated with `XDG_CONFIG_HOME="$PWD/.wrangler/executor-cli"`; `.wrangler/` is ignored. Set `WRANGLER_LOG_PATH` to an ignored or temporary path so the CLI does not try to write global system settings. Do not commit CLI credentials or copy them into this document.
 
-The executor requires two encrypted secrets:
+The executor requires three encrypted bindings:
 
 - `MOMENT_EXECUTOR_KEY`: a dedicated random key, also configured on the Site. It authorizes only the task-advancement endpoint.
+- `MOMENT_SITE_ORIGIN`: the exact HTTPS origin of the private ChatGPT Site, with no path or trailing slash. Set it through Wrangler secret input before deploying the executor.
 - `MOMENT_SITE_ACCESS_TOKEN`: the platform service-access token for this exact Site. It is only sent to that fixed origin, never to NVIDIA or a URL supplied by a request.
 
 The Sites app separately requires `NVIDIA_API_KEY`, the same executor key, and the explicit `MOMENT_BACKGROUND_ENABLED=true` switch. Leave the switch unset/false until a working executor and a deliberate example-only acceptance run are ready. Secret values are not stored in this repo or browser code.

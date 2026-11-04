@@ -2,8 +2,7 @@
   "date": "2026-11-03",
   "applicationCommit": "dab25b8d311663741281f9e24c277671998a9553",
   "siteVersion": 15,
-  "deploymentId": "appgdep_6ae9e96e0cf0819191d7ca5e1112594c",
-  "executorVersion": "6b07918c-2f71-4d49-b80d-b26108030a8f",
+  "executorVersion": "<private record ID>",
   "checks": {
     "testsPassed": 74,
     "typecheck": true,
@@ -39,7 +38,7 @@
       "bytes": 790974,
       "sha256": "f357ab8134afd2f377e0348a8053ea60ef89da2eeadd1d0a9c5f8e09c8f31536"
     },
-    "jobId": "daf8ab15-021e-4c6a-b55b-feb204ff59b0",
+    "jobId": "<private record ID>",
     "state": "succeeded",
     "resultFilesAdded": 1,
     "sourceBytesUnchanged": true,

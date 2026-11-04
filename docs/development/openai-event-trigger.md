@@ -40,7 +40,7 @@ The original complete task request works after correcting our Site code:
   "schedule": "",
   "timing_mode": "condition_watch",
   "triggers": [{
-    "connector_id": "asdk_app_sites_b9b46a1a49788191878618b24fcd671b",
+    "connector_id": "<site plugin ID>",
     "event": "public_sample.queued",
     "params": {}
   }]
@@ -72,7 +72,7 @@ The previous attribution to an OpenAI service problem was premature. The earlier
 
 ## Hosted acceptance
 
-Live code: `a5f83dd9942bc70c691991becca74d7435b2407f`, Site version 22, deployment `appgdep_6aea0e0189ec819186fc79e81cc80057` succeeded, owner-private access preserved.
+Live code: `a5f83dd9942bc70c691991becca74d7435b2407f`, Site version 22, deployment `<private release ID>` succeeded, owner-private access preserved.
 
 | Check | Observed result |
 | --- | --- |
@@ -80,7 +80,7 @@ Live code: `a5f83dd9942bc70c691991becca74d7435b2407f`, Site version 22, deployme
 | Actual website click | Clicked Generate exactly once; signed event accepted with HTTP 200 |
 | Automatic execution | Native MCP status became running without another prompt or manual Run now |
 | Closed validation pages | Site and setup-chat verification tabs closed while processing; completion still arrived |
-| Cloud completion | Job `b18be5ea-0286-4290-81fc-bf90b0e70b98` succeeded; automatic cloud run reported native image editing once |
+| Cloud completion | Job `<private record ID>` succeeded; automatic cloud run reported native image editing once |
 | Reopened Site | New image loaded at natural dimensions 1422 × 1106, 587,354 bytes |
 | Authenticated download | Downloaded file SHA-256 equals saved result SHA-256 below |
 | Manual albums | All 3 live D1 rows exactly equal before/after; no truncated row/value projection |
@@ -88,7 +88,7 @@ Live code: `a5f83dd9942bc70c691991becca74d7435b2407f`, Site version 22, deployme
 
 Result SHA-256: `20a97d40d6fb045de2c9f12bb12eb81ddd825ee2ea1542b456fc08c85897a688`.
 
-[Machine-readable acceptance](evidence/2026-11-04-openai-event-click-acceptance.json) distinguishes independent native readbacks, browser observations and the cloud run's report. [Verification chat](https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87) contains listener creation and its automatic completion. The result uses that listener chat as provenance, not a claimed separate run URL.
+[Machine-readable acceptance](evidence/2026-11-04-openai-event-click-acceptance.json) distinguishes independent native readbacks, browser observations and the cloud run's report. The listener chat provided the internal provenance for the result.
 
 Local checks: **82 tests passed**, TypeScript, static demo build and Sites fullstack build passed. These checks are not substitutes for the live acceptance above. No load test, long-term listener renewal, arbitrary-photo processing or automatic recovery from an accepted-but-never-executed event has been claimed. Those remain separate work before production Style Lab integration; one successful event does not establish unlimited quota or guaranteed execution.
 

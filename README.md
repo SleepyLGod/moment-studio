@@ -48,3 +48,7 @@ Open `http://127.0.0.1:4173/`. Run `npm run check` for tests, TypeScript and bot
 - [Photo import](docs/development/heic-import.md) · Formats, orientation, and capture dates
 - [Assets and credits](docs/ASSETS.md) · Bundled samples and fonts
 - [Later work](TODO.md) · Export, recovery, and other open work
+
+## License
+
+The original application code and documentation use the [MIT License](LICENSE). Images, screenshots, fonts, and third-party code have separate terms. See [asset credits](docs/ASSETS.md).

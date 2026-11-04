@@ -53,9 +53,9 @@ flowchart LR
 
 ### Hosted acceptance (UTC)
 
-- Private Sites v9, source `595fd4e14ce6dd17f54235091e9f3880d50afdcd`, deployment `appgdep_6ae99f365c9c81918a19b108b282b99f`. Environment revision 2, existing Cron unchanged; migrations 0004/0005 applied successfully. Feature-branch CI `41605511136` passed.
+- Private Sites v9, source `595fd4e14ce6dd17f54235091e9f3880d50afdcd`, deployment `<private release ID>`. Environment revision 2, existing Cron unchanged; migrations 0004/0005 applied successfully. Feature-branch CI `41605511136` passed.
 - Initial page load refreshed the real NVIDIA directory at 08:46:58; manual refresh updated it at 08:47:39. Both selected the previously successful Nemotron profile. After reload, the check time advanced to 08:53:12 while last success remained persisted. No inference call is used to refresh the directory.
-- Uploaded one public `1067.jpg` example named `moment-model-preference-example`. Job `5db1ad66-ace6-4e9e-a7d1-3eaa311fe768` froze the selected Nemotron model, then the existing scheduled runner saved a valid result at 08:50:18 with attempts=1. Owner `lastSuccessAt` matched that saved time. Tags: 摩天大楼、城市天际线、日落. No personal photo was submitted to the model.
+- Uploaded one public `1067.jpg` example named `moment-model-preference-example`. Job `<private record ID>` froze the selected Nemotron model, then the existing scheduled runner saved a valid result at 08:50:18 with attempts=1. Owner `lastSuccessAt` matched that saved time. Tags: 摩天大楼、城市天际线、日落. No personal photo was submitted to the model.
 - Months before the new example: November 2026=4, October 2026=12, September 2025=1. Browser displayed those cards. Recent directly displayed a 2-photo AI-tag group 城市天际线 plus same-day groups; opening it showed both photos without a confirmation step.
 - New photo preview identified `2026-11-03 · file date`. Downloaded original SHA-256 matched bundled/uploaded bytes: `477c3915d130a726c98dfae661e80a95a91d1affef24bfd6293e8aa68696a039`.
 - D1 comparison before/after migration, refresh, inference and collection reads: all 3 manual-album rows, revisions and order were exactly unchanged; all 17 pre-existing photo JSON/revision/timestamps were unchanged. Only the named acceptance photo was added. No empty indexed dates remained.

@@ -4,7 +4,6 @@
   "timeZoneForLogTimes": "UTC",
   "siteVersion": 9,
   "sourceCommit": "595fd4e14ce6dd17f54235091e9f3880d50afdcd",
-  "deploymentId": "appgdep_6ae99f365c9c81918a19b108b282b99f",
   "privateAudiencePreserved": true,
   "local": {
     "testsPassed": 44,
@@ -42,8 +41,8 @@
   "inference": {
     "sample": "public/photos/1067.jpg",
     "sampleRecordName": "moment-model-preference-example",
-    "photoId": "bc7948af-3e93-4dcb-a1ae-4487aaf9b85e",
-    "jobId": "5db1ad66-ace6-4e9e-a7d1-3eaa311fe768",
+    "photoId": "<private record ID>",
+    "jobId": "<private record ID>",
     "modelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",
     "state": "succeeded",
     "attempts": 1,
@@ -81,8 +80,8 @@
       "title": "城市天际线",
       "basis": "ai-tags",
       "photoIds": [
-        "955e69fd-bf75-475d-a7e8-6b17138c9c3e",
-        "bc7948af-3e93-4dcb-a1ae-4487aaf9b85e"
+        "<private record ID>",
+        "<private record ID>"
       ]
     },
     "confirmationStep": false

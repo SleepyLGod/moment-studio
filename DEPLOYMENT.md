@@ -15,9 +15,9 @@ The source repository is private. GitHub's Pages entitlement for this repository
 
 ## Private Sites workspace
 
-Reuse the `project_id` in `.openai/hosting.json` and the existing owner-only audience. Sites provisions the manifest's D1 (`DB`) and R2 (`BUCKET`) bindings and supplies visitor identity. API handlers also enforce owner and resource checks. Service-access tokens do not supply a visitor identity.
+Keep the existing owner-only audience. GitHub carries the portable manifest. The Sites-managed private source carries the same code with its own `project_id` added to `.openai/hosting.json`. Sites provisions the manifest's D1 (`DB`) and R2 (`BUCKET`) bindings and supplies visitor identity. API handlers also enforce owner and resource checks. Service-access tokens do not supply a visitor identity.
 
-Use the Sites source helper to push the exact checked commit and package `dist/`. Save and deploy that same commit through Sites, then verify its deployment status and owner-only audience. A GitHub push publishes the demo through Actions, while the private workspace uses the Sites publication workflow.
+Open the existing Site with the Sites source helper. Merge the checked GitHub source into that private checkout, retain its `project_id`, then build and commit there. Push and package that exact private commit with the helper. Verify its deployment and owner-only audience. A GitHub push publishes the demo through Actions, while the private workspace uses the Sites publication workflow.
 
 Sites applies SQL migrations during publication. Generate new ones with `npm run db:generate`, inspect them and commit the SQL plus Drizzle metadata. Treat applied migrations as immutable.
 
@@ -29,11 +29,11 @@ Sites applies SQL migrations during publication. Generate new ones with `npm run
 
 ## Deploy your own copy
 
-The source repository is private. Obtain access and permission from its owner before copying or deploying it. The application's source has no public open-source license. A new installation starts with an independent database, file storage and connections.
+The application code is under the [MIT License](LICENSE). A new installation starts with an independent database, file storage and connections.
 
 1. **Browser demo.** Use `npm run dev:demo` locally or publish the static build. If you publish under a different project name, set `DEMO_BASE` in the Pages workflow to that project's URL path. This edition uses sample images and browser-local storage and needs no AI credentials.
-2. **Private cloud library.** Create your own ChatGPT Site and publish from its own source repository. Replace the existing `project_id` in `.openai/hosting.json` with the new Site's ID and retain the D1, R2 and MCP declarations. Sites provisions fresh storage. Keep the audience owner-only, then test login, upload and original download before enabling AI.
-3. **NVIDIA photo tags.** Get your own NVIDIA API key with access to a compatible vision endpoint. Set `NVIDIA_API_KEY` on your Site, change `SITE_ORIGIN` in `executor/worker.mjs` to your new Site URL, and deploy the Cron Worker to your own Cloudflare account. Use a new shared `MOMENT_EXECUTOR_KEY` and your new Site's `MOMENT_SITE_ACCESS_TOKEN`, following the [executor setup](executor/README.md).
+2. **Private cloud library.** Create your own ChatGPT Site and publish from its own source repository. Add the new Site's `project_id` to `.openai/hosting.json` in the Site's private source checkout and retain the D1, R2 and MCP declarations. Sites provisions fresh storage. Keep the audience owner-only, then test login, upload and original download before enabling AI.
+3. **NVIDIA photo tags.** Get your own NVIDIA API key with access to a compatible vision endpoint. Set `NVIDIA_API_KEY` on your Site, set `MOMENT_SITE_ORIGIN` in your own Cloudflare Worker to the new Site URL, and deploy the Cron Worker to your account. Use a new shared `MOMENT_EXECUTOR_KEY` and your new Site's `MOMENT_SITE_ACCESS_TOKEN`, following the [executor setup](executor/README.md).
 4. **Live Style Lab.** In an eligible ChatGPT Work account or workspace, connect the plugin provisioned by your new Site. Create your own cloud task for `style_edit.queued` with access to native image editing. Follow the [task setup](docs/development/style-lab-subscription.md#cloud-task-setup) and confirm that Settings reports a connection. Test one public sample through to a saved result. This route uses the connected subscription.
 
 The existing hosted installation has been exercised. This checklist has not been run end to end on a second account. Check Sites, plugin and event-trigger availability in the intended account before relying on live editing.

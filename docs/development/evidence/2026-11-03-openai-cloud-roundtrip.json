@@ -1,15 +1,12 @@
 {
   "scope": "One public sample, explicitly started OpenAI cloud validation task; automatic website triggering is not implemented",
-  "site": "https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site",
   "proofPage": "/cloud-proof",
   "deployedSourceCommit": "e02f9faf391bbfc31413a37143f62035069b5cfa",
   "siteVersion": 16,
-  "deploymentId": "appgdep_6ae9fea14dd88191901cb012e5cd571a",
-  "pluginId": "plugin_asdk_app_sites_b9b46a1a49788191878618b24fcd671b",
-  "cloudTaskUrl": "https://chatgpt.com/local/01a1a1ee-2cf7-75f4-a134-13881f3ec0b7",
+  "pluginId": "plugin_<site plugin ID>",
   "cloudEnvironment": "moment-subscription-probe",
   "observedExecutionPlatform": "Linux 6.18.57 x86_64",
-  "jobId": "b4b83c60-7fc6-4c09-b9c4-77b64952dc43",
+  "jobId": "<private record ID>",
   "source": {
     "photoId": "1060",
     "path": "public/photos/1060.jpg",
@@ -30,7 +27,7 @@
     ],
     "activityDuration": "2m 12s",
     "browserValidationTabClosedDuringExecution": true,
-    "generatedPngPathReportedByCloudTask": "/workspace/generated_images/exec-f2cf297e-caf6-4a60-b02e-758ff331e8d4.png",
+    "generatedPngPathReportedByCloudTask": "/workspace/generated_images/exec-<private record ID>.png",
     "pngBytesReportedByCloudTask": 2669783,
     "macInferenceRunnerUsed": false,
     "additionalCloudServiceCreated": false,
@@ -41,8 +38,8 @@
     "jpegConversionStartsAtQuality": 95
   },
   "savedResult": {
-    "photoId": "subscription-b4b83c60-7fc6-4c09-b9c4-77b64952dc43",
-    "src": "/api/files/subscription-b4b83c60-7fc6-4c09-b9c4-77b64952dc43",
+    "photoId": "subscription-<private record ID>",
+    "src": "/api/files/<result-id>",
     "sha256": "181d5be03f008532f1ee1fecb22d253c7c494275347725e17fbba581a080409d",
     "width": 1422,
     "height": 1106,

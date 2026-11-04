@@ -1,8 +1,7 @@
 /** A single own-account Cron Worker wakes the existing Sites task runner. */
-const SITE_ORIGIN='https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site';
 const IMAGE_MODEL='@cf/black-forest-labs/flux-2-klein-4b';
 function imageBytes(value){if(typeof value!=='string'||value.length>4*1024*1024)throw new Error('Invalid image bytes.');const raw=atob(value),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);return bytes;}
-async function edit(task,env){
+async function edit(task,env,siteOrigin){
   if(!/^[a-zA-Z0-9_-]{1,100}$/.test(task.jobId)||typeof task.leaseToken!=='string'||task.leaseToken.length>100||task.model!==IMAGE_MODEL||typeof task.prompt!=='string'||task.prompt.length>1800||!Array.isArray(task.images)||task.images.length<1||task.images.length>2)throw new Error('Site returned an invalid image task.');
   let output,errorCode;
   try{
@@ -18,7 +17,7 @@ async function edit(task,env){
   // Delivery may repeat with the same lease and bytes. The model call never does.
   let response;
   for(let attempt=0;attempt<2;attempt++){
-    try{response=await fetch(SITE_ORIGIN+'/api/internal/jobs/'+task.jobId+'/result',{method:'POST',headers,body,redirect:'manual',signal:AbortSignal.timeout(20000)});if(response.ok)return await response.json();if(response.status<500)break;}
+    try{response=await fetch(siteOrigin+'/api/internal/jobs/'+task.jobId+'/result',{method:'POST',headers,body,redirect:'manual',signal:AbortSignal.timeout(20000)});if(response.ok)return await response.json();if(response.status<500)break;}
     catch(error){if(attempt===1)throw error;}
   }
   throw new Error('Result storage did not confirm completion: '+response?.status);
@@ -26,11 +25,16 @@ async function edit(task,env){
 function configured(env){return typeof env.MOMENT_EXECUTOR_KEY==='string'&&env.MOMENT_EXECUTOR_KEY.length>0&&typeof env.MOMENT_SITE_ACCESS_TOKEN==='string'&&env.MOMENT_SITE_ACCESS_TOKEN.length>0;}
 async function wake(env){
   if(!configured(env))throw new Error('Executor is not configured.');
-  // This platform token must only be sent to its originating Site.
-  const response=await fetch(SITE_ORIGIN+'/api/internal/jobs/run',{method:'POST',headers:{'content-type':'application/json','OAI-Sites-Authorization':'Bearer '+env.MOMENT_SITE_ACCESS_TOKEN,'x-moment-executor-key':env.MOMENT_EXECUTOR_KEY},body:'{}',signal:AbortSignal.timeout(40000),redirect:'manual'});
+  const siteOrigin=env.MOMENT_SITE_ORIGIN;
+  const url=URL.parse(siteOrigin);
+  if(!url || url.origin!==siteOrigin || url.protocol!=='https:' || url.port || !url.hostname.endsWith('.chatgpt.site')){
+    throw new Error('Configure MOMENT_SITE_ORIGIN as the HTTPS origin of the private ChatGPT Site.');
+  }
+  // The origin comes from deployment configuration and redirects are never followed.
+  const response=await fetch(siteOrigin+'/api/internal/jobs/run',{method:'POST',headers:{'content-type':'application/json','OAI-Sites-Authorization':'Bearer '+env.MOMENT_SITE_ACCESS_TOKEN,'x-moment-executor-key':env.MOMENT_EXECUTOR_KEY},body:'{}',signal:AbortSignal.timeout(40000),redirect:'manual'});
   if(!response.ok)throw new Error('Site task runner returned HTTP '+response.status);
   const result=await response.json();
-  if(result.editTask)return edit(result.editTask,env);
+  if(result.editTask)return edit(result.editTask,env,siteOrigin);
   if(!Number.isSafeInteger(result.processed)||result.processed<0||result.processed>1)throw new Error('Site returned an invalid task result.');
   return {processed:result.processed,...(result.failed?{failed:result.failed}:{})};
 }

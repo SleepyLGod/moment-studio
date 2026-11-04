@@ -1,7 +1,7 @@
 {
   "environment": "production Sites D1/R2 plus own-account Cloudflare Cron",
   "sourceCommit": "95a1fee51a4990698fe628a85ff74fd17276bc45",
-  "executorVersion": "309b41e8-2542-407a-adb5-6b8b1d890adb",
+  "executorVersion": "<private record ID>",
   "siteVersion": 7,
   "siteEnvironmentRevision": 2,
   "privateAudiencePreserved": true,
@@ -9,7 +9,7 @@
   "cron": "* * * * *",
   "closedBrowser": {
     "sample": "public/photos/1060.jpg",
-    "jobId": "b6065d61-cf11-4a62-8d9a-e36eae89992d",
+    "jobId": "<private record ID>",
     "actualScheduledEvent": true,
     "scheduledTime": 1793692694669,
     "outcome": "ok",
@@ -35,8 +35,8 @@
   },
   "jobs": [
     {
-      "id": "68a118ac-3a61-46fd-abe0-f17c4787f176",
-      "photoId": "955e69fd-bf75-475d-a7e8-6b17138c9c3e",
+      "id": "<private record ID>",
+      "photoId": "<private record ID>",
       "state": "succeeded",
       "attempts": 1,
       "modelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",
@@ -52,8 +52,8 @@
       "updatedAt": "2026-11-03T08:01:03.533Z"
     },
     {
-      "id": "b6065d61-cf11-4a62-8d9a-e36eae89992d",
-      "photoId": "42f83c04-71e5-43b9-ae86-026f6f7a650b",
+      "id": "<private record ID>",
+      "photoId": "<private record ID>",
       "state": "succeeded",
       "attempts": 1,
       "modelId": "nvidia/nemotron-3.5-super-vl-120b-a12b",

@@ -1,25 +1,19 @@
 {
   "status": "passed_bounded_public_sample_website_click_acceptance",
   "dateTimezone": "2026-11-04 Asia/Hong_Kong",
-  "site": "https://moment-studio-sleepylgod-demo.von-lu-cuhk.chatgpt.site",
-  "projectId": "appgprj_6ae83417d6b88191a4873a4bffafe1d4",
   "applicationCommit": "a5f83dd9942bc70c691991becca74d7435b2407f",
   "siteVersion": 22,
-  "deploymentId": "appgdep_6aea0e0189ec819186fc79e81cc80057",
   "supersedesHistoricalEvidence": "2026-11-04-openai-event-trigger.json",
   "task": {
-    "id": "6aea0e6875d88191be38d334306d2d88",
     "title": "Moment public sample image editor",
     "enabled": true,
     "schedule": "BEGIN:VEVENT\nX-UNSCHEDULED:1\nEND:VEVENT",
     "nextScheduledRun": null,
     "trigger": {
-      "connector_id": "asdk_app_sites_b9b46a1a49788191878618b24fcd671b",
       "event": "public_sample.queued",
       "params": {}
     }
   },
-  "verificationChat": "https://chatgpt.com/c/6aea031e-ad80-83ee-a0e8-9e466e237c87",
   "localChecks": {
     "testsPassed": 82,
     "types": "passed",
@@ -39,13 +33,13 @@
     "connectionReady": true,
     "setupPhase": "configured",
     "jobBeforeClick": null,
-    "jobId": "b18be5ea-0286-4290-81fc-bf90b0e70b98",
+    "jobId": "<private record ID>",
     "runningObservedAtUtc": "2026-11-03T16:42:32Z",
     "succeededObservedAtUtc": "2026-11-03T16:44:14Z",
     "finalState": "succeeded",
     "eventDeliveryAccepted": true,
     "eventHttpStatus": 200,
-    "eventId": "moment-job-b18be5ea-0286-4290-81fc-bf90b0e70b98",
+    "eventId": "moment-job-<private record ID>",
     "manualAlbumCount": 3,
     "allManualAlbumRowsExactlyUnchanged": true,
     "albumRowsOrValuesTruncated": false
@@ -74,8 +68,8 @@
     "sha256": "82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2"
   },
   "result": {
-    "photoId": "subscription-b18be5ea-0286-4290-81fc-bf90b0e70b98",
-    "path": "/api/files/subscription-b18be5ea-0286-4290-81fc-bf90b0e70b98",
+    "photoId": "subscription-<private record ID>",
+    "path": "/api/files/<result-id>",
     "width": 1422,
     "height": 1106,
     "bytes": 587354,

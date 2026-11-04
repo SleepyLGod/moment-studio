@@ -15,7 +15,7 @@ The first two calls edited the bundled public coffee photograph (`public/photos/
 | 480×373 | 2,537 ms | 188,685 | 107.87 |
 | 768×597 | 3,266 ms | 185,873 | 217.43 |
 
-A third call through the deployed Style Lab succeeded on the unmodified 900×700 bundled coffee photo; dashboard cumulative **326.98 neurons** afterward (observed increase109.55). It created job `13d37c12-cdaa-4369-9678-afebfab6c6a6`, one512px JPEG and a D1 derivative. Original download hash matches the repository source.
+A third call through the deployed Style Lab succeeded on the unmodified 900×700 bundled coffee photo; dashboard cumulative **326.98 neurons** afterward (observed increase109.55). It created job `<private record ID>`, one512px JPEG and a D1 derivative. Original download hash matches the repository source.
 
 Metering is the dashboard observation after each trial, not a usage field from the response (none was returned). The second observed increase is 109.56 neurons; it is not a promise of fixed per-image cost. Existing 768px previews were accepted, so no additional persistent AI-input image is needed. The effect resembles cut paper, but composition fidelity is approximate.
 

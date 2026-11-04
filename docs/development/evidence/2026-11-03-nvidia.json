@@ -7,7 +7,7 @@
       "status": 404,
       "elapsedMs": 435,
       "image": "bundled public/photos/1060.jpg",
-      "requestId": "2c71a3cc-8c98-44a7-818e-0d8f3833ad7f",
+      "requestId": "<private record ID>",
       "errorType": "upstream_function_not_found"
     },
     {
@@ -16,7 +16,7 @@
       "status": 404,
       "elapsedMs": 345,
       "image": "bundled public/photos/1060.jpg",
-      "requestId": "0e37e691-7208-4776-8aae-8354972649f9",
+      "requestId": "<private record ID>",
       "errorType": "provider_error"
     },
     {
@@ -26,7 +26,7 @@
       "elapsedMs": 2810,
       "image": "bundled public/photos/1060.jpg",
       "content": null,
-      "requestId": "f772b1b8-c051-4bcc-9b76-aec494792c4d"
+      "requestId": "<private record ID>"
     }
   ],
   "successfulReproducibleProbes": [
@@ -51,7 +51,7 @@
         "imageSha256": "82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2",
         "status": 200,
         "elapsedMs": 908,
-        "requestId": "b9089672-f4ea-4c14-9c5d-42b1d196c3d9",
+        "requestId": "<private record ID>",
         "finishReason": "stop",
         "analysis": {
           "tags": [
@@ -84,7 +84,7 @@
         "imageSha256": "477c3915d130a726c98dfae661e80a95a91d1affef24bfd6293e8aa68696a039",
         "status": 200,
         "elapsedMs": 987,
-        "requestId": "5e67a067-75c4-4c27-858b-be994c11dd1e",
+        "requestId": "<private record ID>",
         "finishReason": "stop",
         "analysis": {
           "tags": [

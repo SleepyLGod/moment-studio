@@ -32,8 +32,8 @@ Cosmos3 Nano是生成模型；其[官方模式表](https://build.nvidia.com/nvid
 
 - 本地74项测试通过；TypeScript、静态演示和Sites构建通过。九组预生成示例来源/资格检查通过。
 - 本地浏览器已观察移入Trash后22→21、Trash1张、恢复后Trash为空；是本地数据库验证，不等于线上验收。
-- 线上v15（应用`dab25b8`）与执行器`6b07918c-2f71-4d49-b80d-b26108030a8f`已发布。只对公开咖啡1060执行批量Trash/Restore：图库23→22→23，D1 deleted_at写入后清空，照片data及三个原有人工相册完整行比较一致。
-- 从网站提交Custom1440×1120，Cron实际调用Cloudflare完成job `daf8ab15-021e-4c6a-b55b-feb204ff59b0`。下载解码1440×1120 JPEG、790,974字节，SHA与D1 generation记录一致；源图下载与仓库原图字节一致。刷新后24张，重新打开Recent结果恢复Custom1440×1120。
+- 线上v15（应用`dab25b8`）与执行器`<private record ID>`已发布。只对公开咖啡1060执行批量Trash/Restore：图库23→22→23，D1 deleted_at写入后清空，照片data及三个原有人工相册完整行比较一致。
+- 从网站提交Custom1440×1120，Cron实际调用Cloudflare完成job `<private record ID>`。下载解码1440×1120 JPEG、790,974字节，SHA与D1 generation记录一致；源图下载与仓库原图字节一致。刷新后24张，重新打开Recent结果恢复Custom1440×1120。
 - 无访问者身份的图库列表和私有结果读取都返回401（使用平台服务通道，仅绕过登录页而不提供访问者身份）。GitHub仍private，Sites仍仅owner。
 - 本次删除/入队并发故障只做本地回归，未对线上做故障注入；未测本次单次neurons消耗，未开Paid，未自动重复模型调用。见[脱敏云端证据](evidence/2026-11-03-trash-output-cloud.json)。
 

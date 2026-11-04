@@ -11,11 +11,11 @@ Started 2026-11-02; hosted checks continued on 2026-11-03 (Asia/Hong_Kong). Test
 
 ## Hosted evidence
 
-- First full-stack deployment: source `a723fe283ca033b48cb94779e34430b253a53eae`, saved version `appgprj_6ae83417d6b88191a4873a4bffafe1d4~appgver_af8cba381a40819197b5b62da04d4f6a`, deployment `appgdep_6ae8b2b3bf6481919a78f587a66587c0` succeeded.
+- First full-stack deployment: source `a723fe283ca033b48cb94779e34430b253a53eae`, saved version `<private release ID>`, deployment `<private release ID>` succeeded.
 - Native database overview returned the `DB` binding and five tables: `albums`, `files`, `library_owner`, `photos`, `styles`.
 - Authenticated browser loaded the owner-private cloud library. A cookie-free command-line request to the live API returned HTTP 401.
 - Browser uploaded `moment-cloud-example.jpg` to real R2 and displayed the persisted photo. Downloaded original SHA-256: `82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2`, identical to the upload source.
-- Reviewed release v4: source `cb539520774cf6c27e9eb0902c5dfcff8746809a`, version `appgprj_6ae83417d6b88191a4873a4bffafe1d4~appgver_e44b2cdb8ec48191a253efa080d9fbe1`, deployment `appgdep_6ae8b7927c348191a90246c9b8ea1524` succeeded. The v3 upload and `Cloud check` album remained readable after this redeployment.
+- Reviewed release v4: source `cb539520774cf6c27e9eb0902c5dfcff8746809a`, version `<private release ID>`, deployment `<private release ID>` succeeded. The v3 upload and `Cloud check` album remained readable after this redeployment.
 - Classified the uploaded example as Travel. Saved the `Cloud check` note; reordered the seeded mountain album and reloaded the Site to confirm the new order persisted.
 - Saved the pre-generated Paper cut fjord result, applied the Mono tone to that result, and read its retained original. Saved the browser-rendered `Mountains & water` collage to R2. These operations brought the hosted gallery to 15 photos.
 - Saved `Graphite notes` with prompt `Soft graphite illustration, warm paper and gentle light.` and the bundled coffee reference. Its private reference loaded, and the recipe remained explicitly Not generated.

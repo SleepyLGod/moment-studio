@@ -42,17 +42,17 @@ sequenceDiagram
 - 执行器 `moment-photo-executor` 已部署，两个运行凭证以加密 secret 输入。控制台实际保存 `* * * * *`；不是只检查本地配置。
 - Sites v6，源码 `f2d576cc8553df792b14a5017a0418d8736c5d39`，生产环境修订 2，07:50:50 发布成功。迁移 0003 创建了 jobs 表；原有记录保留。
 - 携带平台服务凭证，缺少/错误执行密钥调用 runner 均为 401；正确密钥为 200、processed=0。相同平台凭证访问 `/api/me` 和私有原图仍为 401，不拥有用户身份。
-- 07:51:51，登录用户经 UI 为咖啡示例创建任务 `b6065d61-cf11-4a62-8d9a-e36eae89992d`，随后关闭全部图库页。独立 D1 读取观察 queued、attempts=0。
+- 07:51:51，登录用户经 UI 为咖啡示例创建任务 `<private record ID>`，随后关闭全部图库页。独立 D1 读取观察 queued、attempts=0。
 - 07:54:15，实际 Cron 事件触发，但 Worker 抛出 `Invalid redirect value`。Cloudflare 接受 follow/manual，不接受 error。任务仍 queued、attempts=0，没有假成功。
 - 根因修复：执行器及 NVIDIA 请求改为 manual，任何非 200 的重定向均拒绝；不把凭证或图像转发到另一个源。回归先观察失败，再修复通过。新增执行器与模型的 302 拒绝检查。
 
 ## 修复后的实测结果
 
-- Sites v7，源码 `95a1fee51a4990698fe628a85ff74fd17276bc45`，部署 `appgdep_6ae993fa6fac819197065fe34465216c`，环境修订 2，07:58:05 发布成功。执行器版本 `309b41e8-2542-407a-adb5-6b8b1d890adb`，相同 Cron 配置。
+- Sites v7，源码 `95a1fee51a4990698fe628a85ff74fd17276bc45`，部署 `<private release ID>`，环境修订 2，07:58:05 发布成功。执行器版本 `<private record ID>`，相同 Cron 配置。
 - 07:58:15 实际 scheduled 事件，outcome=ok、processed=1；墙钟 5947 ms、CPU 1 ms。这是单次观察，不是速度承诺。调用期间所有图库页仍关闭，网页轮询没有参与执行。
 - 07:58:21 D1 任务为 succeeded、attempts=1，结果为「咖啡壶、滤纸、手冲」，简述「倒入热水冲煮咖啡」。同一个 photo 保存相同 AI 字段和 jobId，原来的人工分类「旅行」、原图引用、共用缩略图引用保留。
 - 在新标签重新打开图库，照片预览显示 AI 标签和原来的 Travel 分类。通过登录用户的 Download original 下载文件，其 SHA-256 与项目 `1060.jpg` 完全相同：`82586f13e519cddd91b3b9a3790d088127e3b22cb882feef8c56ca639d7be6d2`。
-- 另外导入项目 `1067.jpg` 城市示例（命名 `moment-cron-overlap-example`），经 owner UI 创建任务 `68a118ac-3a61-46fd-abe0-f17c4787f176`。08:01:02 同时提交两次经过认证的 runner 请求，均 HTTP 200，processed 分别为 0 和 1。D1 该任务 succeeded、attempts=1、结果为「摩天大楼、城市天际线、日落」。
+- 另外导入项目 `1067.jpg` 城市示例（命名 `moment-cron-overlap-example`），经 owner UI 创建任务 `<private record ID>`。08:01:02 同时提交两次经过认证的 runner 请求，均 HTTP 200，processed 分别为 0 和 1。D1 该任务 succeeded、attempts=1、结果为「摩天大楼、城市天际线、日落」。
 - 本地 30/30 测试、TypeScript、Sites 和静态 demo 构建通过；GitHub 对 `95a1fee` 的 CI `41599893256` 通过。先前独立审查的两个重要问题已修复，实际 Cloudflare 重定向差异也有回归。
 - 城市示例完成后再次点击 AI tags，D1 仍只有上述两条任务，各 attempts=1；重复提交没有新增任务。可复查[脱敏结果记录](evidence/2026-11-03-cloud-executor.json)。
 

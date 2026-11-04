@@ -8,4 +8,4 @@
 - `tests/fixtures/import/SOURCES.json` pins the public compatibility fixtures, hashes, source repositories and accompanying licenses. Fixtures are used for tests, not bundled as public photo/demo assets. They are not user photos.
 - Design tools are optional. `.agents/skills/installed.json` records upstream sources and revisions of the project-local Taste and Impeccable skills. Their local copies are excluded from this source repository. No design skill is required to install, build or run the application.
 
-The application source has not been given a separate public open-source license as part of this private repository setup.
+The original application source and documentation are under the [MIT License](../LICENSE). Photos, generated examples, screenshots, fonts, and third-party code retain their own terms. The MIT license does not grant rights to those assets.

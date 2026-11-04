@@ -164,6 +164,3 @@ Cloudflare Containers 的上线还需要验证休眠／重启、任务租约、�
 - [Cloudflare Containers 概览：Workers Paid、独立容器部署](https://developers.cloudflare.com/containers/)
 - [Cloudflare 官方 Go 容器入门](https://developers.cloudflare.com/containers/get-started/)
 - [容器生命周期：磁盘默认临时、休眠后重新启动](https://developers.cloudflare.com/containers/concepts/architecture/)
-- [Sites skill：运行约束与发布入口](/Users/von/.codex/plugins/cache/openai-curated-remote/sites/1.1.2/skills/sites/SKILL.md)
-- [Sites 身份规则](/Users/von/.codex/plugins/cache/openai-curated-remote/sites/1.1.2/skills/sites/references/identity-and-secrets.md)
-- [上一轮能力和费用核查](/Users/von/Documents/Codex/2026-10-20/sites-plugin-sites-openai-curated-remote/outputs/backend-research-2026-11-02.md)
