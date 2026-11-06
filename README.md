@@ -1,6 +1,6 @@
 <h1 align="center">Moment Studio</h1>
 
-<p align="center">A private photo workbench for organizing your library, making collages, and turning a prompt into a new image.</p>
+<p align="center">A private photo workbench with AI image editing. Organize your library, make collages, and save prompts as reusable Styles.</p>
 
 <p align="center">
   <a href="https://sleepylgod.github.io/moment-studio/"><img alt="Try the demo" src="https://img.shields.io/badge/Try_the_demo-566749?style=flat-square&amp;logo=github&amp;logoColor=white"></a>
@@ -15,9 +15,9 @@
 
 ## What you can do
 
+- **Create and reuse a Style.** Start with your own photo and describe a new look. Compare the generated image with the original, then save the prompt and an optional reference to use on other photos.
 - **Organize your library.** Import still HEIC, JPEG, PNG and WebP. Browse by month, group recent photos with AI tags, and build your own albums.
 - **Make a collage.** Arrange selected photos, adjust the layout, and save the result as a new image.
-- **Create a Style.** Pick a photo, describe the edit, and compare the result with the original. Save the prompt and an optional reference as a reusable Style.
 - **Manage originals.** Download the original file, restore photos from Trash, or review what each permanent deletion would affect before confirming.
 
 ## Demo and private workspace
@@ -28,7 +28,7 @@
 | **Style Lab** | Interactive comparison with pre-generated results | Live prompt-based editing through a connected OpenAI cloud task |
 | **Storage** | This browser | D1 metadata and R2 files through ChatGPT Sites |
 
-The [public demo](https://sleepylgod.github.io/moment-studio/) is ready to try without signing in. With source access, you can [deploy an independent workspace](DEPLOYMENT.md#deploy-your-own-copy) with its own storage and AI connections.
+The [public demo](https://sleepylgod.github.io/moment-studio/) is ready to try without signing in. You can [deploy your own private workspace](DEPLOYMENT.md#deploy-your-own-copy) with its own storage and AI connections.
 
 ## Run locally
 

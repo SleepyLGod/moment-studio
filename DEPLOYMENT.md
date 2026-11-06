@@ -11,7 +11,7 @@ One source repository builds two editions. GitHub Actions publishes the static d
 
 The [Pages workflow](.github/workflows/pages.yml) builds on pushes to `main` and can also run manually. Pages uses GitHub Actions as its source. The deployment artifact contains the HTML, frontend bundles, bundled sample images and their public credits, fonts and license files. It excludes the Sites build, private files and test records. The demo runs in browser-local mode and uses IndexedDB.
 
-The source repository is private. GitHub's Pages entitlement for this repository permits the demo to be public. The project URL uses the `/moment-studio/` path under the account's existing `.github.io` address. Release checks should open that path in a browser and exercise sample images, the font and one sample Style result.
+The source repository and the GitHub Pages demo are public. The Sites workspace has its own owner-only access policy. The project URL uses the `/moment-studio/` path under the account's existing `.github.io` address. Release checks should open that path in a browser and exercise sample images, the font and one sample Style result.
 
 ## Private Sites workspace
 
